@@ -1,0 +1,1424 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmp5v791q3n.do 
+
+. do "5%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. 
+. * the following code automatically sets paths based on the project location o
+> n your system *local curdir = c(pwd)
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/5%-sample" // folder, in which the ori
+> ginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/5%-sample
+
+. global DATA "$ROOT/data/derived_confidential/5%-sample" // folder for dataset
+> s
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/5%-sample
+
+. global OUT "$ROOT/data/derived/5_results" // folder for output (results, tabl
+> es)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/5_results
+
+. 
+end of do-file
+
+. do "20250724_080623_01c7tv_h1.do"
+
+. *****************************************************************************
+> ***
+. ********************** Do-File H1: #ManyDaughters Project *******************
+> ***
+. *****************************************************************************
+> ***
+. 
+. * Authors: [REDACTED], [REDACTED]
+. 
+. * ============================
+. * Setup * 
+. * ============================
+. 
+. * clear all
+. version 18 // indicate the version of stata you are using here
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. * INSTALL PACKAGES * (Please adapt according to your needs)
+. * install all packages you need here, for example:
+. ssc install outreg2
+checking outreg2 consistency and verifying not already installed...
+all files already exist and are up to date.
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. /*
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> */
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA *
+. 
+.         use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. 
+.         * Merge ppathl with all datasets, that you deem relevant for your ana
+> lysis. (Tip: use keepusing() to specify which variables to keep from the usin
+> g dataset; the default is all.)
+. 
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches)
+(variable pid was long, now double to accommodate using data's values)
+(variable cid was long, now double to accommodate using data's values)
+(variable gebjahr was int, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * pgen contains user-friendly data on the individual level that are c
+> onsolidated from different sources
+.         merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * pl contains all variables from the individual questionnaire
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches)
+(variable inputdataset was str6, now str9 to accommodate using data's values)
+(label cid already defined)
+(label pid_EN already defined)
+(label cid_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * hgen contains generated variables on household level from the house
+> hold interview; use for household net income
+.         merge m:1 hid syear using "$IN/hgen.dta", nogen keep(master matches) 
+> keepusing(hid syear hghinc)
+(label iyear already defined)
+(label iyear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+. 
+.         label language EN // change language of the labels to English
+
+. 
+.         save "$DATA/manydaughters_h1_dataset.dta", replace // save merged dat
+> aset
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/5%-sample/manydaughters_h1_dataset.dta not found)
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/5%-sample/manydaughters_h1_dataset.dta saved
+
+. 
+. 
+. * ============================
+. * Analysis
+. * ============================
+. 
+. * FILTERS * 
+. 
+. /* 
+> sample: private households, with kid(s), first kid born before 2005
+> */
+.  
+.         * only keep participants from private households
+.         keep if inlist(pop,1,2)
+(4,698 observations deleted)
+
+.                 // (4,698 observations deleted)
+.         
+.         * only keep participants with children
+.         keep if sumkids != 0
+(8,946 observations deleted)
+
+.                 // (8,946 observations deleted)
+.         
+.         * only keep if first child is born before 2005
+.         keep if kidgeb01 < 2005
+(4,103 observations deleted)
+
+.                 // (4,103 observations deleted)
+.                 
+.                 * only keep if also partner is present in dataset
+.         drop if parid == -2 
+(3,491 observations deleted)
+
+.                 //(3,491  observations deleted)
+.                 
+.         * only keep respondents in heterosexual relationships
+.                 * sort data by person id
+.                 sort pid
+
+. 
+.                 * Create a variable with partner's sex by merging it from own
+>  sex using parid
+.                 *keep a dataset of pid and sex
+.                 preserve
+
+.                         keep pid sex syear
+
+.                         rename pid parid  // rename to match partner id 
+
+.                         rename sex partner_sex
+
+.                         tempfile partners
+
+.                         save `partners'
+file C:\Users\DALBRE~1\AppData\Local\Temp\ST_568c_000003.tmp saved as .dta
+    format
+
+.                 restore
+
+. 
+.                 * merge partner sex into original data by parid and syear
+.                 merge m:1 parid syear using `partners', keep(match master) no
+> generate
+(variable parid was long, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+(label pid_EN already defined)
+(label syear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                         1,468
+        from master                     1,468  
+        from using                          0  
+
+    Matched                            12,522  
+    -----------------------------------------
+
+. 
+.                 * keep only couples: where sex != partner_sex
+.                 keep if sex != partner_sex
+(0 observations deleted)
+
+.                         // (0 observations deleted)
+.         
+.                 * keep only years 2016, 2017, 2018
+.                 keep if syear == 2016 | syear == 2017 | syear == 2018
+(11,984 observations deleted)
+
+.                         // (11,984 observations deleted)
+. 
+. *****************************************************************************
+> ***
+. 
+. * GENERATE VARIABLES * IDENPENDENT
+. 
+.         * daughter
+.                 * dummy: 1 if respondent has at least 1 daughter
+.                 * 0 if respondent has sons only
+.                 * childless respondents are already dropped and not part of o
+> ur sample
+. 
+.         gen daughter = 0
+
+.                 forval i = 1/18 {
+  2.                         replace daughter = 1 if kidsex`=string(`i', "%02.0
+> f")' == 2
+  3.                 }
+(946 real changes made)
+(465 real changes made)
+(101 real changes made)
+(23 real changes made)
+(9 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+.                 
+.         label var daughter "At least one daughter"
+
+.         label def daughter 1 "min 1 daughter" 0 "sons only"
+
+.         label val daughter daughter 
+
+.         
+. *****************************************************************************
+> ***
+. 
+.         * H1: gender equality as measured in attitudes
+.         
+.         ta plj0620 // women same rights as men 
+
+  democracy: women have the same rights |
+                                 as men |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+[-5] Not included in this version of th |      1,807       95.91       95.91
+                         [-1] No answer |          5        0.27       96.18
+              [5] [de] 5 auf Skala 0-10 |          1        0.05       96.23
+              [6] [de] 6 auf Skala 0-10 |          2        0.11       96.34
+              [7] [de] 7 auf Skala 0-10 |          1        0.05       96.39
+              [8] [de] 8 auf Skala 0-10 |          1        0.05       96.44
+              [9] [de] 9 auf Skala 0-10 |          5        0.27       96.71
+[10] [de] 10=Gehoert auf jeden Fall zur |         62        3.29      100.00
+----------------------------------------+-----------------------------------
+                                  Total |      1,884      100.00
+
+.                            // this variable should range from 
+.                                    // 0: Should definitely not happen in a de
+> mocracy
+.                                    // 10: Should definitely happen in a democ
+> racy
+.                            // but given our sample restrictions it ranges fro
+> m 4 to 10,
+.                            // so we do not use it
+.                            
+.         ta plj0621 // working makes women independent 
+
+    position of women: working as women |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+[-5] Not included in this version of th |      1,807       95.91       95.91
+                         [-1] No answer |          6        0.32       96.23
+[1] [de] 1=Stimme ueberhaupt nicht zu,  |          1        0.05       96.28
+               [2] [de] 2 auf Skala 0-7 |          2        0.11       96.39
+               [3] [de] 3 auf Skala 0-7 |          3        0.16       96.55
+               [4] [de] 4 auf Skala 0-7 |          5        0.27       96.82
+               [5] [de] 5 auf Skala 0-7 |          4        0.21       97.03
+               [6] [de] 6 auf Skala 0-7 |          8        0.42       97.45
+ [7] [de] 7=Stimme voll zu, (Skala 1-7) |         48        2.55      100.00
+----------------------------------------+-----------------------------------
+                                  Total |      1,884      100.00
+
+.                            // 1: disagree completely
+.                            // 7: agree completely 
+.                 * replace as missing if values are negative
+.                 replace plj0621 = . if plj0621 <1
+(1,813 real changes made, 1,813 to missing)
+
+.                            
+.         ta plj0622 // working makes married women independent 
+
+  position of women: working as married |
+                                  women |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+[-5] Not included in this version of th |      1,807       95.91       95.91
+                         [-1] No answer |          6        0.32       96.23
+[1] [de] 1=Stimme ueberhaupt nicht zu,  |          1        0.05       96.28
+               [2] [de] 2 auf Skala 0-7 |          1        0.05       96.34
+               [3] [de] 3 auf Skala 0-7 |          5        0.27       96.60
+               [4] [de] 4 auf Skala 0-7 |          5        0.27       96.87
+               [5] [de] 5 auf Skala 0-7 |          4        0.21       97.08
+               [6] [de] 6 auf Skala 0-7 |          9        0.48       97.56
+ [7] [de] 7=Stimme voll zu, (Skala 1-7) |         46        2.44      100.00
+----------------------------------------+-----------------------------------
+                                  Total |      1,884      100.00
+
+.                            // 1: disagree completely
+.                            // 7: agree completely 
+.                 * replace as missing if values are negative
+.                 replace plj0622 = . if plj0622 <1
+(1,813 real changes made, 1,813 to missing)
+
+.                            
+.         ta plj0623 // women earns more than partner, problem 
+
+    position of women: when woman earns |
+            more than partner, problems |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+[-5] Not included in this version of th |      1,807       95.91       95.91
+                         [-1] No answer |          6        0.32       96.23
+[1] [de] 1=Stimme ueberhaupt nicht zu,  |         30        1.59       97.82
+               [2] [de] 2 auf Skala 0-7 |          2        0.11       97.93
+               [3] [de] 3 auf Skala 0-7 |          5        0.27       98.20
+               [4] [de] 4 auf Skala 0-7 |          8        0.42       98.62
+               [5] [de] 5 auf Skala 0-7 |         11        0.58       99.20
+               [6] [de] 6 auf Skala 0-7 |          3        0.16       99.36
+ [7] [de] 7=Stimme voll zu, (Skala 1-7) |         12        0.64      100.00
+----------------------------------------+-----------------------------------
+                                  Total |      1,884      100.00
+
+.                            // 1: disagree completely
+.                            // 7: agree completely 
+.                 * replace as missing if values are negative
+.                 replace plj0623 = . if plj0623 <1
+(1,813 real changes made, 1,813 to missing)
+
+.                                                 * --> needs to be reversed 
+.                                                 revrs plj0623
+
+.                            
+.         ta plj0624 // education of son more important than daughter 
+
+    position of women: education of son |
+        more important than of daughter |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+[-5] Not included in this version of th |      1,807       95.91       95.91
+                         [-1] No answer |          8        0.42       96.34
+[1] [de] 1=Stimme ueberhaupt nicht zu,  |         55        2.92       99.26
+               [3] [de] 3 auf Skala 0-7 |          2        0.11       99.36
+               [4] [de] 4 auf Skala 0-7 |          3        0.16       99.52
+               [5] [de] 5 auf Skala 0-7 |          1        0.05       99.58
+               [6] [de] 6 auf Skala 0-7 |          2        0.11       99.68
+ [7] [de] 7=Stimme voll zu, (Skala 1-7) |          6        0.32      100.00
+----------------------------------------+-----------------------------------
+                                  Total |      1,884      100.00
+
+.                            // 1: disagree completely
+.                            // 7: agree completely 
+.                 * replace as missing if values are negative
+.                 replace plj0624 = . if plj0624 <1
+(1,815 real changes made, 1,815 to missing)
+
+.                                                 * --> needs to be reversed 
+.                                                 revrs plj0624
+
+. 
+.         ta plj0625 // husband should have final say 
+
+ position of women: husband should have |
+                          the final say |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+[-5] Not included in this version of th |      1,807       95.91       95.91
+                         [-1] No answer |          4        0.21       96.13
+[1] [de] 1=Stimme ueberhaupt nicht zu,  |         34        1.80       97.93
+               [2] [de] 2 auf Skala 0-7 |          6        0.32       98.25
+               [3] [de] 3 auf Skala 0-7 |          1        0.05       98.30
+               [4] [de] 4 auf Skala 0-7 |         13        0.69       98.99
+               [5] [de] 5 auf Skala 0-7 |          6        0.32       99.31
+               [6] [de] 6 auf Skala 0-7 |          2        0.11       99.42
+ [7] [de] 7=Stimme voll zu, (Skala 1-7) |         11        0.58      100.00
+----------------------------------------+-----------------------------------
+                                  Total |      1,884      100.00
+
+.                            // 1: disagree completely
+.                            // 7: agree completely 
+.                 * replace as missing if values are negative
+.                 replace plj0625 = . if plj0625 <1
+(1,811 real changes made, 1,811 to missing)
+
+.                                                 * --> needs to be reversed 
+.                                                 revrs plj0625
+
+. 
+.         * We want to combine the above variables on attitudes into one variab
+> le 
+.         * test if scales can be combined
+.                 alpha  plj0621 plj0622 revplj0623 revplj0624 revplj0625, item
+
+Test scale = mean(unstandardized items)
+
+                                                            Average
+                             Item-test     Item-rest       interitem
+Item         |  Obs  Sign   correlation   correlation     covariance      alpha
+-------------+-----------------------------------------------------------------
+plj0621      |   71    +       0.6065        0.3709        .1059684      0.1013
+plj0622      |   71    +       0.6480        0.4260        .0564291      0.0560
+revplj0623   |   71    +       0.5731        0.1107        .2104733      0.2291
+revplj0624   |   69    -       0.2393       -0.1020        .5664186      0.4134
+revplj0625   |   73    +       0.3619       -0.1496        .4078383      0.3768
+-------------+-----------------------------------------------------------------
+Test scale   |                                             .2701443      0.2928
+-------------------------------------------------------------------------------
+
+. 
+.                 /*
+>                 Test scale = mean(unstandardized items)
+>                 Reversed item:  revplj0624
+> 
+>                 Average interitem covariance:     .2701443
+>                 Number of items in the scale:            5
+>                 Scale reliability coefficient:      0.2928
+>                 --> poor scale reliability (threshold 0.7)
+>                 */
+. 
+.                 alpha plj0621 plj0622
+
+Test scale = mean(unstandardized items)
+
+Average interitem covariance:     1.809256
+Number of items in the scale:            2
+Scale reliability coefficient:      0.9008
+
+. 
+.                 /*
+>                 Test scale = mean(unstandardized items)
+> 
+>                 Average interitem covariance:     1.809256
+>                 Number of items in the scale:            2
+>                 Scale reliability coefficient:      0.9008
+>                 
+>                 --> we use this
+>                 */
+.                         
+.         
+.         * summarize attitude values
+.         //egen combined_attitudes = rowmean(plj0620_7pt plj0621 plj0622)
+.         egen combined_attitudes = rowmean(plj0621 plj0622)
+(1,935 missing values generated)
+
+.         
+.                                 * the combined variable (combined_attitudes) 
+> contains too 
+.                                 * many small categories 
+.                                 * to ease the interpretation of the analysis 
+> we create a variable
+.                                 * with 6 categories 
+.                                 gen combined_attitudes_round = round(combined
+> _attitudes, 1)
+(1,935 missing values generated)
+
+.                                         /*
+>                                         . ta combined_attitudes_round
+> 
+>                                         combined_at |
+>                                         titudes_rou |
+>                                                          nd |      Freq.     
+> Percent        Cum.
+>                                         ------------+------------------------
+> -----------
+>                                                           2 |          1     
+>    1.41        1.41
+>                                                           3 |          4     
+>    5.63        7.04
+>                                                           4 |          8     
+>   11.27       18.31
+>                                                           5 |          2     
+>    2.82       21.13
+>                                                           6 |          8     
+>   11.27       32.39
+>                                                           7 |         48     
+>   67.61      100.00
+>                                         ------------+------------------------
+> -----------
+>                                                   Total |         71      100
+> .00
+>                                         */
+.                                         * --> scale goes from 2 to 7, we want
+>  it from 1 to 6 instead
+.                                 replace combined_attitudes_round = (round(com
+> bined_attitudes, 1))-1
+(71 real changes made)
+
+.                                 
+.                                 
+.                         * generate average of attitudes combined for 2016, 20
+> 17, 2018
+.                         egen att_mean_pid = mean(combined_attitudes_round), b
+> y(pid)
+(1,850 missing values generated)
+
+.                         replace combined_attitudes_round = att_mean_pid if mi
+> ssing(combined_attitudes_round)
+(85 real changes made)
+
+.                         drop att_mean_pid
+
+. 
+.                         *rename final dependent variable: 
+.                         rename combined_attitudes_round genderatt_1618 
+
+.                         
+. *****************************************************************************
+> ***
+.         
+. * GENERATE VARIABLES * CONTROLS 
+. 
+.         * sisters of respondents
+.         gen sister = 0
+
+. 
+.         forval i = 17(3)44 {
+  2.                 replace sister = 1 if pla00`i' == 2
+  3.         }
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+.         
+. 
+.         label var sister "has at least 1 sister"
+
+.         label define sister 1 "yes" 0 "no"
+
+.         label val sister sister
+
+.                 ** however, sister as sibling only measured in 2013
+.                 ** so we omit it from analysis
+. 
+.         * year of birth
+.         ta gebjahr // use as i.gebjahr
+
+                    Birth Year, 4-digit |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+                                   1923 |          2        0.10        0.10
+                                   1925 |          2        0.10        0.20
+                                   1927 |          3        0.15        0.35
+                                   1928 |          6        0.30        0.65
+                                   1929 |          4        0.20        0.85
+                                   1930 |          4        0.20        1.05
+                                   1931 |          9        0.45        1.50
+                                   1932 |          3        0.15        1.65
+                                   1933 |          3        0.15        1.79
+                                   1934 |         11        0.55        2.34
+                                   1935 |         10        0.50        2.84
+                                   1936 |         17        0.85        3.69
+                                   1937 |          8        0.40        4.09
+                                   1938 |         22        1.10        5.18
+                                   1939 |         26        1.30        6.48
+                                   1940 |         41        2.04        8.52
+                                   1941 |         28        1.40        9.92
+                                   1942 |         21        1.05       10.97
+                                   1943 |         44        2.19       13.16
+                                   1944 |         22        1.10       14.26
+                                   1945 |         21        1.05       15.30
+                                   1946 |         33        1.65       16.95
+                                   1947 |         12        0.60       17.55
+                                   1948 |         45        2.24       19.79
+                                   1949 |         54        2.69       22.48
+                                   1950 |         53        2.64       25.12
+                                   1951 |         27        1.35       26.47
+                                   1952 |         32        1.60       28.07
+                                   1953 |         25        1.25       29.31
+                                   1954 |         42        2.09       31.41
+                                   1955 |         49        2.44       33.85
+                                   1956 |         14        0.70       34.55
+                                   1957 |         48        2.39       36.94
+                                   1958 |         38        1.89       38.83
+                                   1959 |         54        2.69       41.53
+                                   1960 |         69        3.44       44.97
+                                   1961 |         66        3.29       48.26
+                                   1962 |         55        2.74       51.00
+                                   1963 |         55        2.74       53.74
+                                   1964 |         56        2.79       56.53
+                                   1965 |         83        4.14       60.67
+                                   1966 |         73        3.64       64.31
+                                   1967 |         50        2.49       66.80
+                                   1968 |         54        2.69       69.49
+                                   1969 |         91        4.54       74.03
+                                   1970 |         67        3.34       77.37
+                                   1971 |         90        4.49       81.85
+                                   1972 |         36        1.79       83.65
+                                   1973 |         37        1.84       85.49
+                                   1974 |         44        2.19       87.69
+                                   1975 |         25        1.25       88.93
+                                   1976 |         44        2.19       91.13
+                                   1977 |         34        1.69       92.82
+                                   1978 |         26        1.30       94.12
+                                   1979 |         29        1.45       95.56
+                                   1980 |         22        1.10       96.66
+                                   1981 |         24        1.20       97.86
+                                   1982 |         23        1.15       99.00
+                                   1983 |          9        0.45       99.45
+                                   1984 |          4        0.20       99.65
+                                   1985 |          3        0.15       99.80
+                                   1986 |          1        0.05       99.85
+                                   1989 |          3        0.15      100.00
+----------------------------------------+-----------------------------------
+                                  Total |      2,006      100.00
+
+. 
+.         * income (personal, net)
+.         ta pglabnet
+
+       Current Net Labor Income in Euro |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+                    [-2] Does not apply |        881       46.76       46.76
+                                      0 |          5        0.27       47.03
+                                      1 |          1        0.05       47.08
+                                     50 |          1        0.05       47.13
+                                     62 |          1        0.05       47.19
+                                     86 |          1        0.05       47.24
+                                    100 |          4        0.21       47.45
+                                    108 |          1        0.05       47.51
+                                    113 |          1        0.05       47.56
+                                    115 |          1        0.05       47.61
+                                    120 |          2        0.11       47.72
+                                    125 |          2        0.11       47.82
+                                    130 |          2        0.11       47.93
+                                    140 |          1        0.05       47.98
+                                    165 |          2        0.11       48.09
+                                    200 |          1        0.05       48.14
+                                    220 |          1        0.05       48.20
+                                    230 |          2        0.11       48.30
+                                    231 |          1        0.05       48.35
+                                    248 |          1        0.05       48.41
+                                    250 |          2        0.11       48.51
+                                    270 |          1        0.05       48.57
+                                    290 |          3        0.16       48.73
+                                    294 |          1        0.05       48.78
+                                    300 |          6        0.32       49.10
+                                    320 |          2        0.11       49.20
+                                    323 |          1        0.05       49.26
+                                    338 |          1        0.05       49.31
+                                    350 |          6        0.32       49.63
+                                    370 |          1        0.05       49.68
+                                    390 |          2        0.11       49.79
+                                    394 |          1        0.05       49.84
+                                    395 |          1        0.05       49.89
+                                    400 |         16        0.85       50.74
+                                    406 |          1        0.05       50.80
+                                    411 |          2        0.11       50.90
+                                    412 |          1        0.05       50.96
+                                    415 |          1        0.05       51.01
+                                    417 |          3        0.16       51.17
+                                    420 |          1        0.05       51.22
+                                    423 |          1        0.05       51.27
+                                    428 |          2        0.11       51.38
+                                    429 |          2        0.11       51.49
+                                    430 |          4        0.21       51.70
+                                    432 |          1        0.05       51.75
+                                    433 |          4        0.21       51.96
+                                    436 |          1        0.05       52.02
+                                    445 |          1        0.05       52.07
+                                    450 |         32        1.70       53.77
+                                    460 |          2        0.11       53.87
+                                    480 |          1        0.05       53.93
+                                    495 |          1        0.05       53.98
+                                    500 |          8        0.42       54.41
+                                    503 |          1        0.05       54.46
+                                    510 |          2        0.11       54.56
+                                    520 |          1        0.05       54.62
+                                    535 |          2        0.11       54.72
+                                    544 |          1        0.05       54.78
+                                    550 |          1        0.05       54.83
+                                    570 |          1        0.05       54.88
+                                    580 |          2        0.11       54.99
+                                    587 |          1        0.05       55.04
+                                    594 |          1        0.05       55.10
+                                    600 |          8        0.42       55.52
+                                    605 |          1        0.05       55.57
+                                    609 |          1        0.05       55.63
+                                    620 |          1        0.05       55.68
+                                    630 |          3        0.16       55.84
+                                    640 |          2        0.11       55.94
+                                    648 |          1        0.05       56.00
+                                    650 |          4        0.21       56.21
+                                    660 |          1        0.05       56.26
+                                    662 |          1        0.05       56.32
+                                    672 |          1        0.05       56.37
+                                    678 |          1        0.05       56.42
+                                    680 |          2        0.11       56.53
+                                    690 |          1        0.05       56.58
+                                    692 |          1        0.05       56.63
+                                    700 |         12        0.64       57.27
+                                    702 |          1        0.05       57.32
+                                    705 |          2        0.11       57.43
+                                    710 |          1        0.05       57.48
+                                    714 |          1        0.05       57.54
+                                    719 |          1        0.05       57.59
+                                    720 |          7        0.37       57.96
+                                    725 |          1        0.05       58.01
+                                    730 |          1        0.05       58.07
+                                    733 |          1        0.05       58.12
+                                    736 |          1        0.05       58.17
+                                    737 |          1        0.05       58.23
+                                    738 |          2        0.11       58.33
+                                    740 |          1        0.05       58.39
+                                    744 |          1        0.05       58.44
+                                    750 |          2        0.11       58.55
+                                    760 |          4        0.21       58.76
+                                    778 |          1        0.05       58.81
+                                    780 |          3        0.16       58.97
+                                    790 |          2        0.11       59.08
+                                    795 |          1        0.05       59.13
+                                    800 |         22        1.17       60.30
+                                    801 |          1        0.05       60.35
+                                    815 |          1        0.05       60.40
+                                    817 |          1        0.05       60.46
+                                    820 |          3        0.16       60.62
+                                    830 |          1        0.05       60.67
+                                    835 |          2        0.11       60.77
+                                    845 |          2        0.11       60.88
+                                    850 |          7        0.37       61.25
+                                    855 |          2        0.11       61.36
+                                    860 |          1        0.05       61.41
+                                    870 |          1        0.05       61.46
+                                    875 |          1        0.05       61.52
+                                    880 |          1        0.05       61.57
+                                    899 |          1        0.05       61.62
+                                    900 |          6        0.32       61.94
+                                    901 |          1        0.05       62.00
+                                    904 |          1        0.05       62.05
+                                    922 |          1        0.05       62.10
+                                    930 |          1        0.05       62.15
+                                    948 |          1        0.05       62.21
+                                    950 |          7        0.37       62.58
+                                    953 |          1        0.05       62.63
+                                    962 |          1        0.05       62.69
+                                    980 |          1        0.05       62.74
+                                    982 |          1        0.05       62.79
+                                    990 |          1        0.05       62.85
+                                   1000 |         19        1.01       63.85
+                                   1030 |          2        0.11       63.96
+                                   1035 |          2        0.11       64.07
+                                   1050 |          3        0.16       64.23
+                                   1056 |          1        0.05       64.28
+                                   1058 |          1        0.05       64.33
+                                   1075 |          1        0.05       64.38
+                                   1080 |          1        0.05       64.44
+                                   1085 |          1        0.05       64.49
+                                   1090 |          1        0.05       64.54
+                                   1093 |          1        0.05       64.60
+                                   1094 |          1        0.05       64.65
+                                   1100 |         12        0.64       65.29
+                                   1113 |          1        0.05       65.34
+                                   1120 |          1        0.05       65.39
+                                   1125 |          1        0.05       65.45
+                                   1126 |          1        0.05       65.50
+                                   1129 |          1        0.05       65.55
+                                   1134 |          1        0.05       65.61
+                                   1150 |          2        0.11       65.71
+                                   1193 |          1        0.05       65.76
+                                   1197 |          1        0.05       65.82
+                                   1198 |          1        0.05       65.87
+                                   1200 |         31        1.65       67.52
+                                   1215 |          1        0.05       67.57
+                                   1220 |          1        0.05       67.62
+                                   1222 |          2        0.11       67.73
+                                   1250 |         12        0.64       68.37
+                                   1267 |          2        0.11       68.47
+                                   1270 |          2        0.11       68.58
+                                   1285 |          1        0.05       68.63
+                                   1288 |          1        0.05       68.68
+                                   1297 |          1        0.05       68.74
+                                   1300 |         23        1.22       69.96
+                                   1312 |          1        0.05       70.01
+                                   1320 |          2        0.11       70.12
+                                   1330 |          1        0.05       70.17
+                                   1337 |          1        0.05       70.22
+                                   1340 |          3        0.16       70.38
+                                   1346 |          1        0.05       70.44
+                                   1350 |          4        0.21       70.65
+                                   1351 |          1        0.05       70.70
+                                   1360 |          1        0.05       70.75
+                                   1370 |          1        0.05       70.81
+                                   1379 |          1        0.05       70.86
+                                   1390 |          1        0.05       70.91
+                                   1391 |          1        0.05       70.97
+                                   1392 |          1        0.05       71.02
+                                   1400 |         17        0.90       71.92
+                                   1405 |          1        0.05       71.97
+                                   1417 |          1        0.05       72.03
+                                   1425 |          1        0.05       72.08
+                                   1439 |          1        0.05       72.13
+                                   1440 |          1        0.05       72.19
+                                   1450 |          3        0.16       72.35
+                                   1456 |          2        0.11       72.45
+                                   1479 |          1        0.05       72.51
+                                   1484 |          1        0.05       72.56
+                                   1490 |          1        0.05       72.61
+                                   1497 |          1        0.05       72.66
+                                   1498 |          1        0.05       72.72
+                                   1500 |         22        1.17       73.89
+                                   1550 |          5        0.27       74.15
+                                   1560 |          1        0.05       74.20
+                                   1575 |          1        0.05       74.26
+                                   1580 |          1        0.05       74.31
+                                   1586 |          1        0.05       74.36
+                                   1592 |          1        0.05       74.42
+                                   1594 |          1        0.05       74.47
+                                   1600 |         16        0.85       75.32
+                                   1609 |          1        0.05       75.37
+                                   1616 |          1        0.05       75.42
+                                   1637 |          1        0.05       75.48
+                                   1639 |          1        0.05       75.53
+                                   1640 |          2        0.11       75.64
+                                   1647 |          1        0.05       75.69
+                                   1650 |          2        0.11       75.80
+                                   1651 |          1        0.05       75.85
+                                   1660 |          1        0.05       75.90
+                                   1680 |          1        0.05       75.96
+                                   1692 |          1        0.05       76.01
+                                   1700 |         14        0.74       76.75
+                                   1730 |          1        0.05       76.80
+                                   1741 |          1        0.05       76.86
+                                   1750 |          3        0.16       77.02
+                                   1756 |          1        0.05       77.07
+                                   1764 |          1        0.05       77.12
+                                   1770 |          1        0.05       77.18
+                                   1780 |          1        0.05       77.23
+                                   1790 |          1        0.05       77.28
+                                   1800 |         13        0.69       77.97
+                                   1809 |          1        0.05       78.03
+                                   1850 |          1        0.05       78.08
+                                   1875 |          1        0.05       78.13
+                                   1890 |          1        0.05       78.18
+                                   1900 |         14        0.74       78.93
+                                   1929 |          1        0.05       78.98
+                                   1930 |          1        0.05       79.03
+                                   1950 |          3        0.16       79.19
+                                   1970 |          1        0.05       79.25
+                                   1979 |          1        0.05       79.30
+                                   1988 |          1        0.05       79.35
+                                   2000 |         17        0.90       80.25
+                                   2007 |          1        0.05       80.31
+                                   2019 |          1        0.05       80.36
+                                   2047 |          1        0.05       80.41
+                                   2050 |          1        0.05       80.47
+                                   2058 |          1        0.05       80.52
+                                   2081 |          1        0.05       80.57
+                                   2100 |          8        0.42       81.00
+                                   2105 |          1        0.05       81.05
+                                   2111 |          1        0.05       81.10
+                                   2120 |          1        0.05       81.16
+                                   2140 |          1        0.05       81.21
+                                   2150 |          1        0.05       81.26
+                                   2179 |          1        0.05       81.32
+                                   2185 |          1        0.05       81.37
+                                   2200 |         21        1.11       82.48
+                                   2250 |          4        0.21       82.70
+                                   2300 |          8        0.42       83.12
+                                   2319 |          1        0.05       83.17
+                                   2350 |          2        0.11       83.28
+                                   2361 |          1        0.05       83.33
+                                   2397 |          1        0.05       83.39
+                                   2400 |         10        0.53       83.92
+                                   2450 |          1        0.05       83.97
+                                   2456 |          1        0.05       84.02
+                                   2479 |          1        0.05       84.08
+                                   2480 |          1        0.05       84.13
+                                   2492 |          1        0.05       84.18
+                                   2499 |          1        0.05       84.24
+                                   2500 |         26        1.38       85.62
+                                   2513 |          1        0.05       85.67
+                                   2553 |          1        0.05       85.72
+                                   2583 |          1        0.05       85.77
+                                   2593 |          1        0.05       85.83
+                                   2600 |          7        0.37       86.20
+                                   2650 |          3        0.16       86.36
+                                   2696 |          1        0.05       86.41
+                                   2700 |         15        0.80       87.21
+                                   2723 |          1        0.05       87.26
+                                   2730 |          1        0.05       87.31
+                                   2750 |          1        0.05       87.37
+                                   2790 |          1        0.05       87.42
+                                   2799 |          2        0.11       87.53
+                                   2800 |         14        0.74       88.27
+                                   2810 |          1        0.05       88.32
+                                   2830 |          1        0.05       88.38
+                                   2840 |          1        0.05       88.43
+                                   2900 |          5        0.27       88.69
+                                   2943 |          1        0.05       88.75
+                                   3000 |         11        0.58       89.33
+                                   3005 |          1        0.05       89.38
+                                   3050 |          1        0.05       89.44
+                                   3061 |          1        0.05       89.49
+                                   3100 |          6        0.32       89.81
+                                   3120 |          1        0.05       89.86
+                                   3150 |          1        0.05       89.92
+                                   3159 |          1        0.05       89.97
+                                   3190 |          1        0.05       90.02
+                                   3200 |         13        0.69       90.71
+                                   3250 |          1        0.05       90.76
+                                   3300 |          9        0.48       91.24
+                                   3350 |          1        0.05       91.30
+                                   3400 |          5        0.27       91.56
+                                   3460 |          1        0.05       91.61
+                                   3492 |          1        0.05       91.67
+                                   3500 |         13        0.69       92.36
+                                   3553 |          1        0.05       92.41
+                                   3590 |          1        0.05       92.46
+                                   3595 |          1        0.05       92.52
+                                   3600 |          4        0.21       92.73
+                                   3660 |          1        0.05       92.78
+                                   3699 |          2        0.11       92.89
+                                   3700 |          6        0.32       93.21
+                                   3799 |          1        0.05       93.26
+                                   3800 |          6        0.32       93.58
+                                   3850 |          1        0.05       93.63
+                                   3900 |          6        0.32       93.95
+                                   3973 |          1        0.05       94.00
+                                   4000 |          5        0.27       94.27
+                                   4020 |          1        0.05       94.32
+                                   4050 |          1        0.05       94.37
+                                   4064 |          1        0.05       94.43
+                                   4073 |          1        0.05       94.48
+                                   4077 |          1        0.05       94.53
+                                   4100 |          3        0.16       94.69
+                                   4200 |          4        0.21       94.90
+                                   4300 |          6        0.32       95.22
+                                   4400 |          1        0.05       95.28
+                                   4490 |          1        0.05       95.33
+                                   4500 |         14        0.74       96.07
+                                   4550 |          2        0.11       96.18
+                                   4568 |          1        0.05       96.23
+                                   4600 |          4        0.21       96.44
+                                   4680 |          1        0.05       96.50
+                                   4700 |          3        0.16       96.66
+                                   4800 |          2        0.11       96.76
+                                   4900 |          1        0.05       96.82
+                                   5000 |         14        0.74       97.56
+                                   5100 |          2        0.11       97.66
+                                   5145 |          1        0.05       97.72
+                                   5200 |          3        0.16       97.88
+                                   5300 |          1        0.05       97.93
+                                   5400 |          2        0.11       98.04
+                                   5401 |          1        0.05       98.09
+                                   5500 |          4        0.21       98.30
+                                   5600 |          2        0.11       98.41
+                                   5700 |          1        0.05       98.46
+                                   5800 |          1        0.05       98.51
+                                   5900 |          1        0.05       98.57
+                                   6000 |          3        0.16       98.73
+                                   6010 |          1        0.05       98.78
+                                   6012 |          1        0.05       98.83
+                                   6050 |          1        0.05       98.89
+                                   6200 |          2        0.11       98.99
+                                   6385 |          1        0.05       99.04
+                                   6420 |          1        0.05       99.10
+                                   6430 |          1        0.05       99.15
+                                   6500 |          2        0.11       99.26
+                                   7500 |          2        0.11       99.36
+                                   7659 |          1        0.05       99.42
+                                   8000 |          3        0.16       99.58
+                                   8500 |          2        0.11       99.68
+                                   8984 |          1        0.05       99.73
+                                   9000 |          1        0.05       99.79
+                                  10000 |          2        0.11       99.89
+                                  12887 |          1        0.05       99.95
+                                  13878 |          1        0.05      100.00
+----------------------------------------+-----------------------------------
+                                  Total |      1,884      100.00
+
+.                 * replace negative values = .
+.                 gen pglabnet_mi = pglabnet
+(122 missing values generated)
+
+.                 replace pglabnet_mi = . if pglabnet < 0 
+(881 real changes made, 881 to missing)
+
+.                 * income is often skewed, check for that
+.                 summarize pglabnet_mi // right skewed --> use log income inst
+> aed
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+ pglabnet_mi |      1,003    1985.234    1633.755          0      13878
+
+.                 * log transformation
+.                 gen log_netincome = log(pglabnet_mi) // use as c.log_netincom
+> e
+(1,008 missing values generated)
+
+. 
+.         * education
+.         ta pgisced97
+
+              ISCED-1997-Classification |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+                         [-1] No answer |         24        1.27        1.27
+                       [1] inadequately |         89        4.72        6.00
+                 [2] general elementary |        173        9.18       15.18
+                  [3] middle vocational |        891       47.29       62.47
+                   [4] vocational + Abi |        105        5.57       68.05
+                  [5] higher vocational |        130        6.90       74.95
+                   [6] higher education |        472       25.05      100.00
+----------------------------------------+-----------------------------------
+                                  Total |      1,884      100.00
+
+.                 * replace negative values = .
+.                 gen pgisced97_mi = pgisced97
+(122 missing values generated)
+
+.                 replace pgisced97_mi = . if pgisced97 == -1
+(24 real changes made, 24 to missing)
+
+.         
+.         ta pgisced97_mi // use as i.pgisced97_mi 
+
+pgisced97_m |
+          i |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          1 |         89        4.78        4.78
+          2 |        173        9.30       14.09
+          3 |        891       47.90       61.99
+          4 |        105        5.65       67.63
+          5 |        130        6.99       74.62
+          6 |        472       25.38      100.00
+------------+-----------------------------------
+      Total |      1,860      100.00
+
+. 
+.         * marital status survey year
+.         ta pgfamstd
+
+          Marital Status In Survey Year |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+                         [-3] Not valid |          4        0.21        0.21
+                            [1] Married |      1,696       90.02       90.23
+             [2] Married, But Separated |         15        0.80       91.03
+                             [3] Single |         35        1.86       92.89
+                           [4] Divorced |        100        5.31       98.20
+[5] [de] Verwitwet / Lebenspartner/-in  |         34        1.80      100.00
+----------------------------------------+-----------------------------------
+                                  Total |      1,884      100.00
+
+.                 * replace negative values = .
+.                 gen pgfamstd_mi = pgfamstd
+(122 missing values generated)
+
+.                 replace pgfamstd_mi = . if pgfamstd == -1 | pgfamstd == -2 | 
+> pgfamstd == -3
+(4 real changes made, 4 to missing)
+
+.                 
+.         ta pgfamstd_mi // use as i.pgfamstd_mi
+
+pgfamstd_mi |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          1 |      1,696       90.21       90.21
+          2 |         15        0.80       91.01
+          3 |         35        1.86       92.87
+          4 |        100        5.32       98.19
+          5 |         34        1.81      100.00
+------------+-----------------------------------
+      Total |      1,880      100.00
+
+. 
+.         * migration background
+.         ta migback // i.migback
+
+                   Migration background |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+            [1] no migration background |      1,474       73.48       73.48
+        [2] direct migration background |        488       24.33       97.81
+      [3] indirect migration background |         44        2.19      100.00
+----------------------------------------+-----------------------------------
+                                  Total |      2,006      100.00
+
+.                 ** however, migration background is always == 2 for all respo
+> ndents 
+.                 ** who answered attitudinal questions
+.                 ** so we omit it from analysis  
+.         
+.         * male
+.         gen male = . 
+(2,006 missing values generated)
+
+.         replace male = 1 if sex == 1
+(966 real changes made)
+
+.         replace male = 0 if sex == 2
+(1,040 real changes made)
+
+.         
+.         * count variable per pid, to ensure that every respondent is in analy
+> sis once
+.         sort pid syear 
+
+.         by pid: gen pid_count = _n
+
+. 
+. *****************************************************************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. * START  ANALYSIS 
+. 
+. *****************************************************************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. * HYPOTHESIS TEST FOR H1 * 
+. 
+.         * having daughters --> stronger support for gender equality (attitude
+> s)
+.         * OLS regression
+.         * robust standard errors to account for heteroskedasticity 
+.                 * (possibility that error term is not constant across respond
+> ents)
+. 
+. /*
+>         reg genderatt_1618 daughter                                          
+>                                                    ///
+>                 i.gebjahr c.log_netincome i.pgisced97_mi i.pgfamstd_mi male  
+>                    ///
+>                 if syear == 2016 | syear == 2017 | syear == 2018 & pid_count 
+> == 1,              ///
+>                 vce(robust)
+> 
+>                 note:
+>                 the N of the 5% sample is too small to run the above regressi
+> on. in the 
+>                 following, we omit the control for income, to make the regres
+> sion work
+>                 on the 5% sample. if you run the code on the full sample, ple
+> ase try
+>                 the above regression code
+> */
+. 
+.         reg genderatt_1618 daughter                                          
+>                                                    ///
+>                 i.gebjahr i.pgisced97_mi i.pgfamstd_mi male                  
+>                                    ///
+>                 if syear == 2016 | syear == 2017 | syear == 2018 & pid_count 
+> == 1,              ///
+>                 vce(robust)
+note: 1.pgfamstd_mi omitted because of collinearity.
+
+Linear regression                               Number of obs     =         91
+                                                F(21, 61)         =          .
+                                                Prob > F          =          .
+                                                R-squared         =     0.3883
+                                                Root MSE          =     1.2352
+
+------------------------------------------------------------------------------
+             |               Robust
+gendera~1618 | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+    daughter |  -.0636054   .5176879    -0.12   0.903    -1.098786    .9715755
+             |
+     gebjahr |
+       1957  |   .9282774   .7036702     1.32   0.192    -.4787981    2.335353
+       1959  |  -2.692536   .7347381    -3.66   0.001    -4.161736   -1.223337
+       1961  |   .9060262   .6839635     1.32   0.190    -.4616432    2.273696
+       1962  |  -.5411549   .9041979    -0.60   0.552     -2.34921    1.266901
+       1963  |    .482851   .7463691     0.65   0.520    -1.009606    1.975308
+       1964  |  -1.196425   .9598743    -1.25   0.217    -3.115812    .7229621
+       1966  |     .68665   .3989093     1.72   0.090    -.1110185    1.484319
+       1968  |  -1.214925   2.162399    -0.56   0.576    -5.538908    3.109059
+       1969  |   .9646598   .6751711     1.43   0.158    -.3854282    2.314748
+       1970  |   .7223382   .6426886     1.12   0.265    -.5627972    2.007474
+       1971  |  -.0738855   .5784573    -0.13   0.899    -1.230582    1.082811
+       1972  |    .982851   .6659399     1.48   0.145     -.348778     2.31448
+       1973  |   .6230446   .4036332     1.54   0.128    -.1840699    1.430159
+       1974  |   .7283594   .6000216     1.21   0.229     -.471458    1.928177
+       1975  |   .9282774   .7036702     1.32   0.192    -.4787981    2.335353
+       1976  |   .8014221   .4900255     1.64   0.107    -.1784445    1.781289
+       1977  |   .4869645   .8403471     0.58   0.564    -1.193413    2.167342
+       1978  |   .9725727    .428414     2.27   0.027     .1159059    1.829239
+       1979  |  -.4919411   .8377156    -0.59   0.559    -2.167057    1.183175
+       1980  |  -.8283375   .5765072    -1.44   0.156    -1.981135    .3244599
+       1981  |   .5864785    .868242     0.68   0.502    -1.149679    2.322636
+       1982  |          1   6.17e-08  1.6e+07   0.000     .9999999           1
+       1983  |   .9363946   .5176879     1.81   0.075    -.0987864    1.971576
+       1989  |   .9363946   .5176879     1.81   0.075    -.0987864    1.971576
+             |
+pgisced97_mi |
+          2  |  -.2193762   .5452777    -0.40   0.689    -1.309726    .8709739
+          3  |  -.3507746   .5798645    -0.60   0.547    -1.510285    .8087361
+          6  |  -.2416273   .5469102    -0.44   0.660    -1.335242    .8519872
+             |
+1.pgfamstd~i |          0  (omitted)
+        male |     .31335   .3989093     0.79   0.435    -.4843185    1.111018
+       _cons |   5.063605   .5176879     9.78   0.000     4.028424    6.098786
+------------------------------------------------------------------------------
+
+.                 
+. 
+. *****************************************************************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. * EXTRACT AND EXPORT RESULTS * 
+.         * Extract the required statistics
+. 
+.                 * (i) coefficient estimate
+.                 local coefficient = _b[daughter]
+
+. 
+.                 * (ii) standard error
+.                 local se = _se[daughter]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "t"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 local p_value = _b[daughter] / _se[daughter]
+
+.                 local p_value = 2 * ttail(e(df_r), abs(`p_value'))
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation of directionality
+.                 scalar coef_d_daughter = _b[daughter]
+
+.                 local interpretation "positive coefficient is in line with hy
+> pothesis"
+
+. 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: -.0636054309648291
+
+.         di "Standard Error: `se'"
+Standard Error: .5176879144482097
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: t
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: 61
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 21
+
+.         di "p-value: " `p_value'
+p-value: .90261836
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 91
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 59
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h1_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/5_res
+    > ults/h1_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. */
+. exit
+
+end of do-file
+
+. 
+end of do-file

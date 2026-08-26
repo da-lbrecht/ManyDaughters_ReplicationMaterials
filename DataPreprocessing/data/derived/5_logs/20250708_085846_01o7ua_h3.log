@@ -1,0 +1,1134 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmpn_8e063r.do 
+
+. do "5%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. 
+. * the following code automatically sets paths based on the project location o
+> n your system *local curdir = c(pwd)
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/5%-sample" // folder, in which the ori
+> ginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/5%-sample
+
+. global DATA "$ROOT/data/derived_confidential/5%-sample" // folder for dataset
+> s
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/5%-sample
+
+. global OUT "$ROOT/data/derived/5_results" // folder for output (results, tabl
+> es)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/5_results
+
+. 
+end of do-file
+
+. do "20250708_085846_01o7ua_h3.do"
+
+. *****************************************************************************
+> ***
+. ******************          Do-File H3: #ManyDaughters Project    ***********
+> *******
+. *****************************************************************************
+> ***
+. 
+. * Authors: Research Team 01o7ua
+. * We consider this variant of analysis as our first choice, because we find i
+> t more interesting than longitudinal analysis. Additionally, the larger sampl
+> e size should give more reliable results.
+. 
+. * ============================
+. * Setup * 
+. * ============================
+. 
+. 
+. * clear all
+. version 18 // indicate the version of stata you are using here
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. * INSTALL PACKAGES * 
+. * ssc install outreg2
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. /*
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> *       I kept your code as requested, but below I adjusted the folders to my
+>  needs
+> // global IN "C:\Source - Data - ManyDaughters\data\raw" // Commented out by 
+> David Albrecht on 08.07.2025
+> // global DATA "C:\Source - Data - ManyDaughters\data\derived" // Commented o
+> ut by David Albrecht on 08.07.2025
+> // global OUT "C:\Users\mmikucka\Dropbox\Health_Inequalities\ManyDaughters\An
+> alysis\out" // Commented out by David Albrecht on 08.07.2025
+> */
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. 
+. 
+. * LOAD AND MERGE DATA * 
+. 
+.         use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+.         keep pid hid syear              parid partner           sex gebjahr  
+>     sexor sexorinfo
+
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches) ke
+> epusing(pid biokids sumkids kidpnr* kidgeb* kidsex*  )
+(variable pid was long, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * pgen contains user-friendly data on the individual level that are c
+> onsolidated from different sources
+.         merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches) 
+> keepusing(pid syear pgfamstd)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * pl contains all variables from the individual questionnaire
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches) ke
+> epusing(pid syear  pli0038_h  pli0003_h  pli0007_h ///
+>                         pli0047_v1  pli0024_h  pli0028_h pli0040 pli0054 pli0
+> 011 pli0043_h pli0012_h pli0016_h pli0044_h ///
+>                         pli0019_h pli0022_h pli0046 pli0055 pli0057 pli0049_h
+>  pli0031_h pli0034_v4 ///
+>                         pld0133 )
+(label cid already defined)
+(label pid_EN already defined)
+(label cid_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+. 
+.         label language EN // change language of the labels to English
+
+. 
+.         compress
+  variable pgfamstd was float now byte
+  variable pli0003_h was float now byte
+  variable pli0012_h was float now byte
+  variable pli0016_h was float now byte
+  variable pli0019_h was float now byte
+  variable pli0022_h was float now byte
+  variable pli0024_h was float now byte
+  variable pli0028_h was float now byte
+  variable pli0031_h was float now byte
+  variable pli0038_h was float now byte
+  variable pid was double now long
+  variable syear was double now int
+  variable partner was double now byte
+  variable sexor was double now byte
+  variable sexorinfo was double now byte
+  variable biokids was double now byte
+  variable sumkids was double now byte
+  variable kidpnr01 was double now long
+  variable kidpnr02 was double now long
+  variable kidpnr03 was double now long
+  variable kidpnr04 was double now long
+  variable kidpnr05 was double now long
+  variable kidpnr06 was double now long
+  variable kidpnr07 was double now long
+  variable kidpnr08 was double now long
+  variable kidpnr09 was double now long
+  variable kidpnr10 was double now long
+  variable kidpnr11 was double now long
+  variable kidpnr12 was double now long
+  variable kidpnr13 was double now byte
+  variable kidpnr14 was double now byte
+  variable kidpnr15 was double now byte
+  variable kidpnr16 was double now byte
+  variable kidpnr17 was double now byte
+  variable kidpnr18 was double now byte
+  variable kidpnr19 was double now byte
+  variable kidgeb01 was double now int
+  variable kidgeb02 was double now int
+  variable kidgeb03 was double now int
+  variable kidgeb04 was double now int
+  variable kidgeb05 was double now int
+  variable kidgeb06 was double now int
+  variable kidgeb07 was double now int
+  variable kidgeb08 was double now int
+  variable kidgeb09 was double now int
+  variable kidgeb10 was double now int
+  variable kidgeb11 was double now int
+  variable kidgeb12 was double now int
+  variable kidgeb13 was double now byte
+  variable kidgeb14 was double now byte
+  variable kidgeb15 was double now byte
+  variable kidgeb16 was double now byte
+  variable kidgeb17 was double now byte
+  variable kidgeb18 was double now byte
+  variable kidgeb19 was double now byte
+  variable kidsex01 was double now byte
+  variable kidsex02 was double now byte
+  variable kidsex03 was double now byte
+  variable kidsex04 was double now byte
+  variable kidsex05 was double now byte
+  variable kidsex06 was double now byte
+  variable kidsex07 was double now byte
+  variable kidsex08 was double now byte
+  variable kidsex09 was double now byte
+  variable kidsex10 was double now byte
+  variable kidsex11 was double now byte
+  variable kidsex12 was double now byte
+  variable kidsex13 was double now byte
+  variable kidsex14 was double now byte
+  variable kidsex15 was double now byte
+  variable kidsex16 was double now byte
+  variable kidsex17 was double now byte
+  variable kidsex18 was double now byte
+  variable kidsex19 was double now byte
+  variable pli0007_h was double now byte
+  (15,253,724 bytes saved)
+
+.         save "$DATA/h3_dataset_quasiexperimental.dta", replace // save merged
+>  dataset
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/5%-sample/h3_dataset_quasiexperimental.dta not found)
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/5%-sample/h3_dataset_quasiexperimental.dta saved
+
+. 
+. 
+. * ============================
+. * Analysis
+. * ============================
+. 
+. use "$DATA/h3_dataset_quasiexperimental.dta", clear
+
+. 
+. 
+. 
+. 
+. * FILTERS * 
+.  
+.         *  keep respondents 18+ years old
+.         gen age = syear-gebjahr
+
+.         keep if age>=18 
+(2,707 observations deleted)
+
+.         
+.         
+.         * keep heterosexual respondents
+.         keep if sexor!=2
+(4,919 observations deleted)
+
+. 
+. 
+.         * keep odd years 2001-2019 (i.e. 2001, 2003, 2005,.. 2019)
+.         keep if syear==2001 | syear==2003 | syear==2005 | syear==2007 | syear
+> ==2009 | syear==2011 | syear==2013 | syear==2015 | syear==2017 | syear==2019
+(14,414 observations deleted)
+
+. 
+.         
+.         * keep respondents with at least 1 child
+.         gen nr_children = 0
+
+.         levelsof(syear), loc(year)
+2001 2003 2005 2007 2009 2011 2013 2015 2017 2019
+
+.         foreach y in `year' {
+  2.                 foreach i in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 
+> 16 17 18 19 {
+  3.                         replace nr_children = nr_children + 1 if (kidgeb`i
+> '<=`y' & kidgeb`i'>1900) & syear==`y'
+  4.                 }       
+  5.         }
+(791 real changes made)
+(527 real changes made)
+(168 real changes made)
+(60 real changes made)
+(20 real changes made)
+(10 real changes made)
+(7 real changes made)
+(2 real changes made)
+(1 real change made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(823 real changes made)
+(552 real changes made)
+(161 real changes made)
+(55 real changes made)
+(17 real changes made)
+(7 real changes made)
+(4 real changes made)
+(1 real change made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(778 real changes made)
+(535 real changes made)
+(149 real changes made)
+(55 real changes made)
+(19 real changes made)
+(7 real changes made)
+(4 real changes made)
+(1 real change made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(821 real changes made)
+(565 real changes made)
+(166 real changes made)
+(59 real changes made)
+(21 real changes made)
+(7 real changes made)
+(3 real changes made)
+(1 real change made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(804 real changes made)
+(560 real changes made)
+(157 real changes made)
+(53 real changes made)
+(14 real changes made)
+(2 real changes made)
+(1 real change made)
+(1 real change made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(1,207 real changes made)
+(880 real changes made)
+(312 real changes made)
+(102 real changes made)
+(37 real changes made)
+(14 real changes made)
+(7 real changes made)
+(7 real changes made)
+(4 real changes made)
+(3 real changes made)
+(2 real changes made)
+(2 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(1,284 real changes made)
+(946 real changes made)
+(359 real changes made)
+(134 real changes made)
+(46 real changes made)
+(18 real changes made)
+(10 real changes made)
+(8 real changes made)
+(4 real changes made)
+(3 real changes made)
+(2 real changes made)
+(2 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(1,192 real changes made)
+(878 real changes made)
+(321 real changes made)
+(124 real changes made)
+(44 real changes made)
+(18 real changes made)
+(8 real changes made)
+(6 real changes made)
+(4 real changes made)
+(1 real change made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(1,415 real changes made)
+(1,081 real changes made)
+(458 real changes made)
+(187 real changes made)
+(70 real changes made)
+(30 real changes made)
+(17 real changes made)
+(10 real changes made)
+(3 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(1,397 real changes made)
+(1,082 real changes made)
+(453 real changes made)
+(162 real changes made)
+(58 real changes made)
+(27 real changes made)
+(16 real changes made)
+(11 real changes made)
+(4 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+.         keep if nr_children>=1
+(2,671 observations deleted)
+
+.                 
+.         
+.         * keep couples where both parthers were observed
+.         gen str40 partn_IDstr = strofreal(pid, "%15.0f") + "_" + strofreal(pa
+> rid, "%15.0f") if sex==1 & parid!=-2
+(6,182 missing values generated)
+
+.         replace partn_IDstr = strofreal(parid, "%15.0f") + "_" + strofreal(pi
+> d, "%15.0f") if sex==2 & parid!=-2
+(4,564 real changes made)
+
+.         encode partn_IDstr, gen(partn_ID)
+
+.         keep if partn_ID < .
+(1,618 observations deleted)
+
+.         
+.         
+.         
+. 
+. * GENERATE VARIABLES * 
+. 
+.         * DEPENDENT VARIABLE: Similarity in time allocation between partners
+.         * -----------------------------------------
+. 
+.         * (1) Weekly hours spent on paid work (for each partner, each time po
+> int)
+.         recode pli0038_h pli0003_h pli0007_h pli0047_v1 pli0024_h pli0028_h (
+> -2 = 0) (-8 -7 -6 -5 -4 -3 -1 = .)
+(360 changes made to pli0038_h)
+(758 changes made to pli0003_h)
+(782 changes made to pli0007_h)
+(455 changes made to pli0047_v1)
+(814 changes made to pli0024_h)
+(820 changes made to pli0028_h)
+
+.         d pli0038_h pli0003_h pli0007_h pli0047_v1 pli0024_h pli0028_h
+
+Variable      Storage   Display    Value
+    name         type    format    label      Variable label
+-------------------------------------------------------------------------------
+pli0038_h       byte    %54.0g     pli0038_h_EN
+                                              [de] Beruf, Lehre, Nebenerw.
+                                                Std., Werktg. [harmonisiert]
+pli0003_h       byte    %54.0g     pli0003_h_EN
+                                              [de] Beruf,Lehre,Nebenerw. Std.,
+                                                Sa [harmonisiert]
+pli0007_h       byte    %54.0g     pli0007_h_EN
+                                              [de] Beruf, Lehre, Nebenerw.Std.,
+                                                Sonntag [harmonisiert]
+pli0047_v1      byte    %54.0g     pli0047_v1_EN
+                                              [de] Aus- u. Weiterb., Lernen
+                                                Std., Werktg. (erwerbstaetig)
+                                                [1984-2020]
+pli0024_h       byte    %54.0g     pli0024_h_EN
+                                              [de] Aus- u. Weiterb., Lernen
+                                                Std., Samstag [harmonisiert]
+pli0028_h       byte    %54.0g     pli0028_h_EN
+                                              [de] Aus- u. Weiterb., Lernen
+                                                Std., Sonntag [harmonisiert]
+
+.         gen h_w = 5 * pli0038_h + pli0003_h + pli0007_h
+(1,722 missing values generated)
+
+.         gen h_edu = 5 * pli0047_v1 + pli0024_h + pli0028_h
+(1,624 missing values generated)
+
+.         gen h_paid = h_w + h_edu
+(1,730 missing values generated)
+
+. 
+.         * (2) Weekly hours spent on unpaid work (for each partner, each time 
+> point)
+.         recode  pli0040 pli0054 pli0011 pli0043_h pli0012_h pli0016_h pli0044
+> _h pli0019_h ///
+>                         pli0022_h pli0046 pli0055 pli0057 pli0049_h pli0031_h
+>  pli0034_v4 (-2 = 0) (-8 -7 -6 -5 -4 -3 -1 = .)
+(499 changes made to pli0040)
+(620 changes made to pli0054)
+(799 changes made to pli0011)
+(240 changes made to pli0043_h)
+(588 changes made to pli0012_h)
+(634 changes made to pli0016_h)
+(384 changes made to pli0044_h)
+(737 changes made to pli0019_h)
+(744 changes made to pli0022_h)
+(468 changes made to pli0046)
+(814 changes made to pli0055)
+(823 changes made to pli0057)
+(312 changes made to pli0049_h)
+(646 changes made to pli0031_h)
+(1,018 changes made to pli0034_v4)
+
+.         d pli0040 pli0054 pli0011 pli0043_h pli0012_h pli0016_h pli0044_h pli
+> 0019_h ///
+>                         pli0022_h pli0046 pli0055 pli0057 pli0049_h pli0031_h
+>  pli0034_v4
+
+Variable      Storage   Display    Value
+    name         type    format    label      Variable label
+-------------------------------------------------------------------------------
+pli0040         byte    %54.0g     pli0040_EN
+                                              Hours Weekday Running Errands
+pli0054         byte    %54.0g     pli0054_EN
+                                              [de] Besorgungen Std.
+pli0011         byte    %54.0g     pli0011_EN
+                                              Hours Sundays Running Errands
+pli0043_h       byte    %54.0g     pli0043_h_EN
+                                              [de] Hausarbeit Std., Werktg.
+                                                [harmonisiert]
+pli0012_h       byte    %54.0g     pli0012_h_EN
+                                              [de] Hausarbeit Std., Samstag
+                                                [harmonisiert]
+pli0016_h       byte    %54.0g     pli0016_h_EN
+                                              [de] Hausarbeit Std., Sonntag
+                                                [harmonisiert]
+pli0044_h       byte    %54.0g     pli0044_h_EN
+                                              [de] Kinderbetreuung Std.,
+                                                Werktg. [harmonisiert]
+pli0019_h       byte    %54.0g     pli0019_h_EN
+                                              [de] Kinderbetreuung Std.,
+                                                Samstag [harmonisiert]
+pli0022_h       byte    %54.0g     pli0022_h_EN
+                                              [de] Kinderbetreuung Std.,
+                                                Sonntag [harmonisiert]
+pli0046         byte    %54.0g     pli0046_EN
+                                              Hours Weekdays Care For Persons
+pli0055         byte    %54.0g     pli0055_EN
+                                              Hours Saturday Support Persons In
+                                                Care
+pli0057         byte    %54.0g     pli0057_EN
+                                              Hours Sunday Support Persons In
+                                                Care
+pli0049_h       byte    %54.0g     pli0049_h_EN
+                                              [de] Reparaturen etc. Std.,
+                                                Werktag [harmonisiert]
+pli0031_h       byte    %54.0g     pli0031_h_EN
+                                              [de] Reparaturen etc. Std.,
+                                                Samstag [harmonisiert]
+pli0034_v4      byte    %54.0g     pli0034_v4_EN
+                                              [de] Reparaturen Std./Sonntag
+                                                [1992-1993, 1995, 1997, 1999,
+                                                2001, 2003, 2005, 20
+
+.         gen h_errands = 5 * pli0040 + pli0054 + pli0011
+(1,622 missing values generated)
+
+.         gen h_hw = 5 * pli0043_h + pli0012_h + pli0016_h
+(1,623 missing values generated)
+
+.         gen h_chld = 5* pli0044_h + pli0019_h + pli0022_h
+(1,615 missing values generated)
+
+.         gen h_care = 5 * pli0046 + pli0055 + pli0057
+(1,616 missing values generated)
+
+.         gen h_repar = 5 * pli0049_h + pli0031_h + pli0034_v4
+(1,901 missing values generated)
+
+.         gen h_unp = h_errands + h_hw + h_chld + h_care + h_repar
+(1,916 missing values generated)
+
+.         
+.         * (3) Weekly RESIDUAL hours (for each partner, each time point)
+.         gen h_other = 24 * 7 - h_paid - h_unp 
+(2,030 missing values generated)
+
+.         
+.         * (4) Correct the data for overlapping activities 
+.         replace h_paid = . if h_other < 7  /* recode to mising if paid and un
+> paid work sum to more than 23h per day on average */
+(120 real changes made, 120 to missing)
+
+.         replace h_unp = . if h_other < 7 
+(120 real changes made, 120 to missing)
+
+.         replace h_other = . if h_other < 7 
+(120 real changes made, 120 to missing)
+
+. 
+.         * (5) define all time-use variables at the couple level
+.         foreach var in paid unp other {
+  2.                 * values for male partners
+.                 gen tmp = h_`var' if sex==1
+  3.                 egen mh_`var' = mean(tmp) , by(syear partn_ID)
+  4.                 drop tmp
+  5.                 * values for female partners
+.                 gen tmp = h_`var' if sex==2
+  6.                 egen fh_`var' = mean(tmp) , by(syear partn_ID)
+  7.                 drop tmp
+  8.         }
+(5,483 missing values generated)
+(2,299 missing values generated)
+(5,266 missing values generated)
+(2,088 missing values generated)
+(5,576 missing values generated)
+(2,488 missing values generated)
+(5,359 missing values generated)
+(2,268 missing values generated)
+(5,627 missing values generated)
+(2,585 missing values generated)
+(5,422 missing values generated)
+(2,388 missing values generated)
+
+.         
+.         * (6) calculate the dissimilarity index
+.         gen DissInd = (abs(mh_paid/168 - fh_paid/168) + abs(mh_unp/168 - fh_u
+> np/168) + abs(mh_other/168 - fh_other/168)) / 2
+(3,235 missing values generated)
+
+.         
+.         * (7) reverse the index and rescale to 0-100 (index of similarity)
+.         gen Similarity = 100 * (1-DissInd)
+(3,235 missing values generated)
+
+.         
+.         
+.         
+.         
+.         * MAIN PREDICTOR: gender of the 1st child 
+.         * -----------------------------------------
+.         gen first_daugh = kidsex01==2 if kidsex01>=1 
+(18 missing values generated)
+
+.         
+.         
+.         
+.         * CONTROL VARIABLES
+.         * -----------------------------------------
+.         * Control variable: year of birth of the 1st child
+.         
+.         gen brth_y_first = kidgeb01 if kidgeb01>=1900
+(5 missing values generated)
+
+.         sum brth_y_first
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+brth_y_first |      8,894    1987.463    16.40906       1937       2019
+
+.         gen Cbrth_y_first = brth_y_first - r(mean) /* variable centred at gra
+> nd mean */
+(5 missing values generated)
+
+.         
+.         
+.         * FOR THE DELAYED EFFECTS VARIANT: age of the 1st daughter
+.         gen fd_age = syear - kidgeb01 if first_daugh==1 & kidgeb01>=1900
+(4,881 missing values generated)
+
+.         
+.         gen first_daugh05 = first_daugh==1 & fd_age>=0 & fd_age<=5
+
+.         gen first_daugh614 = first_daugh==1 & fd_age>=6 & fd_age<=14
+
+.         gen first_daugh15plus = first_daugh==1 & fd_age>=15
+
+.         
+.         * age of the 1st child
+.         gen fch_age = syear - kidgeb01 if kidgeb01>=1900
+(5 missing values generated)
+
+.         
+.         * Control variabe: woman's age
+.         gen tmp = age if sex==2
+(4,335 missing values generated)
+
+.         egen f_age = mean(tmp), by(pid syear)
+(4,335 missing values generated)
+
+.         drop tmp
+
+.         sum f_age
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+       f_age |      4,564    49.66586    14.16242         19         94
+
+.         gen Cf_age = f_age-r(mean)
+(4,335 missing values generated)
+
+.         
+.         
+.         
+. 
+.         
+. * FILTERS * (continued, because depend on the generated variables)
+. 
+.         * keep observations when both partners have valid observations
+.         egen both = count(sex) if Similarity<. , by(partn_ID syear)
+(3,235 missing values generated)
+
+.         keep if both==2
+(3,235 observations deleted)
+
+.  
+.         * drop observations when parents differ in reproductive biographies (
+> = drop couples with step children); ONLY CONSIDERS THE CHILDREN BORN BEFORE L
+> AST OBSERVATION
+.         egen last_obs = max(syear) if  Similarity<., by(partn_ID)
+
+.         foreach i in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19
+>  {
+  2.                 gen tmp = kidgeb`i' if sex==2 & kidgeb`i'<=last_obs
+  3.                 egen f_ch_by`i' = max(tmp), by(partn_ID)
+  4.                 drop tmp
+  5.                 gen tmp = kidgeb`i' if sex==1 & kidgeb`i'<=last_obs
+  6.                 egen m_ch_by`i' = max(tmp), by(partn_ID)
+  7.                 drop tmp
+  8.                 *
+.                 gen tmp = kidsex`i' if sex==2
+  9.                 egen f_ch_sex`i' = max(tmp), by(partn_ID)
+ 10.                 drop tmp
+ 11.                 gen tmp = kidsex`i' if sex==1
+ 12.                 egen m_ch_sex`i' = max(tmp), by(partn_ID)
+ 13.                 drop tmp
+ 14.         }       
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,841 missing values generated)
+(18 missing values generated)
+(2,839 missing values generated)
+(14 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,836 missing values generated)
+(8 missing values generated)
+(2,837 missing values generated)
+(10 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+(2,832 missing values generated)
+
+.         gen discrepancies = 0
+
+.         foreach i in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19
+>  {
+  2.                 replace discrepancies=1 if f_ch_by`i'!=m_ch_by`i' | f_ch_s
+> ex`i'!=m_ch_sex`i'
+  3.         }       
+(1,224 real changes made)
+(64 real changes made)
+(26 real changes made)
+(0 real changes made)
+(0 real changes made)
+(8 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+.         egen Discrepancies = max(discrepancies), by(partn_ID)
+
+.         keep if Discrepancies == 0
+(1,322 observations deleted)
+
+.         
+.         * keep one observation per couple
+.         egen tag = tag(partn_ID)
+
+.         keep if tag==0
+(619 observations deleted)
+
+. 
+.         
+. * HYPOTHESIS TEST FOR H3 * 
+. 
+.         * We test whether people having a daughter as the first child have or
+> e egalitarian time allocation than those having son as their first child
+.         * We run a random effects model with:
+.         * Dependent var: similarity in time allocation
+.         * Main predictor: first_daughter
+.         * Controls: year of birth of the 1st child (centred on the grand mean
+> )
+.         
+.         xtset pid syear
+
+Panel variable: pid (unbalanced)
+ Time variable: syear, 2001 to 2019, but with gaps
+         Delta: 1 unit
+
+.         xtreg Similarity first_daugh c.Cbrth_y_first##c.Cbrth_y_first , re cl
+> uster(pid)
+
+Random-effects GLS regression                   Number of obs     =      3,723
+Group variable: pid                             Number of groups  =      1,073
+
+R-squared:                                      Obs per group:
+     Within  = 0.0000                                         min =          1
+     Between = 0.1501                                         avg =        3.5
+     Overall = 0.1252                                         max =         10
+
+                                                Wald chi2(3)      =     241.74
+corr(u_i, X) = 0 (assumed)                      Prob > chi2       =     0.0000
+
+                                (Std. err. adjusted for 1,073 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+  Similarity | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+ first_daugh |  -1.111732   .6984776    -1.59   0.111    -2.480723    .2572585
+Cbrth_y_fi~t |  -.3058812   .0233998   -13.07   0.000    -.3517441   -.2600184
+             |
+          c. |
+Cbrth_y_fi~t#|
+          c. |
+Cbrth_y_fi~t |   .0014364   .0013621     1.05   0.292    -.0012333    .0041061
+             |
+       _cons |   78.70384   .6048508   130.12   0.000     77.51836    79.88933
+-------------+----------------------------------------------------------------
+     sigma_u |  10.043025
+     sigma_e |  9.8328365
+         rho |  .51057391   (fraction of variance due to u_i)
+------------------------------------------------------------------------------
+
+. 
+.         /* DELAYED EFFECTS VARIANT      
+>         xtreg Similarity first_daugh05 first_daugh614 first_daugh15plus c.Cbr
+> th_y_first##c.Cbrth_y_first c.Cf_age##c.Cf_age, re cluster(pid)
+>         */
+.         
+. * EXTRACT AND EXPORT RESULTS * (Please check whether the suggested code autom
+> atically picks up the correct statistics for your chosen regression analysis 
+> and adapt if needed)
+. 
+.         * Extract the required statistics
+. 
+.         * Extract the required statistics
+. 
+.                 * (i) coefficient estimate
+.                 local coefficient = _b[first_daugh]
+
+. 
+.                 * (ii) standard error
+.                 local se = _se[first_daugh]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "z"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 local p_value = _b[first_daugh] / _se[first_daugh]
+
+.                 * local p_value = 2 * ttail(e(df_r), abs(`p_value'))
+.                 local p_value = 2 * 2*(1-normal(abs(`p_value')))
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation of directionality
+.                 scalar coef_daughter = _b[first_daugh]
+
+.                 local interpretation "positive coefficient is in line with hy
+> pothesis"
+
+. 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: -1.111732395534568
+
+.         di "Standard Error: `se'"
+Standard Error: .698477596520853
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: z
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: .
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 3
+
+.         di "p-value: " `p_value'
+p-value: .2229264
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 3723
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 1073
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         // file open myfile using "$OUT/h3_results_quasiexperiment.csv", writ
+> e replace // Restored original naming convention David Albrecht on 09.07.2025
+.         file open myfile using "$OUT/h3_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/5_res
+    > ults/h3_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

@@ -1,0 +1,1307 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmp0jawizaj.do 
+
+. do "95%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. * the following code automatically sets paths based on the project location o
+> n your system *
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/95%-sample" // folder, in which the or
+> iginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/95%-sample
+
+. global DATA "$ROOT/data/derived_confidential/95%-sample" // folder for datase
+> ts
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/95%-sample
+
+. global OUT "$ROOT/data/derived/95_results" // folder for output (results, tab
+> les)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/95_results
+
+. 
+end of do-file
+
+. do "20250717_090216_016k3x_h3.do"
+
+. *****************************************************************************
+> ***
+. ****************** Example Do-File H3: #ManyDaughters Project ***************
+> ***
+. *****************************************************************************
+> ***
+. 
+. * Authors: [REDACTED], [REDACTED]
+. 
+. *Run Time 1min 26 sec on MacBookAir M2 2022 16GB with 5% of data
+. 
+. 
+. 
+. * ============================
+. * Setup * (Please adapt according to your needs)
+. * ============================
+. 
+. //clear all
+. version 15 // indicate the version of stata you are using here
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. /*
+> * INSTALL PACKAGES * (Please adapt according to your needs)
+> * install all packages you need here, for example:
+> ssc install csdid
+> ssc install drdid
+> 
+> * CONFIGURE FILE PATHS * (Please do not change)
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> */
+. 
+. 
+. 
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA * (Please adapt according to your needs)
+. 
+.         use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. 
+.         * Merge ppathl with all datasets, that you deem relevant for your ana
+> lysis. (Tip: use keepusing() to specify which variables to keep from the usin
+> g dataset; the default is all.)
+. 
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches)
+(variable pid was long, now double to accommodate using data's values)
+(variable cid was long, now double to accommodate using data's values)
+(variable gebjahr was int, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * pgen contains user-friendly data on the individual level that are c
+> onsolidated from different sources
+.         merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * pl contains all variables from the individual questionnaire
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches)
+(variable inputdataset was str6, now str9 to accommodate using data's values)
+(label cid_EN already defined)
+(label pid_EN already defined)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * hgen contains generated variables on household level from the house
+> hold interview; use for household net income
+.         merge m:1 hid syear using "$IN/hgen.dta", nogen keep(master matches) 
+> keepusing(hid syear hghinc)
+(label iyear already defined)
+(label iyear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         
+.         save "$DATA/temp.dta", replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/temp.dta not found)
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/temp.dta saved
+
+.         
+.         * drop plb*
+.         drop plc*
+
+.         drop plg*
+
+.         drop plj*
+
+.         drop plm*
+
+.         
+.         save "$DATA/h3_between.dta", replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h3_between.dta not found)
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h3_between.dta saved
+
+.         
+.         
+.         
+.         
+.         /*
+>         FROM HERE: Merging household data and calc. share of household work
+>         */
+.         
+.         
+.         
+.         set more off
+
+.         
+.         * ============================
+. * Analysis
+. * ============================
+. 
+. * FILTERS * (Please adapt according to your needs)
+.  
+. 
+. 
+.         
+.         * keep: 1) only participants with at least 1 child 2) relevant variab
+> les
+.         keep if kidsex01>=1
+(216,893 observations deleted)
+
+.         keep hid pid sex syear sumkids kidpnr01 kidsex01 kidgeb01 parid
+
+.         
+.         * drop participants without a partner (as we want to calculate the di
+> vision of housework between 2 partners)
+.         drop if parid==-2
+(91,399 observations deleted)
+
+.         
+.         * only keep first woman/man of each household
+.         sort hid pid sex syear
+
+.         duplicates drop hid sex, force
+
+Duplicates in terms of hid sex
+
+(306,026 observations deleted)
+
+.         
+.         * only keep households with 2 unique participants throughout observat
+> ion period, ignore change of partners etc. 
+.         drop if kidpnr01<0 // kipnr01 ensures that the two participants have 
+> the same first child
+(13,097 observations deleted)
+
+.         bysort hid kidpnr01: gen num_unique_persons = _N
+
+.         keep if num_unique_persons == 2
+(7,824 observations deleted)
+
+.         
+.         * another check whether gender is uniquely represented for each house
+> hold (should drop 0)
+.         sort hid sex
+
+.         quietly by hid sex: gen dup = cond(_N==1,0,_n)
+
+.         drop if dup>0
+(0 observations deleted)
+
+.                 
+.         /* check if participants are part of different households over observ
+> ation period
+>         sort pid
+>         quietly by pid: gen dup2 = cond(_N==1,0,_n)
+>         drop if dup2>0
+>         */
+.         
+.         * mark households relevant for analysis and flag male/female househol
+> d members
+.         sort hid sex
+
+.         gen keep_hid=1
+
+.         by hid: gen man_in_hid = -1*(_n - 2)
+
+.         
+.         * save the dataset with relevant household ids and man/woman in house
+> hold dummy
+.         save temp.dta, replace
+(file temp.dta not found)
+file temp.dta saved
+
+.         
+.         * merge with original dataset based on participant id
+.         use "$DATA/h3_between.dta"
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+.         merge m:m pid using temp.dta
+(label sex_EN already defined)
+(label sex already defined)
+(label kidsex01_EN already defined)
+(label kidgeb01_EN already defined)
+(label kidpnr01_EN already defined)
+(label sumkids_EN already defined)
+(label pid_EN already defined)
+(label kidsex01 already defined)
+(label kidgeb01 already defined)
+(label kidpnr01 already defined)
+(label sumkids already defined)
+(label syear_EN already defined)
+(label hid_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                       424,535
+        from master                   424,535  (_merge==1)
+        from using                          0  (_merge==2)
+
+    Matched                           238,588  (_merge==3)
+    -----------------------------------------
+
+.         
+.         * keep only the flagged participants/households
+.         drop _merge
+
+.         drop if man_in_hid==.
+(424,535 observations deleted)
+
+.         drop if keep_hid==.
+(0 observations deleted)
+
+.         drop if pli0043_h<0
+(9,132 observations deleted)
+
+.         
+.         * save dataset of relevant households with 1 observation per male/fem
+> ale member
+.         save temp_panel.dta, replace
+(file temp_panel.dta not found)
+file temp_panel.dta saved
+
+.         
+.         /*
+>         * add Universitätsabschluss as highest education over Abitur         
+>                                   //ADDED: FROM HERE
+>         replace pgpsbil=0 if pgpsbil==5
+>         replace pgpsbil=5 if pgpbbil02>=1                                    
+>                                                                    //ADDED: T
+> O HERE
+>         */
+.         
+.         * keep only male members and rename relevant variables
+.         keep if man_in_hid==1
+(117,436 observations deleted)
+
+.         keep hid pli0043_h pid parid syear kidpnr01 pgemplst pgpsbil pgpbbil0
+> 2 gebjahr  
+
+.         rename pli0043_h pli0043_h_man
+
+.         rename pid pid_man
+
+.         rename parid parid_man
+
+.         rename pgemplst pgemplst_man                                         
+>                                                                    
+
+.         rename pgpsbil pgpsbil_man                                           
+>                                                                            
+
+.         rename pgpbbil02 pgpbbil02_man                                       
+>                                                                    
+
+.         rename gebjahr gebjahr_man                                           
+>                                                                            
+
+.                         
+.         * save temporary dataset containing male household members
+.         save temp_man.dta, replace
+(file temp_man.dta not found)
+file temp_man.dta saved
+
+.         
+.         * use temporary dataset and keep only female household members
+.         use temp_panel.dta, clear
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+.         keep if man_in_hid==0
+(112,020 observations deleted)
+
+.         
+.         * merge with male household members dataset and ensure that pairs/par
+> tners are identified
+.         merge m:m hid syear using temp_man.dta
+(label pgemplst already defined)
+(label pgpsbil already defined)
+(label pgpbbil02 already defined)
+(label pgemplst_EN already defined)
+(label pgpsbil_EN already defined)
+(label pgpbbil02_EN already defined)
+(label kidpnr01_EN already defined)
+(label gebjahr_EN already defined)
+(label pid_EN already defined)
+(label kidpnr01 already defined)
+(label pli0043_h_EN already defined)
+(label syear_EN already defined)
+(label hid_EN already defined)
+(label pli0043_h already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                        22,132
+        from master                    13,629  (_merge==1)
+        from using                      8,503  (_merge==2)
+
+    Matched                           104,790  (_merge==3)
+    -----------------------------------------
+
+.         drop _merge
+
+.         keep if pid==parid_man
+(25,639 observations deleted)
+
+. 
+.         * keep only observations with information on household work
+.         drop if pli0043_h==. | pli0043_h_man==.
+(19,118 observations deleted)
+
+.         
+.         * calculate the share of household work as difference from equality (
+> 0 - equal, <0 - unequal)
+.         gen housework_unequal=-abs(pli0043_h-pli0043_h_man)
+
+.         sort hid syear
+
+.         save household_share.dta, replace
+(file household_share.dta not found)
+file household_share.dta saved
+
+.         
+.         
+.         * for each household id capture the observation (min and max) period
+.         bysort hid: egen min_year = min(syear)
+
+.         bysort hid: egen max_year = max(syear)  
+
+.         
+.         * keep only households that had child within observation period and a
+> t least one wave without child
+.         keep if max_year >= kidgeb01 & kidgeb01 > min_year
+(73,753 observations deleted)
+
+.         
+.         * last check that no household-syears appear more than once (should d
+> rop 0)
+.         quietly by hid syear: gen dup3 = cond(_N==1,0,_n)
+
+.         drop if dup3>0
+(0 observations deleted)
+
+.         
+.         
+.         
+. * GENERATE VARIABLES * (Please adapt according to your needs)
+.         
+. 
+.         
+.         * calc. no. of daughters/sons per household                          
+>                                    
+.         gen num_daughters=0
+
+.         
+.         forvalues i=1/9{
+  2.         replace num_daughters=num_daughters+1 if kidsex0`i'==2 & kidgeb0`i
+> '<=syear
+  3.         replace num_daughters=num_daughters+1 if kidsex1`i'==2 & kidgeb1`i
+> '<=syear
+  4.         }
+(2,833 real changes made)
+(0 real changes made)
+(1,164 real changes made)
+(0 real changes made)
+(193 real changes made)
+(0 real changes made)
+(28 real changes made)
+(0 real changes made)
+(7 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+.         
+.         gen num_sons=0
+
+.         
+.         forvalues i=1/9{
+  2.         replace num_sons=num_sons+1 if kidsex0`i'==1 & kidgeb0`i'<=syear
+  3.         replace num_sons=num_sons+1 if kidsex1`i'==1 & kidgeb1`i'<=syear
+  4.         }                                                                 
+>                                                                       
+(2,976 real changes made)
+(0 real changes made)
+(1,246 real changes made)
+(0 real changes made)
+(194 real changes made)
+(0 real changes made)
+(19 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(5 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+.         
+.         * employment status for man and woman per household                  
+>                    
+.         
+.         gen woman_full=1 if pgemplst==1
+(5,351 missing values generated)
+
+.         replace woman_full=0 if woman_full==.
+(5,351 real changes made)
+
+.         gen woman_part=1 if pgemplst==2
+(6,116 missing values generated)
+
+.         replace woman_part=0 if woman_part==.
+(6,116 real changes made)
+
+.         gen woman_unempl=1 if pgemplst==5
+(5,915 missing values generated)
+
+.         replace woman_unempl=0 if woman_unempl==.
+(5,915 real changes made)
+
+.         gen man_full=1 if pgemplst_man==1
+(1,002 missing values generated)
+
+.         replace man_full=0 if man_full==.
+(1,002 real changes made)
+
+.         gen man_part=1 if pgemplst_man==2
+(8,082 missing values generated)
+
+.         replace man_part=0 if man_part==.
+(8,082 real changes made)
+
+.         gen man_unempl=1 if pgemplst_man==5
+(7,941 missing values generated)
+
+.         replace man_unempl=0 if man_unempl==.                   
+(7,941 real changes made)
+
+.         drop man_in_hid                                                      
+>                                                                              
+>               
+
+.         
+.         * age of man and woman per survey wave                               
+>                            
+.         
+.         gen age=syear-gebjahr
+
+.         gen age_man=syear-gebjahr_man                                        
+>                                    
+
+.         
+.         
+.         
+.         
+.         gen year = syear-1999 //generate years such that csdid can use them
+
+.         
+.         sort hid year
+
+.         
+.         by hid, sort: gen event=1 if kidsex01==2 &  kidgeb01 < syear // gener
+> ate indicator that is 1 if the person got a daughter as first child and stays
+>  1 after that 
+(5,962 missing values generated)
+
+. 
+.         * Create a variable to with the first year of treatment (getting a fi
+> rst born daughter)
+.         gen treat_start_year = .
+(8,412 missing values generated)
+
+.         gen treat_start_year_delay3 = .
+(8,412 missing values generated)
+
+.         gen treat_start_year_delay7 = .
+(8,412 missing values generated)
+
+.         gen treat_start_year_delay12 = .
+(8,412 missing values generated)
+
+. 
+.         * Mark the first year where treatment == 1
+.         bysort hid (year): replace treat_start_year = 1 if event == 1 & event
+> [_n-1] == .
+(389 real changes made)
+
+.         bysort hid (year): replace treat_start_year_delay3 = 1 if event[_n-3]
+>  == 1 & event[_n-4] == .
+(238 real changes made)
+
+.         bysort hid (year): replace treat_start_year_delay7 = 1 if event[_n-7]
+>  == 1 & event[_n-8] == .
+(130 real changes made)
+
+.         bysort hid (year): replace treat_start_year_delay12 = 1 if event[_n-1
+> 2] == 1 & event[_n-13] == .
+(57 real changes made)
+
+. 
+.         gen event_year=year if treat_start_year==1
+(8,023 missing values generated)
+
+.         gen event_year_delay3=year if treat_start_year_delay3==1
+(8,174 missing values generated)
+
+.         gen event_year_delay7=year if treat_start_year_delay7==1
+(8,282 missing values generated)
+
+.         gen event_year_delay12=year if treat_start_year_delay12==1
+(8,355 missing values generated)
+
+. 
+.         sort hid event_year
+
+.         replace event_year=event_year[_n-1] if pid==pid[_n-1]
+(3,581 real changes made)
+
+.         replace event_year=0 if event_year==.
+(4,442 real changes made)
+
+.         
+.         sort hid event_year_delay3
+
+.         replace event_year_delay3=event_year_delay3[_n-1] if pid==pid[_n-1]
+(2,866 real changes made)
+
+.         replace event_year_delay3=0 if event_year_delay3==.
+(5,308 real changes made)
+
+.         
+.         sort hid event_year_delay7
+
+.         replace event_year_delay7=event_year_delay7[_n-1] if pid==pid[_n-1]
+(1,958 real changes made)
+
+.         replace event_year_delay7=0 if event_year_delay7==.     
+(6,324 real changes made)
+
+.         
+.         sort hid event_year_delay12
+
+.         replace event_year_delay12=event_year_delay12[_n-1] if pid==pid[_n-1]
+(1,016 real changes made)
+
+.         replace event_year_delay12=0 if event_year_delay12==.
+(7,339 real changes made)
+
+.         
+.         sort hid syear
+
+.         
+.         gen log_hghinc=log(hghinc)
+(330 missing values generated)
+
+. 
+.         save "$DATA/h3_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h3_dataset.dta saved
+
+. 
+. 
+. 
+. * HYPOTHESIS TEST FOR H3 * (Please adapt according to your needs)
+. 
+.         * Please add a verbal description of your model here
+. 
+.         * As an example, and for illustrative purposes we consider a: linear 
+> OLS regression
+. 
+.         * We estimate the causal effect of having a first daughter on the une
+> qual division of housework within households using the Callaway and Sant’Anna
+>  (2021) difference-in-differences estimator.
+.         *The outcome variable housework_unequal captures the extent to which 
+> housework is unequally divided between partners and treatmetn assignment stag
+> gered across households over time.
+.         *We use the doubly robust inverse probability weighting method (dripw
+> ) to estimate group-time average treatment effects, comparing each treatment 
+> cohort (defined by the timing of the first daughter) to an appropriate contro
+> l group of not-yet-treated households.
+.         csdid housework_unequal log_hghinc age age_man num_daughters num_sons
+>  pgpsbil pgpsbil_man pgemplst pgemplst_man, ivar(hid) time(year) gvar(event_y
+> ear) method(dripw)
+Panel is not balanced
+Will use observations with Pair balanced (observed at t0 and t1)
+.xxxxxxxxxxxxxxxxxxx..xxxxxxxxxxxxxxxxxx...xxxxxxx
+xxxxxxxxxx....xxxxxxxxxxxxxxxx.....xxxxxxxxxxxxxxx
+......xxxxxxxxxxxxxx.......xxxxxxxxxxxxx..x.....x.
+.....xxxxx.........xxxxxxxxxxx..........xxxxxxxxxx
+...........xxxxxxxxxxx..........xxxxxxxxxxxxx.....
+...xxxxxxxxxxxxxxxxxx...xxxxxxxxxx...........xxxxx
+xxxxxxx.........xxxxxxxxxxxxx.x......xxxxxxxxxxxx.
+x.......xxxxxxxxxxxxxxx......x
+Difference-in-difference with Multiple Time Periods
+
+                                                         Number of obs = 5,387
+Outcome model  : least squares
+Treatment model: inverse probability
+------------------------------------------------------------------------------
+             | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+g3           |
+       t_1_2 |   .0337891   .4669962     0.07   0.942    -.8815066    .9490849
+       t_2_3 |          0  (omitted)
+       t_2_4 |          0  (omitted)
+       t_2_5 |          0  (omitted)
+       t_2_6 |          0  (omitted)
+       t_2_7 |          0  (omitted)
+       t_2_8 |          0  (omitted)
+       t_2_9 |          0  (omitted)
+      t_2_10 |          0  (omitted)
+      t_2_11 |          0  (omitted)
+      t_2_12 |          0  (omitted)
+      t_2_13 |          0  (omitted)
+      t_2_14 |          0  (omitted)
+      t_2_15 |          0  (omitted)
+      t_2_16 |          0  (omitted)
+      t_2_17 |          0  (omitted)
+      t_2_18 |          0  (omitted)
+      t_2_19 |          0  (omitted)
+      t_2_20 |          0  (omitted)
+      t_2_21 |          0  (omitted)
+-------------+----------------------------------------------------------------
+g4           |
+       t_1_2 |  -.2738378   .2815844    -0.97   0.331    -.8257332    .2780575
+       t_2_3 |   .1458556   .4656104     0.31   0.754     -.766724    1.058435
+       t_3_4 |          0  (omitted)
+       t_3_5 |          0  (omitted)
+       t_3_6 |          0  (omitted)
+       t_3_7 |          0  (omitted)
+       t_3_8 |          0  (omitted)
+       t_3_9 |          0  (omitted)
+      t_3_10 |          0  (omitted)
+      t_3_11 |          0  (omitted)
+      t_3_12 |          0  (omitted)
+      t_3_13 |          0  (omitted)
+      t_3_14 |          0  (omitted)
+      t_3_15 |          0  (omitted)
+      t_3_16 |          0  (omitted)
+      t_3_17 |          0  (omitted)
+      t_3_18 |          0  (omitted)
+      t_3_19 |          0  (omitted)
+      t_3_20 |          0  (omitted)
+      t_3_21 |          0  (omitted)
+-------------+----------------------------------------------------------------
+g5           |
+       t_1_2 |  -.1857025   .2875181    -0.65   0.518    -.7492276    .3778226
+       t_2_3 |   .5151684   .4526892     1.14   0.255    -.3720861    1.402423
+       t_3_4 |   .3659764   .3384642     1.08   0.280    -.2974013    1.029354
+       t_4_5 |          0  (omitted)
+       t_4_6 |          0  (omitted)
+       t_4_7 |          0  (omitted)
+       t_4_8 |          0  (omitted)
+       t_4_9 |          0  (omitted)
+      t_4_10 |          0  (omitted)
+      t_4_11 |          0  (omitted)
+      t_4_12 |          0  (omitted)
+      t_4_13 |          0  (omitted)
+      t_4_14 |          0  (omitted)
+      t_4_15 |          0  (omitted)
+      t_4_16 |          0  (omitted)
+      t_4_17 |          0  (omitted)
+      t_4_18 |          0  (omitted)
+      t_4_19 |          0  (omitted)
+      t_4_20 |          0  (omitted)
+      t_4_21 |          0  (omitted)
+-------------+----------------------------------------------------------------
+g6           |
+       t_1_2 |   .4455663   .4547013     0.98   0.327    -.4456318    1.336764
+       t_2_3 |  -.2306093   .5864589    -0.39   0.694    -1.380048    .9188289
+       t_3_4 |   .0354845   .5224104     0.07   0.946     -.988421     1.05939
+       t_4_5 |   -.060244   .5545707    -0.11   0.913    -1.147183    1.026695
+       t_5_6 |          0  (omitted)
+       t_5_7 |          0  (omitted)
+       t_5_8 |          0  (omitted)
+       t_5_9 |          0  (omitted)
+      t_5_10 |          0  (omitted)
+      t_5_11 |          0  (omitted)
+      t_5_12 |          0  (omitted)
+      t_5_13 |          0  (omitted)
+      t_5_14 |          0  (omitted)
+      t_5_15 |          0  (omitted)
+      t_5_16 |          0  (omitted)
+      t_5_17 |          0  (omitted)
+      t_5_18 |          0  (omitted)
+      t_5_19 |          0  (omitted)
+      t_5_20 |          0  (omitted)
+      t_5_21 |          0  (omitted)
+-------------+----------------------------------------------------------------
+g7           |
+       t_1_2 |   .4071606   .2800406     1.45   0.146    -.1417088    .9560301
+       t_2_3 |   .7868938   .5059962     1.56   0.120    -.2048406    1.778628
+       t_3_4 |   .0134839    .493516     0.03   0.978    -.9537897    .9807575
+       t_4_5 |  -.0704999   .4350488    -0.16   0.871    -.9231799    .7821801
+       t_5_6 |  -.1696365   .3791933    -0.45   0.655    -.9128417    .5735687
+       t_6_7 |          0  (omitted)
+       t_6_8 |          0  (omitted)
+       t_6_9 |          0  (omitted)
+      t_6_10 |          0  (omitted)
+      t_6_11 |          0  (omitted)
+      t_6_12 |          0  (omitted)
+      t_6_13 |          0  (omitted)
+      t_6_14 |          0  (omitted)
+      t_6_15 |          0  (omitted)
+      t_6_16 |          0  (omitted)
+      t_6_17 |          0  (omitted)
+      t_6_18 |          0  (omitted)
+      t_6_19 |          0  (omitted)
+      t_6_20 |          0  (omitted)
+      t_6_21 |          0  (omitted)
+-------------+----------------------------------------------------------------
+g8           |
+       t_1_2 |   .2485127    .299346     0.83   0.406    -.3381948    .8352201
+       t_2_3 |  -.0694275   .7619886    -0.09   0.927    -1.562898    1.424043
+       t_3_4 |   .6877777   .8292467     0.83   0.407    -.9375159    2.313071
+       t_4_5 |  -.1244614   .5018458    -0.25   0.804    -1.108061    .8591382
+       t_5_6 |   .1061779   .4196901     0.25   0.800    -.7163995    .9287553
+       t_6_7 |   -.569062   .6253118    -0.91   0.363    -1.794651    .6565266
+       t_7_8 |          0  (omitted)
+       t_7_9 |          0  (omitted)
+      t_7_10 |          0  (omitted)
+      t_7_11 |          0  (omitted)
+      t_7_12 |          0  (omitted)
+      t_7_13 |          0  (omitted)
+      t_7_14 |          0  (omitted)
+      t_7_15 |          0  (omitted)
+      t_7_16 |          0  (omitted)
+      t_7_17 |          0  (omitted)
+      t_7_18 |          0  (omitted)
+      t_7_19 |          0  (omitted)
+      t_7_20 |          0  (omitted)
+      t_7_21 |          0  (omitted)
+-------------+----------------------------------------------------------------
+g9           |
+       t_1_2 |  -1.162817   .5114906    -2.27   0.023     -2.16532   -.1603138
+       t_2_3 |   .3656623   .9080374     0.40   0.687    -1.414058    2.145383
+       t_3_4 |  -.4152963   .5571714    -0.75   0.456    -1.507332    .6767395
+       t_4_5 |   .1238305    .704637     0.18   0.861    -1.257233    1.504894
+       t_5_6 |  -.0243591   .6023704    -0.04   0.968    -1.204983    1.156265
+       t_6_7 |  -.8736724   .8313329    -1.05   0.293    -2.503055    .7557103
+       t_7_8 |   .3314925   .6992091     0.47   0.635    -1.038932    1.701917
+       t_8_9 |          0  (omitted)
+      t_8_10 |          0  (omitted)
+      t_8_11 |          0  (omitted)
+      t_8_12 |          0  (omitted)
+      t_8_13 |          0  (omitted)
+      t_8_14 |          0  (omitted)
+      t_8_15 |          0  (omitted)
+      t_8_16 |          0  (omitted)
+      t_8_17 |          0  (omitted)
+      t_8_18 |          0  (omitted)
+      t_8_19 |          0  (omitted)
+      t_8_20 |          0  (omitted)
+      t_8_21 |          0  (omitted)
+-------------+----------------------------------------------------------------
+g10          |
+       t_1_2 |   .7347437   .2218741     3.31   0.001     .2998785    1.169609
+       t_2_3 |   .1074383     .19242     0.56   0.577    -.2696978    .4845745
+       t_3_4 |          0  (omitted)
+       t_4_5 |   .0096494   .3902512     0.02   0.980    -.7552289    .7745278
+       t_5_6 |   .7060345   1.016007     0.69   0.487    -1.285302    2.697371
+       t_6_7 |   .0387435   1.105777     0.04   0.972    -2.128539    2.206026
+       t_7_8 |  -.3312492   1.258509    -0.26   0.792    -2.797882    2.135384
+       t_8_9 |  -.8826845   1.981261    -0.45   0.656    -4.765885    3.000516
+      t_9_10 |          0  (omitted)
+      t_9_11 |   .0555846   .7319986     0.08   0.939    -1.379106    1.490275
+      t_9_12 |  -.4133596    .866187    -0.48   0.633    -2.111055    1.284336
+      t_9_13 |  -.2728118   .9272055    -0.29   0.769    -2.090101    1.544478
+      t_9_14 |  -.0651603   .7344452    -0.09   0.929    -1.504646    1.374326
+      t_9_15 |   -.969356   .7448895    -1.30   0.193    -2.429313    .4906005
+      t_9_16 |   .9740175   .9632438     1.01   0.312    -.9139056    2.861941
+      t_9_17 |          0  (omitted)
+      t_9_18 |          0  (omitted)
+      t_9_19 |          0  (omitted)
+      t_9_20 |          0  (omitted)
+      t_9_21 |          0  (omitted)
+-------------+----------------------------------------------------------------
+g11          |
+       t_1_2 |  -.6212645   .1032653    -6.02   0.000    -.8236607   -.4188682
+       t_2_3 |   .3923827   .7280702     0.54   0.590    -1.034609    1.819374
+       t_3_4 |  -.9009102   2.100286    -0.43   0.668    -5.017394    3.215574
+       t_4_5 |  -.3998208   1.849812    -0.22   0.829    -4.025386    3.225745
+       t_5_6 |   .5032489   1.194931     0.42   0.674    -1.838774    2.845271
+       t_6_7 |   .0752703   1.053591     0.07   0.943    -1.989729     2.14027
+       t_7_8 |    .191289   .9667187     0.20   0.843    -1.703445    2.086023
+       t_8_9 |   .1101568   1.335084     0.08   0.934     -2.50656    2.726873
+      t_9_10 |  -.3687345   1.645814    -0.22   0.823     -3.59447    2.857001
+     t_10_11 |          0  (omitted)
+     t_10_12 |          0  (omitted)
+     t_10_13 |          0  (omitted)
+     t_10_14 |          0  (omitted)
+     t_10_15 |          0  (omitted)
+     t_10_16 |          0  (omitted)
+     t_10_17 |          0  (omitted)
+     t_10_18 |          0  (omitted)
+     t_10_19 |          0  (omitted)
+     t_10_20 |          0  (omitted)
+     t_10_21 |          0  (omitted)
+-------------+----------------------------------------------------------------
+g12          |
+       t_1_2 |   -.598742   .1499954    -3.99   0.000    -.8927276   -.3047563
+       t_2_3 |    1.15648   .1701623     6.80   0.000     .8229675    1.489992
+       t_3_4 |  -1.510003    .700416    -2.16   0.031    -2.882793   -.1372124
+       t_4_5 |  -1.549649   5.117517    -0.30   0.762     -11.5798      8.4805
+       t_5_6 |   .2359073   4.697246     0.05   0.960    -8.970525     9.44234
+       t_6_7 |   .5309042   1.459332     0.36   0.716    -2.329335    3.391143
+       t_7_8 |  -.4395834   .8493965    -0.52   0.605     -2.10437    1.225203
+       t_8_9 |   .4475629   1.083559     0.41   0.680    -1.676174    2.571299
+      t_9_10 |     .13249   1.767902     0.07   0.940    -3.332533    3.597513
+     t_10_11 |   -.106248   1.282824    -0.08   0.934    -2.620537    2.408041
+     t_11_12 |          0  (omitted)
+     t_11_13 |          0  (omitted)
+     t_11_14 |          0  (omitted)
+     t_11_15 |          0  (omitted)
+     t_11_16 |          0  (omitted)
+     t_11_17 |          0  (omitted)
+     t_11_18 |          0  (omitted)
+     t_11_19 |          0  (omitted)
+     t_11_20 |          0  (omitted)
+     t_11_21 |          0  (omitted)
+-------------+----------------------------------------------------------------
+g13          |
+       t_1_2 |  -.3130359    .422152    -0.74   0.458    -1.140439    .5143668
+       t_2_3 |   .5304902    1.59902     0.33   0.740    -2.603532    3.664512
+       t_3_4 |   .7816619   1.273306     0.61   0.539    -1.713972    3.277296
+       t_4_5 |  -.6914251   .7892973    -0.88   0.381    -2.238419    .8555693
+       t_5_6 |   .7811025   .5670686     1.38   0.168    -.3303316    1.892537
+       t_6_7 |   .1045132   .5387781     0.19   0.846    -.9514725    1.160499
+       t_7_8 |  -.0876386    .546539    -0.16   0.873    -1.158835    .9835582
+       t_8_9 |  -.4316182    .928087    -0.47   0.642    -2.250635    1.387399
+      t_9_10 |   .7994076   .5167636     1.55   0.122    -.2134304    1.812246
+     t_10_11 |  -.3468322   .8556191    -0.41   0.685    -2.023815     1.33015
+     t_11_12 |   .9242788   1.634701     0.57   0.572    -2.279676    4.128234
+     t_12_13 |          0  (omitted)
+     t_12_14 |          0  (omitted)
+     t_12_15 |          0  (omitted)
+     t_12_16 |          0  (omitted)
+     t_12_17 |          0  (omitted)
+     t_12_18 |          0  (omitted)
+     t_12_19 |          0  (omitted)
+     t_12_20 |          0  (omitted)
+     t_12_21 |          0  (omitted)
+-------------+----------------------------------------------------------------
+g14          |
+       t_1_2 |          0  (omitted)
+       t_2_3 |          0  (omitted)
+       t_3_4 |  -.5131724   .2480592    -2.07   0.039    -.9993596   -.0269852
+       t_4_5 |  -.2643542   .9021819    -0.29   0.770    -2.032598     1.50389
+       t_5_6 |   .0721462   .4402928     0.16   0.870    -.7908118    .9351042
+       t_6_7 |   .2745776   .8540574     0.32   0.748    -1.399344    1.948499
+       t_7_8 |    .362814   .4552077     0.80   0.425    -.5293766    1.255005
+       t_8_9 |  -.7318451   1.468143    -0.50   0.618    -3.609352    2.145662
+      t_9_10 |   1.230818   1.070038     1.15   0.250    -.8664175    3.328054
+     t_10_11 |  -.2053563   1.148279    -0.18   0.858    -2.455941    2.045228
+     t_11_12 |   .2496006   1.265398     0.20   0.844    -2.230533    2.729734
+     t_12_13 |   .0716331   .6650094     0.11   0.914    -1.231762    1.375028
+     t_13_14 |          0  (omitted)
+     t_13_15 |          0  (omitted)
+     t_13_16 |          0  (omitted)
+     t_13_17 |          0  (omitted)
+     t_13_18 |          0  (omitted)
+     t_13_19 |          0  (omitted)
+     t_13_20 |          0  (omitted)
+     t_13_21 |          0  (omitted)
+-------------+----------------------------------------------------------------
+g15          |
+       t_1_2 |          0  (omitted)
+       t_2_3 |          0  (omitted)
+       t_3_4 |          0  (omitted)
+       t_4_5 |          0  (omitted)
+       t_5_6 |          0  (omitted)
+       t_6_7 |  -2.064026   1.650252    -1.25   0.211     -5.29846    1.170407
+       t_7_8 |   -.329442   4.378252    -0.08   0.940    -8.910657    8.251773
+       t_8_9 |  -.0831597   .8956291    -0.09   0.926     -1.83856    1.672241
+      t_9_10 |   .0174402   2.185652     0.01   0.994    -4.266359    4.301239
+     t_10_11 |   .4901959   2.723311     0.18   0.857    -4.847396    5.827787
+     t_11_12 |   .2491748   1.346964     0.18   0.853    -2.390826    2.889175
+     t_12_13 |   .4102294   .7366135     0.56   0.578    -1.033506    1.853965
+     t_13_14 |  -.3522653    .765458    -0.46   0.645    -1.852535    1.148005
+     t_14_15 |          0  (omitted)
+     t_14_16 |          0  (omitted)
+     t_14_17 |          0  (omitted)
+     t_14_18 |          0  (omitted)
+     t_14_19 |          0  (omitted)
+     t_14_20 |          0  (omitted)
+     t_14_21 |          0  (omitted)
+-------------+----------------------------------------------------------------
+g16          |
+       t_1_2 |          0  (omitted)
+       t_2_3 |          0  (omitted)
+       t_3_4 |          0  (omitted)
+       t_4_5 |          0  (omitted)
+       t_5_6 |          0  (omitted)
+       t_6_7 |          0  (omitted)
+       t_7_8 |          0  (omitted)
+       t_8_9 |          0  (omitted)
+      t_9_10 |          0  (omitted)
+     t_10_11 |          0  (omitted)
+     t_11_12 |          0  (omitted)
+     t_12_13 |  -.0449225   1.424861    -0.03   0.975    -2.837599    2.747754
+     t_13_14 |    .196042   1.001318     0.20   0.845    -1.766505    2.158589
+     t_14_15 |    .013339   .6798543     0.02   0.984    -1.319151    1.345829
+     t_15_16 |          0  (omitted)
+     t_15_17 |          0  (omitted)
+     t_15_18 |          0  (omitted)
+     t_15_19 |          0  (omitted)
+     t_15_20 |          0  (omitted)
+     t_15_21 |          0  (omitted)
+-------------+----------------------------------------------------------------
+g17          |
+       t_1_2 |          0  (omitted)
+       t_2_3 |          0  (omitted)
+       t_3_4 |          0  (omitted)
+       t_4_5 |          0  (omitted)
+       t_5_6 |   1.559738   .7589399     2.06   0.040     .0722431    3.047233
+       t_6_7 |  -.9988626    .207139    -4.82   0.000    -1.404848   -.5928776
+       t_7_8 |   1.589248   1.019567     1.56   0.119    -.4090662    3.587563
+       t_8_9 |  -.6800187   1.390743    -0.49   0.625    -3.405825    2.045787
+      t_9_10 |    .029608   1.371717     0.02   0.983    -2.658908    2.718124
+     t_10_11 |   .3600975   .9756048     0.37   0.712    -1.552053    2.272248
+     t_11_12 |  -.2460935   1.585143    -0.16   0.877    -3.352918    2.860731
+     t_12_13 |   .0521294   1.540536     0.03   0.973    -2.967266    3.071525
+     t_13_14 |   1.165823   1.888663     0.62   0.537    -2.535889    4.867536
+     t_14_15 |  -.8680947   1.061803    -0.82   0.414    -2.949191    1.213001
+     t_15_16 |   .1508929   1.153078     0.13   0.896    -2.109099    2.410885
+     t_16_17 |          0  (omitted)
+     t_16_18 |          0  (omitted)
+     t_16_19 |          0  (omitted)
+     t_16_20 |          0  (omitted)
+     t_16_21 |          0  (omitted)
+-------------+----------------------------------------------------------------
+g18          |
+       t_1_2 |          0  (omitted)
+       t_2_3 |          0  (omitted)
+       t_3_4 |          0  (omitted)
+       t_4_5 |          0  (omitted)
+       t_5_6 |          0  (omitted)
+       t_6_7 |          0  (omitted)
+       t_7_8 |          0  (omitted)
+       t_8_9 |   .4373972   2.362741     0.19   0.853     -4.19349    5.068284
+      t_9_10 |   .2513934   1.135838     0.22   0.825    -1.974809    2.477596
+     t_10_11 |  -1.078361   2.624971    -0.41   0.681    -6.223209    4.066487
+     t_11_12 |   2.179408   2.658343     0.82   0.412    -3.030849    7.389664
+     t_12_13 |  -.1463821   .9435689    -0.16   0.877    -1.995743    1.702979
+     t_13_14 |   .5001988   .7891987     0.63   0.526    -1.046602       2.047
+     t_14_15 |  -.2878897   .9115064    -0.32   0.752    -2.074409     1.49863
+     t_15_16 |  -.1298369    .778616    -0.17   0.868    -1.655896    1.396222
+     t_16_17 |   .1469689   .8609046     0.17   0.864    -1.540373    1.834311
+     t_17_18 |          0  (omitted)
+     t_17_19 |          0  (omitted)
+     t_17_20 |          0  (omitted)
+     t_17_21 |          0  (omitted)
+-------------+----------------------------------------------------------------
+g19          |
+       t_1_2 |          0  (omitted)
+       t_2_3 |          0  (omitted)
+       t_3_4 |          0  (omitted)
+       t_4_5 |          0  (omitted)
+       t_5_6 |          0  (omitted)
+       t_6_7 |          0  (omitted)
+       t_7_8 |          0  (omitted)
+       t_8_9 |          0  (omitted)
+      t_9_10 |          0  (omitted)
+     t_10_11 |  -6.136424   .2791872   -21.98   0.000    -6.683621   -5.589227
+     t_11_12 |          0  (omitted)
+     t_12_13 |   .4949133   3.795472     0.13   0.896    -6.944075    7.933902
+     t_13_14 |  -.2416212   1.035438    -0.23   0.815    -2.271043    1.787801
+     t_14_15 |  -.1746414   .7439086    -0.23   0.814    -1.632675    1.283393
+     t_15_16 |  -.1003246   .7327899    -0.14   0.891    -1.536566    1.335917
+     t_16_17 |  -.0502765   .6266509    -0.08   0.936     -1.27849    1.177937
+     t_17_18 |  -.0575601   .8250857    -0.07   0.944    -1.674698    1.559578
+     t_18_19 |          0  (omitted)
+     t_18_20 |          0  (omitted)
+     t_18_21 |          0  (omitted)
+-------------+----------------------------------------------------------------
+g20          |
+       t_1_2 |          0  (omitted)
+       t_2_3 |          0  (omitted)
+       t_3_4 |          0  (omitted)
+       t_4_5 |          0  (omitted)
+       t_5_6 |          0  (omitted)
+       t_6_7 |          0  (omitted)
+       t_7_8 |          0  (omitted)
+       t_8_9 |          0  (omitted)
+      t_9_10 |          0  (omitted)
+     t_10_11 |   .6673792   .7608434     0.88   0.380    -.8238465    2.158605
+     t_11_12 |          0  (omitted)
+     t_12_13 |   7.880113   5.489109     1.44   0.151    -2.878344    18.63857
+     t_13_14 |   1.006835    2.59785     0.39   0.698    -4.084857    6.098528
+     t_14_15 |   .4413286   .9754429     0.45   0.651    -1.470504    2.353162
+     t_15_16 |   .2709678    .993284     0.27   0.785    -1.675833    2.217769
+     t_16_17 |  -.1157765   .9166632    -0.13   0.899    -1.912403     1.68085
+     t_17_18 |   .0903519   .9009331     0.10   0.920    -1.675445    1.856148
+     t_18_19 |  -.1022204   1.004316    -0.10   0.919    -2.070643    1.866202
+     t_19_20 |          0  (omitted)
+     t_19_21 |          0  (omitted)
+-------------+----------------------------------------------------------------
+g21          |
+       t_1_2 |          0  (omitted)
+       t_2_3 |          0  (omitted)
+       t_3_4 |          0  (omitted)
+       t_4_5 |          0  (omitted)
+       t_5_6 |          0  (omitted)
+       t_6_7 |          0  (omitted)
+       t_7_8 |          0  (omitted)
+       t_8_9 |          0  (omitted)
+      t_9_10 |          0  (omitted)
+     t_10_11 |          0  (omitted)
+     t_11_12 |          0  (omitted)
+     t_12_13 |          0  (omitted)
+     t_13_14 |          0  (omitted)
+     t_14_15 |   .1977649   1.028386     0.19   0.848    -1.817835    2.213365
+     t_15_16 |   .3133772   3.521757     0.09   0.929     -6.58914    7.215894
+     t_16_17 |   .0808653     .64737     0.12   0.901    -1.187957    1.349687
+     t_17_18 |   .3245446   .9357004     0.35   0.729    -1.509395    2.158484
+     t_18_19 |   .1896145   .8344992     0.23   0.820    -1.445974    1.825203
+     t_19_20 |   .7798506   7.214155     0.11   0.914    -13.35963    14.91934
+     t_20_21 |          0  (omitted)
+------------------------------------------------------------------------------
+Control: Never Treated
+
+See Callaway and Sant'Anna (2021) for details
+
+.         // we do not have enough data to estimate the full model with all the
+>  controls, hence opposite to our pre-analysis plan we added the line below es
+> timating the model without controls.
+.         
+.         //csdid housework_unequal, ivar(hid) time(year) gvar(event_year) meth
+> od(dripw)
+.         estat simple 
+Average Treatment Effect on Treated
+------------------------------------------------------------------------------
+             | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+         ATT |  -.1274776   .6877701    -0.19   0.853    -1.475482    1.220527
+------------------------------------------------------------------------------
+
+.         
+.         
+. 
+. 
+. 
+. 
+. 
+. 
+. * EXTRACT AND EXPORT RESULTS * (Please check whether the suggested code autom
+> atically picks up the correct statistics for your chosen regression analysis 
+> and adapt if needed)
+.                 matrix h3 = r(table)
+
+.         * Extract the required statistics
+.                 
+.                 
+.                 
+.                 
+.                 * (i) coefficient estimate
+.                 scalar att_coef = h3[1,1]
+
+. 
+.                 local coefficient =att_coef
+
+. 
+.                 * (ii) standard error
+.                 local se = h3[2,1]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "z"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 local p_value = h3[4,1]
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof hid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation of directionality
+.                 local interpretation "positive coefficient is in line with hy
+> pothesis" // Adapted by DA during consistency check
+
+. 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: -.1274775617146653
+
+.         di "Standard Error: `se'"
+Standard Error: .6877701164233818
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: z
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: .
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: .
+
+.         di "p-value: " `p_value'
+p-value: .85295524
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 5387
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 822
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h3_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/95_re
+    > sults/h3_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+.         rm "$DATA/h3_between.dta"  //delet data that is used inbetween for me
+> rging purposes
+
+.         
+. exit
+
+end of do-file
+
+. 
+end of do-file

@@ -1,0 +1,1911 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmpg9d5d0ar.do 
+
+. do "95%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. * the following code automatically sets paths based on the project location o
+> n your system *
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/95%-sample" // folder, in which the or
+> iginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/95%-sample
+
+. global DATA "$ROOT/data/derived_confidential/95%-sample" // folder for datase
+> ts
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/95%-sample
+
+. global OUT "$ROOT/data/derived/95_results" // folder for output (results, tab
+> les)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/95_results
+
+. 
+end of do-file
+
+. do "20250709_091714_01cvx6_h4.do"
+
+. *****************************************************************************
+> ***
+. ********************** Do-File H4: #ManyDaughters Project *******************
+> **
+. *****************************************************************************
+> ***
+. 
+. * Authors: [REDACTED], [REDACTED]
+. 
+. * ============================
+. * Setup *
+. * ============================
+. 
+. *       clear all
+.         version 17
+
+.         set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. * INSTALL PACKAGES *
+.         foreach package in reghdfe estout ftools {
+  2.                 ssc install `package', replace
+  3.         }
+checking reghdfe consistency and verifying not already installed...
+all files already exist and are up to date.
+checking estout consistency and verifying not already installed...
+all files already exist and are up to date.
+checking ftools consistency and verifying not already installed...
+all files already exist and are up to date.
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. /*
+>         * the following code automatically sets paths based on where you save
+> d the distributed file-package on your system *
+>         if strpos("`c(pwd)'", "code") {
+>                 global ROOT "`c(pwd)'/.."
+>         }
+>         else {
+>                 global ROOT "`c(pwd)'"
+>         }
+>         global IN "$ROOT/data/raw" // folder, in which the original datasets 
+> are stored
+>         global DATA "$ROOT/data/derived" // folder for datasets
+>         global OUT "$ROOT/out" // folder for output (results, tables)
+> */
+. 
+. * ============================
+. * Data Preparation *
+. * ============================
+. 
+. * LOAD AND MERGE DATA *
+.  
+.         use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. 
+.         * Merge ppathl with all datasets relevant for analysis
+.         
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches) //
+> /
+>                 keepusing(pid sex gebjahr sumkids kidgeb* kidmon* kidsex*)
+(variable pid was long, now double to accommodate using data's values)
+(variable gebjahr was int, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.                 
+. 
+.         * pgen contains user-friendly data on the individual level
+.         merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches) 
+> ///
+>                 keepusing(pid syear pgisced97 pgemplst pglabgro pgmonth)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.                 
+.     
+.         * pl contains all variables from the individual questionnaire
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches) //
+> /
+>                 keepusing(pid syear plh0308_v2 plh0298_v2 plh0302_v2)
+(label cid_EN already defined)
+(label pid_EN already defined)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         
+.         * hgen contains generated variables on household level from the house
+> hold interview; use for household net income
+.         merge m:1 hid syear using "$IN/hgen.dta", nogen keep(master matches) 
+> keepusing(hid syear hghinc)
+(label iyear already defined)
+(label iyear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. 
+.         label language EN
+
+. 
+.         * Negative values typically indicate "Don't know", "Refused to answer
+> ",
+.         * "Not applicable",or "Question not asked in survey year"
+.         * Hence, replace negative values with missing
+.         ds, has(type numeric)
+pid           corigin       sumkids       kidsex03      kidmon06
+cid           gebmonat      kidgeb01      kidsex04      kidmon07
+hid           loc1989       kidgeb02      kidsex05      kidmon08
+syear         migback       kidgeb03      kidsex06      kidmon09
+parid         miginfo       kidgeb04      kidsex07      kidmon11
+partner       germborninfo  kidgeb05      kidsex08      kidmon10
+sex           corigininfo   kidgeb06      kidsex09      kidmon12
+gebjahr       immiyearinfo  kidgeb07      kidsex10      kidmon13
+eintritt      sexor         kidgeb08      kidsex11      kidmon14
+erstbefr      sexorinfo     kidgeb09      kidsex12      kidmon15
+austritt      locinfo       kidgeb10      kidsex13      kidmon16
+psample       birthregion   kidgeb11      kidsex14      kidmon17
+letztbef      birthregio~w  kidgeb12      kidsex15      kidmon18
+sampreg       arefback      kidgeb13      kidsex16      kidmon19
+netto         arefinfo      kidgeb14      kidsex17      pglabgro
+nett1         rv_id         kidgeb15      kidsex18      pgemplst
+casemat       prgroup       kidgeb16      kidsex19      pgisced97
+pop           pbleib        kidgeb17      kidmon01      pgmonth
+todjahr       phrf          kidgeb18      kidmon02      plh0298_v2
+todinfo       phrf0         kidgeb19      kidmon03      plh0302_v2
+immiyear      phrf1         kidsex01      kidmon04      plh0308_v2
+germborn      piyear        kidsex02      kidmon05      hghinc
+
+.         foreach v of varlist `r(varlist)' {
+  2.                 replace `v' = . if `v' < 0
+  3.         }
+(0 real changes made)
+(0 real changes made)
+(1,151 real changes made, 1,151 to missing)
+(0 real changes made)
+(249,466 real changes made, 249,466 to missing)
+(1,151 real changes made, 1,151 to missing)
+(13 real changes made, 13 to missing)
+(8 real changes made, 8 to missing)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(1,361 real changes made, 1,361 to missing)
+(0 real changes made)
+(1,153 real changes made, 1,153 to missing)
+(662,901 real changes made, 662,901 to missing)
+(3,689 real changes made, 3,689 to missing)
+(627,565 real changes made, 627,565 to missing)
+(627,565 real changes made, 627,565 to missing)
+(541,793 real changes made, 541,793 to missing)
+(0 real changes made)
+(501 real changes made, 501 to missing)
+(18,433 real changes made, 18,433 to missing)
+(110,401 real changes made, 110,401 to missing)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(27,640 real changes made, 27,640 to missing)
+(372,968 real changes made, 372,968 to missing)
+(383,249 real changes made, 383,249 to missing)
+(908 real changes made, 908 to missing)
+(908 real changes made, 908 to missing)
+(530,761 real changes made, 530,761 to missing)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(7,935 real changes made, 7,935 to missing)
+(0 real changes made)
+(217,072 real changes made, 217,072 to missing)
+(340,439 real changes made, 340,439 to missing)
+(533,355 real changes made, 533,355 to missing)
+(617,900 real changes made, 617,900 to missing)
+(646,336 real changes made, 646,336 to missing)
+(656,160 real changes made, 656,160 to missing)
+(659,927 real changes made, 659,927 to missing)
+(661,674 real changes made, 661,674 to missing)
+(662,356 real changes made, 662,356 to missing)
+(662,649 real changes made, 662,649 to missing)
+(662,837 real changes made, 662,837 to missing)
+(662,982 real changes made, 662,982 to missing)
+(663,094 real changes made, 663,094 to missing)
+(663,103 real changes made, 663,103 to missing)
+(663,104 real changes made, 663,104 to missing)
+(663,107 real changes made, 663,107 to missing)
+(663,112 real changes made, 663,112 to missing)
+(663,118 real changes made, 663,118 to missing)
+(663,118 real changes made, 663,118 to missing)
+(216,893 real changes made, 216,893 to missing)
+(340,489 real changes made, 340,489 to missing)
+(533,397 real changes made, 533,397 to missing)
+(617,915 real changes made, 617,915 to missing)
+(646,325 real changes made, 646,325 to missing)
+(656,112 real changes made, 656,112 to missing)
+(659,897 real changes made, 659,897 to missing)
+(661,654 real changes made, 661,654 to missing)
+(662,340 real changes made, 662,340 to missing)
+(662,645 real changes made, 662,645 to missing)
+(662,837 real changes made, 662,837 to missing)
+(662,982 real changes made, 662,982 to missing)
+(663,094 real changes made, 663,094 to missing)
+(663,103 real changes made, 663,103 to missing)
+(663,104 real changes made, 663,104 to missing)
+(663,107 real changes made, 663,107 to missing)
+(663,112 real changes made, 663,112 to missing)
+(663,118 real changes made, 663,118 to missing)
+(663,118 real changes made, 663,118 to missing)
+(377,877 real changes made, 377,877 to missing)
+(442,842 real changes made, 442,842 to missing)
+(570,058 real changes made, 570,058 to missing)
+(630,572 real changes made, 630,572 to missing)
+(650,866 real changes made, 650,866 to missing)
+(658,056 real changes made, 658,056 to missing)
+(660,845 real changes made, 660,845 to missing)
+(662,094 real changes made, 662,094 to missing)
+(662,518 real changes made, 662,518 to missing)
+(662,885 real changes made, 662,885 to missing)
+(662,751 real changes made, 662,751 to missing)
+(663,006 real changes made, 663,006 to missing)
+(663,105 real changes made, 663,105 to missing)
+(663,113 real changes made, 663,113 to missing)
+(663,109 real changes made, 663,109 to missing)
+(663,109 real changes made, 663,109 to missing)
+(663,112 real changes made, 663,112 to missing)
+(663,118 real changes made, 663,118 to missing)
+(663,118 real changes made, 663,118 to missing)
+(217,319 real changes made, 217,319 to missing)
+(42 real changes made, 42 to missing)
+(10,157 real changes made, 10,157 to missing)
+(18 real changes made, 18 to missing)
+(490,237 real changes made, 490,237 to missing)
+(490,218 real changes made, 490,218 to missing)
+(490,191 real changes made, 490,191 to missing)
+(31,359 real changes made, 31,359 to missing)
+
+.         
+. * (PRE-)FILTERS *
+.         * Keep only private households
+.         keep if inlist(pop,1,2)
+(89,279 observations deleted)
+
+. 
+.         save "$DATA/h4_dataset.dta", replace
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h4_dataset.dta saved
+
+. 
+. * ============================
+. * Pre-Analysis
+. * ============================
+. 
+.         use "$DATA/h4_dataset.dta", clear
+
+. 
+. * GENERATE VARIABLES
+. 
+.         * GENERATE VARIABLES
+. 
+.         * Outcome: Index (Anderson, 2008) of gender attitudes (from plh0302_v
+> 2, plh0298_v2, and plh0308_v2)
+.         
+.         * Attitudes towards maternal employment (plh0302_v2 & plh0298_v2)
+.         * Original scale: 1 = Strongly in favour, 7 = Strongly against
+.         * Reverse code so higher values = more left-leaning
+.         gen child_3_suffer = 8 - plh0302_v2 if !missing(plh0302_v2)
+(549,765 missing values generated)
+
+.         gen child_6_suffer = 8 - plh0298_v2 if !missing(plh0298_v2)
+(549,786 missing values generated)
+
+.                                                                              
+>    
+.         * Attitudes towards work-family role sharing equality (plh0308_v2)
+.         * 1 = Strongly disagree, 7 = Strongly agree
+.         rename plh0308_v2 work_family_equal
+
+. 
+.         * Anderson (2008) index of gender attitudes
+.         * Standardise each item (mean 0, sd 1)   
+.         foreach v in child_3_suffer child_6_suffer work_family_equal {
+  2.                 egen z_`v' = std(`v')
+  3.                 label var z_`v' "`: var label `v'' (z-score)"
+  4.         }
+(549,765 missing values generated)
+(549,786 missing values generated)
+(549,736 missing values generated)
+note: label truncated to 80 characters
+
+.         correlate z_child_3_suffer z_child_6_suffer z_work_family_equal
+(obs=23,868)
+
+             | z~3_su~r z~6_su~r z_work~l
+-------------+---------------------------
+z_child_3_~r |   1.0000
+z_child_6_~r |   0.7763   1.0000
+z_work_fam~l |   0.0785   0.0759   1.0000
+
+
+.         matrix C   = r(C)
+
+.         matrix iC  = syminv(C)
+
+.         matrix one = J(3,1,1)
+
+.         matrix tmp = one' * iC * one       // 1×1 matrix
+
+.         scalar denom = tmp[1,1]            // extract the single entry
+
+.         matrix w = (iC * one) / denom
+
+.         matrix list w                      // check weights
+
+w[3,1]
+                     c1
+z_child_3_~r  .26338902
+z_child_6_~r  .26886527
+z_work_fam~l  .46774572
+
+.         * Build the weighted index
+.         local varlist z_child_3_suffer z_child_6_suffer z_work_family_equal
+
+.         generate double anderson_raw = 0
+
+.         local i = 1
+
+.         foreach v of local varlist {
+  2.                 replace anderson_raw = anderson_raw + w[`i',1] * `v'
+  3.                 local ++i
+  4.         }
+(573,844 real changes made, 549,765 to missing)
+(24,079 real changes made, 86 to missing)
+(23,993 real changes made, 125 to missing)
+
+.         * Standardise the index
+.         egen gender_attitudes = std(anderson_raw)
+(549,976 missing values generated)
+
+.         label var gender_attitudes "Gender-attitude index (Anderson weighting
+> , std.)"
+
+. 
+. 
+.         * Treatment: First child is daughter
+.         gen first_child_daughter = (kidsex01 == 2) if !missing(kidsex01)
+(183,521 missing values generated)
+
+.         label variable first_child_daughter "First child is daughter"
+
+.         label define first_child_lab 0 "First child son" 1 "First child daugh
+> ter"
+
+.         label values first_child_daughter first_child_lab
+
+. 
+.         * Age at survey year
+.         gen age_at_survey = syear - gebjahr
+(4 missing values generated)
+
+.         label variable age_at_survey "Age at survey year"
+
+. 
+.         * Month-level dates for correct timing
+.         gen interview_date = ym(syear, pgmonth) if !missing(pgmonth)
+(62,122 missing values generated)
+
+.         replace interview_date = ym(syear, 1) if missing(pgmonth)  // Assume 
+> January if month missing
+(62,122 real changes made)
+
+.         gen interview_month_imputed = missing(pgmonth)
+
+.         label variable interview_month_imputed "Interview month was imputed"
+
+. 
+.         * Month-level first child sex knowledge date 
+.         * (birth date -5 because of ultrasound child sex checks anticipation)
+.         gen first_know_sex = ym(kidgeb01, kidmon01) - 5 if !missing(kidmon01)
+>  & !missing(kidgeb01)
+(321,628 missing values generated)
+
+.         replace first_know_sex = ym(kidgeb01, 6) - 5 if missing(kidmon01) & !
+> missing(kidgeb01)  // Assume June birth
+(138,029 real changes made)
+
+.         gen know_sex_month_imputed = missing(kidmon01) & !missing(kidgeb01)
+
+.         label variable first_know_sex "Date of first child sex knowledge (bir
+> th - 5 months)"
+
+.         label variable know_sex_month_imputed "Sex knowledge month was impute
+> d"
+
+. 
+.         * Time since first child sex knowledge
+.         gen months_since_know_sex = interview_date - first_know_sex if !missi
+> ng(first_know_sex)
+(183,599 missing values generated)
+
+.         gen years_since_know_sex = months_since_know_sex / 12
+(183,599 missing values generated)
+
+.         label variable months_since_know_sex "Months since first child sex wa
+> s known"
+
+.         label variable years_since_know_sex "Years since first child sex was 
+> known"
+
+. 
+.         * CONTROL VARIABLES
+. 
+.         * Pre-treatment
+. 
+.         * Sex
+.         gen male = (sex == 1) if !missing(sex)
+(13 missing values generated)
+
+.         label variable male "Biological sex of respondent is male"
+
+.         label define male_lab 0 "Female" 1 "Male"
+
+.         label values male male_lab
+
+.         
+.         * Post-treatment (only for robustness)
+. 
+.         * Education
+.         rename pgisced97 education 
+
+. 
+.         * Income variables
+.         gen log_labor_income = ln(pglabgro + 1) if !missing(pglabgro)
+(273,627 missing values generated)
+
+.         label variable log_labor_income "Log of labor income (plus 1)"
+
+.         gen log_household_income = ln(hghinc + 1) if !missing(hghinc)
+(30,668 missing values generated)
+
+.         label variable log_household_income "Log of household income (plus 1)
+> "
+
+. 
+. 
+.         * Employment status
+.         gen employed = (pgemplst == 1) if !missing(pgemplst)
+(62,161 missing values generated)
+
+.         gen part_time = (pgemplst == 2) if !missing(pgemplst)
+(62,161 missing values generated)
+
+.         gen unemployed = (pgemplst == 4 | pgemplst == 5) if !missing(pgemplst
+> )
+(62,161 missing values generated)
+
+.         gen not_in_labor_force = (pgemplst == 3 | pgemplst == 6) if !missing(
+> pgemplst)
+(62,161 missing values generated)
+
+.         label variable employed "Employed full-time"
+
+.         label variable part_time "Employed part-time"
+
+.         label variable unemployed "Unemployed"
+
+.         label variable not_in_labor_force "Not in labor force"
+
+.         
+.         * Has any daughter - For robustness check
+.     gen any_daughter = 0
+
+.     forvalues i = 1/19 {
+  2.         local ii = string(`i', "%02.0f")
+  3.         gen temp_know_sex`i' = ym(kidgeb`ii', kidmon`ii') - 5 if !missing(
+> kidgeb`ii') & !missing(kidmon`ii')
+  4.         replace temp_know_sex`i' = ym(kidgeb`ii', 6) - 5 if !missing(kidge
+> b`ii') ///
+>                         & missing(kidmon`ii') // Assume June if month missing
+  5.         replace any_daughter = 1 if kidsex`ii' == 2 & !missing(kidsex`ii')
+>  ///
+>             & temp_know_sex`i' <= interview_date & !missing(temp_know_sex`i')
+  6.         * Clean up temporary variable
+.         drop temp_know_sex`i'
+  7.     }
+(321,628 missing values generated)
+(138,029 real changes made)
+(181,159 real changes made)
+(378,473 missing values generated)
+(87,518 real changes made)
+(66,671 real changes made)
+(492,501 missing values generated)
+(30,727 real changes made)
+(12,678 real changes made)
+(545,793 missing values generated)
+(10,338 real changes made)
+(2,455 real changes made)
+(563,508 missing values generated)
+(3,616 real changes made)
+(522 real changes made)
+(569,544 missing values generated)
+(1,474 real changes made)
+(92 real changes made)
+(571,942 missing values generated)
+(703 real changes made)
+(49 real changes made)
+(572,999 missing values generated)
+(319 real changes made)
+(10 real changes made)
+(573,345 missing values generated)
+(110 real changes made)
+(20 real changes made)
+(573,532 missing values generated)
+(72 real changes made)
+(9 real changes made)
+(573,643 missing values generated)
+(36 real changes made)
+(0 real changes made)
+(573,737 missing values generated)
+(17 real changes made)
+(1 real change made)
+(573,829 missing values generated)
+(5 real changes made)
+(0 real changes made)
+(573,835 missing values generated)
+(4 real changes made)
+(0 real changes made)
+(573,833 missing values generated)
+(1 real change made)
+(0 real changes made)
+(573,833 missing values generated)
+(1 real change made)
+(0 real changes made)
+(573,835 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(573,841 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(573,841 missing values generated)
+(0 real changes made)
+(0 real changes made)
+
+.     label variable any_daughter "Has any daughter (based on sex knowledge dat
+> e)"
+
+.     label define any_daughter_lab 0 "No daughters" 1 "Has at least one daught
+> er"
+
+.     label values any_daughter any_daughter_lab
+
+. 
+.         * Age at first birth
+.         gen age_at_first_birth = kidgeb01 - gebjahr if !missing(kidgeb01) & !
+> missing(gebjahr)
+(183,601 missing values generated)
+
+.         label variable age_at_first_birth "Age at first child birth"
+
+.         
+.         * Interaction term for H4
+.         gen daughter_x_male = first_child_daughter * male
+(183,525 missing values generated)
+
+.         label variable daughter_x_male "First child daughter × Male"
+
+. 
+. * SAMPLE RESTRICTIONS
+. 
+.         * Create matrix to store sample sizes
+.         matrix sample_sizes = J(4,2,.)
+
+.         matrix rownames sample_sizes = "Initial" "Parents_with_kids" "Has_gen
+> der_attitudes_data" ///
+>                 "Age_16_+60"
+
+.         matrix colnames sample_sizes = "N" "Percent_remaining"
+
+. 
+.         local row = 1
+
+.         count
+  573,844
+
+.         local initial_n = r(N)
+
+.         matrix sample_sizes[`row',1] = r(N)
+
+.         matrix sample_sizes[`row',2] = 100
+
+.         di "Initial sample: " r(N)
+Initial sample: 573844
+
+. 
+.         * Keep only parents with at least one child and known first child sex
+.         local row = `row' + 1
+
+.         keep if !missing(first_child_daughter) & !missing(kidgeb01)
+(183,917 observations deleted)
+
+.         count
+  389,927
+
+.         matrix sample_sizes[`row',1] = r(N)
+
+.         matrix sample_sizes[`row',2] = (r(N)/`initial_n')*100
+
+.         di "After keeping only parents with known first child sex: " r(N)
+After keeping only parents with known first child sex: 389927
+
+. 
+.         * Keep only observations with gender attitudes data
+.         local row = `row' + 1
+
+.         keep if !missing(gender_attitudes)
+(372,686 observations deleted)
+
+.         count
+  17,241
+
+.         matrix sample_sizes[`row',1] = r(N)
+
+.         matrix sample_sizes[`row',2] = (r(N)/`initial_n')*100
+
+.         di "After keeping only observations with gender attitudes data: " r(N
+> )
+After keeping only observations with gender attitudes data: 17241
+
+. 
+.         * Age restriction
+.         local row = `row' + 1
+
+.         keep if age_at_survey >= 16 & age_at_first_birth < 60 & !missing(age_
+> at_first_birth)
+(0 observations deleted)
+
+.         count
+  17,241
+
+.         matrix sample_sizes[`row',1] = r(N)
+
+.         matrix sample_sizes[`row',2] = (r(N)/`initial_n')*100
+
+.         di "After age restriction (>16 & realistic first child birth date): "
+>  r(N)
+After age restriction (>16 & realistic first child birth date): 17241
+
+. 
+.         * Display sample size table
+.         matlist sample_sizes, format(%12.0fc %6.2f)
+
+             |      N  Perc~g 
+-------------+---------------
+     Initial |  5.7e+05  100.00 
+Parents_wi~s |  3.9e+05   67.95 
+Has_gender~a | 17241.00    3.00 
+  Age_16_+60 | 17241.00    3.00 
+
+. 
+.         * Save analysis dataset
+.         save "$DATA/h4_dataset.dta", replace
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h4_dataset.dta saved
+
+. 
+. * BALANCE TESTS
+. 
+.         * Check for panel structure
+.         tab syear
+
+                            Survey Year |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+                                   2018 |     17,241      100.00      100.00
+----------------------------------------+-----------------------------------
+                                  Total |     17,241      100.00
+
+. 
+.         * Summary statistics by treatment status and gender
+.         * For males
+.         estpost tabstat age_at_survey sumkids years_since_know_sex ///
+>                 if male == 1, by(first_child_daughter) statistics(mean sd cou
+> nt) columns(statistics)
+
+Summary statistics: mean sd count
+     for variables: age_at_survey sumkids years_since_know_sex
+  by categories of: first_child_daughter
+
+first_child_ |   e(mean)      e(sd)   e(count) 
+-------------+---------------------------------
+First chil~n |                                 
+age_at_sur~y |  55.08507   14.63592       3797 
+     sumkids |  2.121412   1.009573       3797 
+years_sinc~x |  26.15106   15.85457       3797 
+-------------+---------------------------------
+First chil~r |                                 
+age_at_sur~y |   54.5525   14.37781       3638 
+     sumkids |  2.119846    1.02401       3638 
+years_sinc~x |  25.55795   15.70663       3638 
+-------------+---------------------------------
+Total        |                                 
+age_at_sur~y |  54.82448   14.51166       7435 
+     sumkids |  2.120646   1.016595       7435 
+years_sinc~x |  25.86085   15.78408       7435 
+
+.         tab birthregion first_child_daughter if male == 1, chi2 col
+
++-------------------+
+| Key               |
+|-------------------|
+|     frequency     |
+| column percentage |
++-------------------+
+
+                      |    First child is
+  Birth place: German |       daughter
+         Federal Land | First chi  First chi |     Total
+----------------------+----------------------+----------
+[1] Schleswig-Holstei |        60         58 |       118 
+                      |      2.86       2.88 |      2.87 
+----------------------+----------------------+----------
+          [2] Hamburg |        44         30 |        74 
+                      |      2.10       1.49 |      1.80 
+----------------------+----------------------+----------
+     [3] Lower Saxony |       198        184 |       382 
+                      |      9.43       9.13 |      9.28 
+----------------------+----------------------+----------
+           [4] Bremen |        21         14 |        35 
+                      |      1.00       0.69 |      0.85 
+----------------------+----------------------+----------
+[5] North Rhine-Westp |       372        369 |       741 
+                      |     17.71      18.30 |     18.00 
+----------------------+----------------------+----------
+            [6] Hesse |       130         99 |       229 
+                      |      6.19       4.91 |      5.56 
+----------------------+----------------------+----------
+[7] Rhineland-Palatin |        87         92 |       179 
+                      |      4.14       4.56 |      4.35 
+----------------------+----------------------+----------
+[8] Baden-Wuerttember |       178        174 |       352 
+                      |      8.48       8.63 |      8.55 
+----------------------+----------------------+----------
+          [9] Bavaria |       278        259 |       537 
+                      |     13.24      12.85 |     13.05 
+----------------------+----------------------+----------
+        [10] Saarland |        16         20 |        36 
+                      |      0.76       0.99 |      0.87 
+----------------------+----------------------+----------
+          [11] Berlin |        83         82 |       165 
+                      |      3.95       4.07 |      4.01 
+----------------------+----------------------+----------
+     [12] Brandenburg |       122        118 |       240 
+                      |      5.81       5.85 |      5.83 
+----------------------+----------------------+----------
+[13] Mecklenburg-West |        81         64 |       145 
+                      |      3.86       3.17 |      3.52 
+----------------------+----------------------+----------
+          [14] Saxony |       207        207 |       414 
+                      |      9.86      10.27 |     10.06 
+----------------------+----------------------+----------
+   [15] Saxony-Anhalt |       118        133 |       251 
+                      |      5.62       6.60 |      6.10 
+----------------------+----------------------+----------
+       [16] Thuringia |       105        113 |       218 
+                      |      5.00       5.61 |      5.30 
+----------------------+----------------------+----------
+                Total |     2,100      2,016 |     4,116 
+                      |    100.00     100.00 |    100.00 
+
+         Pearson chi2(15) =  11.6525   Pr = 0.705
+
+.         * (Potentially post-treatment)
+.         tab education first_child_daughter if male == 1, chi2 col
+
++-------------------+
+| Key               |
+|-------------------|
+|     frequency     |
+| column percentage |
++-------------------+
+
+                      |    First child is
+ISCED-1997-Classifica |       daughter
+                 tion | First chi  First chi |     Total
+----------------------+----------------------+----------
+     [1] inadequately |        64         60 |       124 
+                      |      1.70       1.66 |      1.68 
+----------------------+----------------------+----------
+[2] general elementar |       276        251 |       527 
+                      |      7.34       6.95 |      7.15 
+----------------------+----------------------+----------
+[3] middle vocational |     1,684      1,646 |     3,330 
+                      |     44.76      45.61 |     45.18 
+----------------------+----------------------+----------
+ [4] vocational + Abi |       230        254 |       484 
+                      |      6.11       7.04 |      6.57 
+----------------------+----------------------+----------
+[5] higher vocational |       331        336 |       667 
+                      |      8.80       9.31 |      9.05 
+----------------------+----------------------+----------
+ [6] higher education |     1,177      1,062 |     2,239 
+                      |     31.29      29.43 |     30.38 
+----------------------+----------------------+----------
+                Total |     3,762      3,609 |     7,371 
+                      |    100.00     100.00 |    100.00 
+
+          Pearson chi2(5) =   5.7095   Pr = 0.336
+
+.         tab employed first_child_daughter if male == 1, chi2 col        
+
++-------------------+
+| Key               |
+|-------------------|
+|     frequency     |
+| column percentage |
++-------------------+
+
+           |    First child is
+  Employed |       daughter
+ full-time | First chi  First chi |     Total
+-----------+----------------------+----------
+         0 |     1,602      1,419 |     3,021 
+           |     42.19      39.00 |     40.63 
+-----------+----------------------+----------
+         1 |     2,195      2,219 |     4,414 
+           |     57.81      61.00 |     59.37 
+-----------+----------------------+----------
+     Total |     3,797      3,638 |     7,435 
+           |    100.00     100.00 |    100.00 
+
+          Pearson chi2(1) =   7.8192   Pr = 0.005
+
+.         tab part_time first_child_daughter, chi2 col
+
++-------------------+
+| Key               |
+|-------------------|
+|     frequency     |
+| column percentage |
++-------------------+
+
+           |    First child is
+  Employed |       daughter
+ part-time | First chi  First chi |     Total
+-----------+----------------------+----------
+         0 |     7,134      6,791 |    13,925 
+           |     81.07      80.45 |     80.77 
+-----------+----------------------+----------
+         1 |     1,666      1,650 |     3,316 
+           |     18.93      19.55 |     19.23 
+-----------+----------------------+----------
+     Total |     8,800      8,441 |    17,241 
+           |    100.00     100.00 |    100.00 
+
+          Pearson chi2(1) =   1.0512   Pr = 0.305
+
+.         tab unemployed first_child_daughter, chi2 col
+
++-------------------+
+| Key               |
+|-------------------|
+|     frequency     |
+| column percentage |
++-------------------+
+
+           |    First child is
+           |       daughter
+Unemployed | First chi  First chi |     Total
+-----------+----------------------+----------
+         0 |     4,972      4,901 |     9,873 
+           |     56.50      58.06 |     57.26 
+-----------+----------------------+----------
+         1 |     3,828      3,540 |     7,368 
+           |     43.50      41.94 |     42.74 
+-----------+----------------------+----------
+     Total |     8,800      8,441 |    17,241 
+           |    100.00     100.00 |    100.00 
+
+          Pearson chi2(1) =   4.2945   Pr = 0.038
+
+.         tab not_in_labor_force first_child_daughter, chi2 col
+
++-------------------+
+| Key               |
+|-------------------|
+|     frequency     |
+| column percentage |
++-------------------+
+
+    Not in |    First child is
+     labor |       daughter
+     force | First chi  First chi |     Total
+-----------+----------------------+----------
+         0 |     8,767      8,400 |    17,167 
+           |     99.62      99.51 |     99.57 
+-----------+----------------------+----------
+         1 |        33         41 |        74 
+           |      0.38       0.49 |      0.43 
+-----------+----------------------+----------
+     Total |     8,800      8,441 |    17,241 
+           |    100.00     100.00 |    100.00 
+
+          Pearson chi2(1) =   1.2359   Pr = 0.266
+
+.         
+.         * For females
+.         estpost tabstat age_at_survey sumkids years_since_know_sex ///
+>                 if male == 0, by(first_child_daughter) statistics(mean sd cou
+> nt) columns(statistics)
+
+Summary statistics: mean sd count
+     for variables: age_at_survey sumkids years_since_know_sex
+  by categories of: first_child_daughter
+
+first_child_ |   e(mean)      e(sd)   e(count) 
+-------------+---------------------------------
+First chil~n |                                 
+age_at_sur~y |  52.93164   15.05193       5003 
+     sumkids |  2.152109   1.065549       5003 
+years_sinc~x |  27.12106   16.41111       5003 
+-------------+---------------------------------
+First chil~r |                                 
+age_at_sur~y |  52.19738   14.97359       4803 
+     sumkids |  2.148865   1.067735       4803 
+years_sinc~x |   26.3679   16.27722       4803 
+-------------+---------------------------------
+Total        |                                 
+age_at_sur~y |    52.572   15.01733       9806 
+     sumkids |   2.15052   1.066567       9806 
+years_sinc~x |  26.75216   16.34917       9806 
+
+.         tab birthregion first_child_daughter if male == 0, chi2 col
+
++-------------------+
+| Key               |
+|-------------------|
+|     frequency     |
+| column percentage |
++-------------------+
+
+                      |    First child is
+  Birth place: German |       daughter
+         Federal Land | First chi  First chi |     Total
+----------------------+----------------------+----------
+[1] Schleswig-Holstei |        70         76 |       146 
+                      |      2.70       3.02 |      2.86 
+----------------------+----------------------+----------
+          [2] Hamburg |        54         43 |        97 
+                      |      2.08       1.71 |      1.90 
+----------------------+----------------------+----------
+     [3] Lower Saxony |       219        225 |       444 
+                      |      8.45       8.95 |      8.69 
+----------------------+----------------------+----------
+           [4] Bremen |        13         15 |        28 
+                      |      0.50       0.60 |      0.55 
+----------------------+----------------------+----------
+[5] North Rhine-Westp |       447        412 |       859 
+                      |     17.24      16.38 |     16.82 
+----------------------+----------------------+----------
+            [6] Hesse |       129        120 |       249 
+                      |      4.97       4.77 |      4.87 
+----------------------+----------------------+----------
+[7] Rhineland-Palatin |        98        119 |       217 
+                      |      3.78       4.73 |      4.25 
+----------------------+----------------------+----------
+[8] Baden-Wuerttember |       226        201 |       427 
+                      |      8.72       7.99 |      8.36 
+----------------------+----------------------+----------
+          [9] Bavaria |       353        311 |       664 
+                      |     13.61      12.37 |     13.00 
+----------------------+----------------------+----------
+        [10] Saarland |        27         25 |        52 
+                      |      1.04       0.99 |      1.02 
+----------------------+----------------------+----------
+          [11] Berlin |        88         95 |       183 
+                      |      3.39       3.78 |      3.58 
+----------------------+----------------------+----------
+     [12] Brandenburg |       156        155 |       311 
+                      |      6.02       6.16 |      6.09 
+----------------------+----------------------+----------
+[13] Mecklenburg-West |       120        105 |       225 
+                      |      4.63       4.17 |      4.40 
+----------------------+----------------------+----------
+          [14] Saxony |       269        270 |       539 
+                      |     10.37      10.74 |     10.55 
+----------------------+----------------------+----------
+   [15] Saxony-Anhalt |       177        191 |       368 
+                      |      6.83       7.59 |      7.20 
+----------------------+----------------------+----------
+       [16] Thuringia |       147        152 |       299 
+                      |      5.67       6.04 |      5.85 
+----------------------+----------------------+----------
+                Total |     2,593      2,515 |     5,108 
+                      |    100.00     100.00 |    100.00 
+
+         Pearson chi2(15) =  10.3992   Pr = 0.794
+
+.         * (Potentially post-treatment)
+.         tab education first_child_daughter if male == 1, chi2 col
+
++-------------------+
+| Key               |
+|-------------------|
+|     frequency     |
+| column percentage |
++-------------------+
+
+                      |    First child is
+ISCED-1997-Classifica |       daughter
+                 tion | First chi  First chi |     Total
+----------------------+----------------------+----------
+     [1] inadequately |        64         60 |       124 
+                      |      1.70       1.66 |      1.68 
+----------------------+----------------------+----------
+[2] general elementar |       276        251 |       527 
+                      |      7.34       6.95 |      7.15 
+----------------------+----------------------+----------
+[3] middle vocational |     1,684      1,646 |     3,330 
+                      |     44.76      45.61 |     45.18 
+----------------------+----------------------+----------
+ [4] vocational + Abi |       230        254 |       484 
+                      |      6.11       7.04 |      6.57 
+----------------------+----------------------+----------
+[5] higher vocational |       331        336 |       667 
+                      |      8.80       9.31 |      9.05 
+----------------------+----------------------+----------
+ [6] higher education |     1,177      1,062 |     2,239 
+                      |     31.29      29.43 |     30.38 
+----------------------+----------------------+----------
+                Total |     3,762      3,609 |     7,371 
+                      |    100.00     100.00 |    100.00 
+
+          Pearson chi2(5) =   5.7095   Pr = 0.336
+
+.         tab employed first_child_daughter if male == 1, chi2 col
+
++-------------------+
+| Key               |
+|-------------------|
+|     frequency     |
+| column percentage |
++-------------------+
+
+           |    First child is
+  Employed |       daughter
+ full-time | First chi  First chi |     Total
+-----------+----------------------+----------
+         0 |     1,602      1,419 |     3,021 
+           |     42.19      39.00 |     40.63 
+-----------+----------------------+----------
+         1 |     2,195      2,219 |     4,414 
+           |     57.81      61.00 |     59.37 
+-----------+----------------------+----------
+     Total |     3,797      3,638 |     7,435 
+           |    100.00     100.00 |    100.00 
+
+          Pearson chi2(1) =   7.8192   Pr = 0.005
+
+.         tab part_time first_child_daughter, chi2 col
+
++-------------------+
+| Key               |
+|-------------------|
+|     frequency     |
+| column percentage |
++-------------------+
+
+           |    First child is
+  Employed |       daughter
+ part-time | First chi  First chi |     Total
+-----------+----------------------+----------
+         0 |     7,134      6,791 |    13,925 
+           |     81.07      80.45 |     80.77 
+-----------+----------------------+----------
+         1 |     1,666      1,650 |     3,316 
+           |     18.93      19.55 |     19.23 
+-----------+----------------------+----------
+     Total |     8,800      8,441 |    17,241 
+           |    100.00     100.00 |    100.00 
+
+          Pearson chi2(1) =   1.0512   Pr = 0.305
+
+.         tab unemployed first_child_daughter, chi2 col
+
++-------------------+
+| Key               |
+|-------------------|
+|     frequency     |
+| column percentage |
++-------------------+
+
+           |    First child is
+           |       daughter
+Unemployed | First chi  First chi |     Total
+-----------+----------------------+----------
+         0 |     4,972      4,901 |     9,873 
+           |     56.50      58.06 |     57.26 
+-----------+----------------------+----------
+         1 |     3,828      3,540 |     7,368 
+           |     43.50      41.94 |     42.74 
+-----------+----------------------+----------
+     Total |     8,800      8,441 |    17,241 
+           |    100.00     100.00 |    100.00 
+
+          Pearson chi2(1) =   4.2945   Pr = 0.038
+
+.         tab not_in_labor_force first_child_daughter, chi2 col
+
++-------------------+
+| Key               |
+|-------------------|
+|     frequency     |
+| column percentage |
++-------------------+
+
+    Not in |    First child is
+     labor |       daughter
+     force | First chi  First chi |     Total
+-----------+----------------------+----------
+         0 |     8,767      8,400 |    17,167 
+           |     99.62      99.51 |     99.57 
+-----------+----------------------+----------
+         1 |        33         41 |        74 
+           |      0.38       0.49 |      0.43 
+-----------+----------------------+----------
+     Total |     8,800      8,441 |    17,241 
+           |    100.00     100.00 |    100.00 
+
+          Pearson chi2(1) =   1.2359   Pr = 0.266
+
+.         
+.         * Univariate checks by gender
+.         local balance_vars "gebjahr birthregion age_at_first_birth"  
+
+.         foreach var of local balance_vars {
+  2.                 * For males
+.                 quietly reg `var' first_child_daughter if !missing(`var') & m
+> ale == 1, robust
+  3.                 local coef = _b[first_child_daughter]
+  4.                 local se = _se[first_child_daughter] 
+  5.                 local pval = 2*ttail(e(df_r), abs(`coef'/`se'))
+  6.                 di "Balance test MALES - `var': coef = " %6.4f `coef' ", S
+> E = " %6.4f `se' ", p-value = " %6.4f `pval'
+  7.                 
+.                 * For females
+.                 quietly reg `var' first_child_daughter if !missing(`var') & m
+> ale == 0, robust
+  8.                 local coef = _b[first_child_daughter]
+  9.                 local se = _se[first_child_daughter] 
+ 10.                 local pval = 2*ttail(e(df_r), abs(`coef'/`se'))
+ 11.                 di "Balance test FEMALES - `var': coef = " %6.4f `coef' ",
+>  SE = " %6.4f `se' ", p-value = " %6.4f `pval'
+ 12.         }
+Balance test MALES - gebjahr: coef = 0.5326, SE = 0.3365, p-value = 0.1136
+Balance test FEMALES - gebjahr: coef = 0.7343, SE = 0.3033, p-value = 0.0155
+Balance test MALES - birthregion: coef = 0.1793, SE = 0.1335, p-value = 0.1794
+Balance test FEMALES - birthregion: coef = 0.0780, SE = 0.1217, p-value = 0.521
+> 8
+Balance test MALES - age_at_first_birth: coef = 0.0628, SE = 0.1384, p-value = 
+> 0.6499
+Balance test FEMALES - age_at_first_birth: coef = 0.0291, SE = 0.1093, p-value 
+> = 0.7901
+
+. 
+.         * Joint significance test by gender
+.         reg first_child_daughter gebjahr birthregion age_at_first_birth if !m
+> issing(gebjahr) & !missing(birthregion) & male == 1, robust
+
+Linear regression                               Number of obs     =      4,116
+                                                F(3, 4112)        =       0.68
+                                                Prob > F          =     0.5667
+                                                R-squared         =     0.0005
+                                                Root MSE          =     .50002
+
+------------------------------------------------------------------------------
+             |               Robust
+first_chil~r | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+     gebjahr |  -.0002152   .0005368    -0.40   0.688    -.0012676    .0008371
+ birthregion |   .0025619   .0018575     1.38   0.168    -.0010798    .0062036
+age_at_fir~h |   .0003782   .0013419     0.28   0.778    -.0022526     .003009
+       _cons |   .8787538   1.049735     0.84   0.403    -1.179294    2.936802
+------------------------------------------------------------------------------
+
+.         test gebjahr birthregion age_at_first_birth
+
+ ( 1)  gebjahr = 0
+ ( 2)  birthregion = 0
+ ( 3)  age_at_first_birth = 0
+
+       F(  3,  4112) =    0.68
+            Prob > F =    0.5667
+
+.         local joint_p_male = r(p)
+
+.         di "Joint balance test p-value (MALES): " %6.4f `joint_p_male'
+Joint balance test p-value (MALES): 0.5667
+
+.         
+.         reg first_child_daughter gebjahr birthregion age_at_first_birth if !m
+> issing(gebjahr) & !missing(birthregion) & male == 0, robust
+
+Linear regression                               Number of obs     =      5,108
+                                                F(3, 5104)        =       2.50
+                                                Prob > F          =     0.0579
+                                                R-squared         =     0.0015
+                                                Root MSE          =     .49977
+
+------------------------------------------------------------------------------
+             |               Robust
+first_chil~r | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+     gebjahr |   .0011739   .0004667     2.52   0.012     .0002589    .0020888
+ birthregion |   .0012442   .0016412     0.76   0.448    -.0019733    .0044617
+age_at_fir~h |   .0005891   .0013752     0.43   0.668     -.002107    .0032851
+       _cons |  -1.837119   .9104042    -2.02   0.044    -3.621901   -.0523363
+------------------------------------------------------------------------------
+
+.         test gebjahr birthregion age_at_first_birth
+
+ ( 1)  gebjahr = 0
+ ( 2)  birthregion = 0
+ ( 3)  age_at_first_birth = 0
+
+       F(  3,  5104) =    2.50
+            Prob > F =    0.0579
+
+.         local joint_p_female = r(p)
+
+.         di "Joint balance test p-value (FEMALES): " %6.4f `joint_p_female'
+Joint balance test p-value (FEMALES): 0.0579
+
+. 
+.         * Test if first child sex predicts family size by gender
+.         reg sumkids first_child_daughter if male == 1, robust
+
+Linear regression                               Number of obs     =      7,435
+                                                F(1, 7433)        =       0.00
+                                                Prob > F          =     0.9471
+                                                R-squared         =     0.0000
+                                                Root MSE          =     1.0167
+
+------------------------------------------------------------------------------
+             |               Robust
+     sumkids | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+first_chil~r |  -.0015656   .0235938    -0.07   0.947    -.0478161    .0446849
+       _cons |   2.121412    .016384   129.48   0.000     2.089294    2.153529
+------------------------------------------------------------------------------
+
+.         di "Fertility stopping test (MALES):"
+Fertility stopping test (MALES):
+
+.         test first_child_daughter
+
+ ( 1)  first_child_daughter = 0
+
+       F(  1,  7433) =    0.00
+            Prob > F =    0.9471
+
+.         local stop_p_male = r(p)
+
+.         
+.         reg sumkids first_child_daughter if male == 0, robust
+
+Linear regression                               Number of obs     =      9,806
+                                                F(1, 9804)        =       0.02
+                                                Prob > F          =     0.8804
+                                                R-squared         =     0.0000
+                                                Root MSE          =     1.0666
+
+------------------------------------------------------------------------------
+             |               Robust
+     sumkids | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+first_chil~r |  -.0032434   .0215478    -0.15   0.880    -.0454815    .0389946
+       _cons |   2.152109   .0150647   142.86   0.000     2.122579    2.181639
+------------------------------------------------------------------------------
+
+.         di "Fertility stopping test (FEMALES):"
+Fertility stopping test (FEMALES):
+
+.         test first_child_daughter
+
+ ( 1)  first_child_daughter = 0
+
+       F(  1,  9804) =    0.02
+            Prob > F =    0.8804
+
+.         local stop_p_female = r(p)
+
+.         
+.         * Summary of balance tests
+.         di _newline "=== BALANCE TEST SUMMARY ==="
+
+=== BALANCE TEST SUMMARY ===
+
+.         di "Joint balance test p-value (MALES): " %6.4f `joint_p_male'
+Joint balance test p-value (MALES): 0.5667
+
+.         di "Joint balance test p-value (FEMALES): " %6.4f `joint_p_female'
+Joint balance test p-value (FEMALES): 0.0579
+
+.         di "Differential stopping p-value (MALES): " %6.4f `stop_p_male'
+Differential stopping p-value (MALES): 0.9471
+
+.         di "Differential stopping p-value (FEMALES): " %6.4f `stop_p_female'
+Differential stopping p-value (FEMALES): 0.8804
+
+. 
+. * ============================
+. * Analysis
+. * ============================
+. 
+. * HYPOTHESIS TEST FOR H4
+. 
+.         * For consistency of approach between all different hypotheses and gi
+> ven data
+.         * availability of outcome variables (in particular of gender attitude
+> s for H1
+.         * and H4), we use a cross-sectional approach (OLS w/fixed effects) ex
+> ploiting the
+.         * random assignment of gender of the first child, conditional on beco
+> ming a parent.
+.         * Hence, we prioritize causality over perfect adherence to the hypoth
+> esis, and we
+.         * test the effect of having a daughter instead of a son as a first ch
+> ild.
+.         * See the PAP for a further discussion on the empirical approach.
+.         
+.         * Given the - to our understanding - limited availability of measurem
+> ents of 
+.         * gender attitudes in the SOEP-Core data, we use the variables that s
+> eem to capture
+.         * most closely two of the dimensions we are interested in: attitudes 
+> towards 
+.         * equality between genders in work-family balance (plh0308_v2) and at
+> titudes 
+.         * towards mothers who stay in the workforce (plh0298_v2 and plh0302_v
+> 2). To 
+.         * obtain only one coefficient, we create a standardized index as in A
+> nderson (2008)
+.         * out of the three variables. In the robustness checks, we also test 
+> the hypothesis
+.         * using each variable singularly.
+.         
+.         * In our main specification, we only include pre-treatment controls
+.         * (i.e., sex of the parent and years since the first child was born +
+>  FEs for 
+.         * birth region and age of the parent and survey year).
+.         * Accordingly, we run a linear OLS regression analysis with fixed eff
+> ects with the
+.         * gender attitudes index variable (generated using plh0298_v2, plh030
+> 2_v2, and plh0308_v2),
+.         * the dummy variable first_child_daughter as independent variable, an
+> d the interaction 
+.         * term between the treatment and the sex of the respondent (parent) t
+> o then compute
+.         * the difference in how much having a daughter affects gender attitud
+> es of fathers
+.         * and mothers. Direction-wise, if fathers' gender attitudes change to
+> wards more equality
+.         * is larger than the one of mothers, H4 is not rejected.
+.         * See the PAP for a further discussion on the empirical approach.
+. 
+.         * Model 1: Basic specification with interaction
+.         reghdfe gender_attitudes first_child_daughter male daughter_x_male, a
+> bsorb(syear) vce(cluster pid)
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =     17,241
+Absorbing 1 HDFE group                            F(   3,  17237) =      76.95
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.0132
+                                                  Adj R-squared   =     0.0131
+                                                  Within R-sq.    =     0.0132
+Number of clusters (pid)     =     17,241         Root MSE        =     1.0251
+
+                               (Std. err. adjusted for 17,241 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+gender_att~s | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+first_chil~r |   .0180981   .0206731     0.88   0.381    -.0224233    .0586195
+        male |  -.2245157   .0219515   -10.23   0.000    -.2675428   -.1814886
+daughter_x~e |  -.0298517   .0315566    -0.95   0.344    -.0917058    .0320024
+       _cons |   .0930131   .0145235     6.40   0.000     .0645456    .1214805
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+       syear |         1           0           1     |
+-----------------------------------------------------+
+
+.         est store h4_basic
+
+. 
+.         * Model 2: Full controls with interaction
+.         reghdfe gender_attitudes first_child_daughter male daughter_x_male ye
+> ars_since_know_sex, ///
+>                 absorb(syear gebjahr birthregion) vce(cluster pid)
+(dropped 2 singleton observations)
+(MWFE estimator converged in 5 iterations)
+
+HDFE Linear regression                            Number of obs   =      9,222
+Absorbing 3 HDFE groups                           F(   4,   9124) =      43.91
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.1622
+                                                  Adj R-squared   =     0.1533
+                                                  Within R-sq.    =     0.0195
+Number of clusters (pid)     =      9,222         Root MSE        =     0.9326
+
+                                (Std. err. adjusted for 9,222 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+gender_att~s | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+first_chil~r |   .0008347   .0261583     0.03   0.975    -.0504414    .0521108
+        male |   -.257726   .0283672    -9.09   0.000    -.3133321   -.2021199
+daughter_x~e |  -.0354208   .0393316    -0.90   0.368    -.1125195     .041678
+years_sinc~x |  -.0092497   .0019604    -4.72   0.000    -.0130925   -.0054068
+       _cons |   .4836271   .0638071     7.58   0.000     .3585509    .6087032
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+       syear |         1           0           1     |
+     gebjahr |        79           1          78     |
+ birthregion |        16           1          15    ?|
+-----------------------------------------------------+
+? = number of redundant parameters may be higher
+
+.         est store h4_main
+
+.         
+.         * Calculate and display the effects by gender
+.         lincom first_child_daughter  // Effect for females (when male = 0)
+
+ ( 1)  first_child_daughter = 0
+
+------------------------------------------------------------------------------
+gender_att~s | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0008347   .0261583     0.03   0.975    -.0504414    .0521108
+------------------------------------------------------------------------------
+
+.         local female_effect = r(estimate)
+
+.         local female_se = r(se)
+
+.         local female_p = r(p)
+
+.         
+.         lincom first_child_daughter + daughter_x_male  // Effect for males (w
+> hen male = 1)
+
+ ( 1)  first_child_daughter + daughter_x_male = 0
+
+------------------------------------------------------------------------------
+gender_att~s | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+         (1) |  -.0345861   .0293663    -1.18   0.239    -.0921507    .0229785
+------------------------------------------------------------------------------
+
+.         local male_effect = r(estimate)
+
+.         local male_se = r(se)
+
+.         local male_p = r(p)
+
+.         
+.         di _newline "=== GENDER-SPECIFIC EFFECTS ==="
+
+=== GENDER-SPECIFIC EFFECTS ===
+
+.         di "Effect for females: " %6.4f `female_effect' " (SE = " %6.4f `fema
+> le_se' ", p = " %6.4f `female_p' ")"
+Effect for females: 0.0008 (SE = 0.0262, p = 0.9745)
+
+.         di "Effect for males: " %6.4f `male_effect' " (SE = " %6.4f `male_se'
+>  ", p = " %6.4f `male_p' ")"
+Effect for males: -0.0346 (SE = 0.0294, p = 0.2389)
+
+.         di "Difference (male - female): " %6.4f (`male_effect' - `female_effe
+> ct')
+Difference (male - female): -0.0354
+
+. 
+. * EXTRACT AND EXPORT RESULTS * 
+. 
+.         * Restore main specification
+.         est restore h4_main
+(results h4_main are active now)
+
+. 
+.         * Extract the required statistics
+. 
+.                 * (i) coefficient estimate (interaction)
+.                 local coefficient = _b[daughter_x_male]
+
+. 
+.                 * (ii) standard error
+.                 local se = _se[daughter_x_male]
+
+. 
+.                 * (iii) family of the test statistic
+.                 local test_stat_family = "t"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs)
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 local p_value = _b[daughter_x_male] / _se[daughter_x_male]
+
+.                 local p_value = 2 * ttail(e(df_r), abs(`p_value'))
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation of directionality
+.                 scalar coef_daughter_x_male = _b[daughter_x_male]
+
+.                 local interpretation "positive coefficient is in line with hy
+> pothesis"
+
+. 
+.         * Display the saved statistics
+.         di "Interaction Coefficient (daughter_x_male): `coefficient'"
+Interaction Coefficient (daughter_x_male): -.0354207763910796
+
+.         di "Standard Error: `se'"
+Standard Error: .0393315903039322
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: t
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: 9124
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 4
+
+.         di "p-value: " `p_value'
+p-value: .36784176
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 9222
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 9222
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+
+.         
+.         * Export to CSV
+.         file open results using "$OUT/h4_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/95_re
+    > sults/h4_results.csv not found)
+
+.         file write results "coefficient,se,family,residual_df,model_df,p_valu
+> e,num_obs,num_participants,interpretation" _n
+
+.         file write results "`coefficient', `se', `test_stat_family', `df_resi
+> dual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close results
+
+. 
+. * ROBUSTNESS CHECKS
+. 
+.         * R1: Including (potential) post-treatment controls
+.         reghdfe gender_attitudes first_child_daughter male daughter_x_male ye
+> ars_since_know_sex ///
+>                 education log_labor_income log_household_income, ///
+>                 absorb(syear gebjahr birthregion) vce(cluster pid)
+(dropped 1 singleton observations)
+(MWFE estimator converged in 5 iterations)
+
+HDFE Linear regression                            Number of obs   =      5,170
+Absorbing 3 HDFE groups                           F(   7,   5087) =      45.22
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.1892
+                                                  Adj R-squared   =     0.1761
+                                                  Within R-sq.    =     0.0580
+Number of clusters (pid)     =      5,170         Root MSE        =     0.9263
+
+                                (Std. err. adjusted for 5,170 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+gender_att~s | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+first_chil~r |   .0205095   .0349044     0.59   0.557    -.0479181    .0889372
+        male |  -.3899329    .037918   -10.28   0.000    -.4642685   -.3155974
+daughter_x~e |    .012352   .0521172     0.24   0.813      -.08982    .1145241
+years_sinc~x |  -.0062413   .0027107    -2.30   0.021    -.0115554   -.0009273
+   education |   .1006716   .0106252     9.47   0.000     .0798417    .1215015
+log_labor_~e |   .0740128   .0149875     4.94   0.000     .0446308    .1033948
+log_househ~e |  -.0683165     .03067    -2.23   0.026    -.1284428   -.0081901
+       _cons |   .0113807   .2422408     0.05   0.963    -.4635155    .4862768
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+       syear |         1           0           1     |
+     gebjahr |        61           1          60     |
+ birthregion |        16           1          15    ?|
+-----------------------------------------------------+
+? = number of redundant parameters may be higher
+
+.         est store h4_post_treat
+
+. 
+.         * R2: Single child families only
+.         reghdfe gender_attitudes first_child_daughter male daughter_x_male ye
+> ars_since_know_sex ///
+>                 if sumkids == 1, absorb(syear gebjahr birthregion) vce(cluste
+> r pid)
+(MWFE estimator converged in 6 iterations)
+
+HDFE Linear regression                            Number of obs   =      2,806
+Absorbing 3 HDFE groups                           F(   4,   2708) =      12.56
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.1748
+                                                  Adj R-squared   =     0.1452
+                                                  Within R-sq.    =     0.0185
+Number of clusters (pid)     =      2,806         Root MSE        =     0.9135
+
+                                (Std. err. adjusted for 2,806 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+gender_att~s | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+first_chil~r |    .066762    .049112     1.36   0.174    -.0295387    .1630628
+        male |  -.1815501   .0492212    -3.69   0.000    -.2780651   -.0850351
+daughter_x~e |  -.1397241    .070606    -1.98   0.048    -.2781711   -.0012771
+years_sinc~x |  -.0031562   .0032335    -0.98   0.329    -.0094965    .0031841
+       _cons |    .321893    .092196     3.49   0.000     .1411114    .5026746
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+       syear |         1           0           1     |
+     gebjahr |        79           1          78     |
+ birthregion |        16           1          15    ?|
+-----------------------------------------------------+
+? = number of redundant parameters may be higher
+
+.         est store h4_single_child
+
+.         
+.         * Calculate effects for single child families
+.         lincom first_child_daughter  // Effect for females
+
+ ( 1)  first_child_daughter = 0
+
+------------------------------------------------------------------------------
+gender_att~s | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+         (1) |    .066762    .049112     1.36   0.174    -.0295387    .1630628
+------------------------------------------------------------------------------
+
+.         di "Single child - Effect for females: " %6.4f r(estimate) " (p = " %
+> 6.4f r(p) ")"
+Single child - Effect for females: 0.0668 (p = 0.1741)
+
+.         lincom first_child_daughter + daughter_x_male  // Effect for males
+
+ ( 1)  first_child_daughter + daughter_x_male = 0
+
+------------------------------------------------------------------------------
+gender_att~s | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+         (1) |   -.072962   .0511338    -1.43   0.154    -.1732273    .0273033
+------------------------------------------------------------------------------
+
+.         di "Single child - Effect for males: " %6.4f r(estimate) " (p = " %6.
+> 4f r(p) ")"
+Single child - Effect for males: -0.0730 (p = 0.1537)
+
+. 
+.         * R3: Has any daughter with interaction
+.         gen any_daughter_x_male = any_daughter * male
+
+.         label variable any_daughter_x_male "Has any daughter × Male"
+
+.         
+.         reghdfe gender_attitudes any_daughter male any_daughter_x_male years_
+> since_know_sex, ///
+>                 absorb(syear gebjahr birthregion) vce(cluster pid)
+(dropped 2 singleton observations)
+(MWFE estimator converged in 5 iterations)
+
+HDFE Linear regression                            Number of obs   =      9,222
+Absorbing 3 HDFE groups                           F(   4,   9124) =      43.98
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.1623
+                                                  Adj R-squared   =     0.1533
+                                                  Within R-sq.    =     0.0196
+Number of clusters (pid)     =      9,222         Root MSE        =     0.9325
+
+                                (Std. err. adjusted for 9,222 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+gender_att~s | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+any_daughter |   .0070382   .0283798     0.25   0.804    -.0485927     .062669
+        male |  -.2395282   .0346698    -6.91   0.000    -.3074888   -.1715675
+any_daught~e |  -.0522473   .0417061    -1.25   0.210    -.1340006     .029506
+years_sinc~x |  -.0090833   .0019782    -4.59   0.000     -.012961   -.0052056
+       _cons |   .4741026   .0639691     7.41   0.000     .3487089    .5994963
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+       syear |         1           0           1     |
+     gebjahr |        79           1          78     |
+ birthregion |        16           1          15    ?|
+-----------------------------------------------------+
+? = number of redundant parameters may be higher
+
+.         est store h4_any_daughter
+
+.         
+.         * R4: Exclude observation with imputed months
+.         reghdfe gender_attitudes first_child_daughter male daughter_x_male ye
+> ars_since_know_sex if ///
+>                 interview_month_imputed == 0 & know_sex_month_imputed == 0, /
+> //
+>                 absorb(syear gebjahr birthregion) vce(cluster pid)
+(dropped 5 singleton observations)
+(MWFE estimator converged in 5 iterations)
+
+HDFE Linear regression                            Number of obs   =      5,411
+Absorbing 3 HDFE groups                           F(   4,   5321) =      30.91
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.1541
+                                                  Adj R-squared   =     0.1400
+                                                  Within R-sq.    =     0.0237
+Number of clusters (pid)     =      5,411         Root MSE        =     0.9567
+
+                                (Std. err. adjusted for 5,411 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+gender_att~s | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+first_chil~r |  -.0014176   .0353901    -0.04   0.968    -.0707967    .0679615
+        male |  -.2890789   .0381457    -7.58   0.000    -.3638602   -.2142977
+daughter_x~e |  -.0241924   .0528452    -0.46   0.647    -.1277907    .0794058
+years_sinc~x |  -.0149523   .0025884    -5.78   0.000    -.0200267   -.0098779
+       _cons |   .5088567   .0636927     7.99   0.000     .3839928    .6337205
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+       syear |         1           0           1     |
+     gebjahr |        71           1          70     |
+ birthregion |        16           1          15    ?|
+-----------------------------------------------------+
+? = number of redundant parameters may be higher
+
+.         est store h4_not_imputed
+
+. 
+end of do-file
+
+. 
+end of do-file

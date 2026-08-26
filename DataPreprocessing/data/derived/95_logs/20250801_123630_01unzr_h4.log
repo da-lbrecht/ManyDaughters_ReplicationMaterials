@@ -1,0 +1,546 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmpdvxy98ba.do 
+
+. do "95%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. * the following code automatically sets paths based on the project location o
+> n your system *
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/95%-sample" // folder, in which the or
+> iginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/95%-sample
+
+. global DATA "$ROOT/data/derived_confidential/95%-sample" // folder for datase
+> ts
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/95%-sample
+
+. global OUT "$ROOT/data/derived/95_results" // folder for output (results, tab
+> les)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/95_results
+
+. 
+end of do-file
+
+. do "20250801_123630_01unzr_h4.do"
+
+. *****************************************************************************
+> ***
+. ****************** Do-File H4: #ManyDaughters Project ******************
+. *****************************************************************************
+> ***
+. 
+. * Authors: [REDACTED], [REDACTED]
+. 
+. * ============================
+. * Setup * * ============================
+. 
+. * clear all
+. version 17 // indicate the version of stata you are using here
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. * INSTALL PACKAGES * (Please adapt according to your needs)
+. * install all packages you need here, for example:
+. * ssc install outreg2
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. /*
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> /* Adapted by David Albrecht for reproducibility check
+> global IN "F:\ManyDaughters\#ManyDaughters_RT_AnalysisPackage\#ManyDaughters_
+> RT_AnalysisPackage\data\raw" // folder, in which the original datasets are st
+> ored
+> global DATA "F:\ManyDaughters\#ManyDaughters_RT_AnalysisPackage\#ManyDaughter
+> s_RT_AnalysisPackage\data\derived" // folder for datasets
+> global OUT "F:\ManyDaughters\#ManyDaughters_RT_AnalysisPackage\#ManyDaughters
+> _RT_AnalysisPackage\out" // folder for output (results, tables)
+> */
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> */
+. 
+. * ================================================================
+. * Data Preparation for H4 (No Changes Needed)
+. * ================================================================
+. 
+. * This script performs the complete data preparation for H4.
+. 
+. * --- Step 1: Merge the raw data ---
+. use "$IN/ppathl.dta", clear
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. keep pid syear gebjahr sex sampreg corigin
+
+. 
+. * Merge with pl to get the dependent variables for H4
+. merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches) ///
+>     keepusing(plh0395i01-plh0395i06)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. 
+. * Merge with pgen to get the education control variable
+. merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches) ///
+>     keepusing(pgbilzeit)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. 
+. * Merge with biobirth for IV construction
+. sort pid
+
+. merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches) ///
+>     keepusing(sumkids kidsex*)
+(variable pid was long, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+(label pid_EN already defined)
+(label cid_EN already defined)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. 
+. * --- Step 2: Clean and Filter the sample for H4 ---
+. * Clean Dependent Variables
+. foreach var of varlist plh* {
+  2.     replace `var' = . if `var' < 1
+  3. }
+(491,019 real changes made, 491,019 to missing)
+(490,784 real changes made, 490,784 to missing)
+(491,212 real changes made, 491,212 to missing)
+(491,208 real changes made, 491,208 to missing)
+(490,741 real changes made, 490,741 to missing)
+(490,537 real changes made, 490,537 to missing)
+
+. * Clean Control Variables
+. foreach var of varlist sex sampreg pgbilzeit {
+  2.     replace `var' = . if `var' < 1
+  3. }
+(13 real changes made, 13 to missing)
+(1,361 real changes made, 1,361 to missing)
+(28,524 real changes made, 28,524 to missing)
+
+. replace corigin = . if corigin < 1
+(501 real changes made, 501 to missing)
+
+. gen is_german = (corigin == 1)
+
+. replace is_german = . if corigin == .
+(501 real changes made, 501 to missing)
+
+. 
+. * Filter the sample (for 2019, adults, parents)
+. keep if syear == 2019
+(624,726 observations deleted)
+
+. gen age = 2019 - gebjahr
+
+. keep if age >= 18 & age < .
+(385 observations deleted)
+
+. keep if sumkids >= 1 & sumkids < .
+(11,579 observations deleted)
+
+. 
+. * --- Step 3: Generate analysis variables ---
+. gen num_daughters = 0
+
+. forval i = 1/19 {
+  2.     local child_num : di %02.0f `i'
+  3.     replace num_daughters = num_daughters + 1 if kidsex`child_num' == 2
+  4. }
+(12,864 real changes made)
+(9,698 real changes made)
+(4,283 real changes made)
+(1,804 real changes made)
+(748 real changes made)
+(346 real changes made)
+(183 real changes made)
+(79 real changes made)
+(50 real changes made)
+(24 real changes made)
+(15 real changes made)
+(8 real changes made)
+(3 real changes made)
+(1 real change made)
+(1 real change made)
+(0 real changes made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+
+. gen share_daughters = num_daughters / sumkids
+
+. gen age_sq = age^2
+
+. 
+. * --- Step 4: Save the final dataset ---
+. keep pid syear plh* share_daughters age age_sq sex sampreg is_german pgbilzei
+> t
+
+. save "$DATA/h4_data_final.dta", replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h4_data_final.dta not found)
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h4_data_final.dta saved
+
+. di "Data preparation for H4 complete. Derived dataset 'h4_data_final.dta' is 
+> saved."
+Data preparation for H4 complete. Derived dataset 'h4_data_final.dta' is saved.
+
+. 
+. * ================================================================
+. * H4 Analysis: Final Single-Test Version (Based on Revised PAP)
+. * ================================================================
+. * NOTE: Per project requirements, the analysis was restricted to a single
+. * regression-based test. We selected 'plh0395i05' as the primary dependent
+. * variable and the 'same-gender children only' specification with an
+. * interaction term as the primary model, as outlined in our revised PAP.
+. * ================================================================
+. 
+. use "$DATA/h4_data_final.dta", clear
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. 
+. * --- Step 1: Create the sample and variables for the chosen test ---
+. * Restrict sample to parents with only same-gender children
+. keep if share_daughters == 0 | share_daughters == 1
+(12,717 observations deleted)
+
+. * Create the primary independent variable and the moderator
+. gen has_only_daughters = (share_daughters == 1)
+
+. gen male = (sex == 1)
+
+. 
+. * --- Step 2: Define variables for the single chosen test ---
+. local dv "plh0395i05" // The single DV selected in the revised PAP
+
+. local ind_vars "i.has_only_daughters##i.male age age_sq sampreg is_german pgb
+> ilzeit"
+
+. 
+. * --- Step 3: Prepare the single CSV file ---
+. file open myfile using "$OUT/h4_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/95_re
+    > sults/h4_results.csv not found)
+
+. //file write myfile "dependent_var,coef,se,family,residual_df,p_value,num_obs
+> ,num_participants,interpretation" _n
+. file write myfile "coefficient,se,family,residual_df,model_df,p_value,num_obs
+> ,num_participants,interpretation" _n //Adapted by DA to ensure consistent exp
+> ort of results.
+
+. 
+. * --- Step 4: Run the single, chosen model ---
+. di ""
+
+
+. di "*************************************************************************
+> *******"
+*******************************************************************************
+> *
+
+. di "Processing Final H4 Model for: `dv' (Same-Gender Interaction)"
+Processing Final H4 Model for: plh0395i05 (Same-Gender Interaction)
+
+. di "*************************************************************************
+> *******"
+*******************************************************************************
+> *
+
+. 
+. * We use OLS with robust SE to test the interaction term
+. reg `dv' `ind_vars', vce(robust)
+
+Linear regression                               Number of obs     =      9,299
+                                                F(8, 9290)        =      75.62
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.0607
+                                                Root MSE          =     1.9066
+
+------------------------------------------------------------------------------
+             |               Robust
+  plh0395i05 | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+1.has_only~s |   .1560685   .0513028     3.04   0.002     .0555038    .2566332
+      1.male |  -.6252658   .0563346   -11.10   0.000     -.735694   -.5148376
+             |
+has_only_d~s#|
+        male |
+        1 1  |  -.0421282    .080014    -0.53   0.599    -.1989733    .1147169
+             |
+         age |   .0212826    .009088     2.34   0.019     .0034681    .0390971
+      age_sq |  -.0001464   .0000804    -1.82   0.069    -.0003039    .0000111
+     sampreg |  -.5533577   .0490127   -11.29   0.000    -.6494334    -.457282
+   is_german |    .537692    .064845     8.29   0.000     .4105816    .6648025
+   pgbilzeit |   .0749749   .0071398    10.50   0.000     .0609793    .0889705
+       _cons |   3.897895   .2623341    14.86   0.000     3.383662    4.412127
+------------------------------------------------------------------------------
+
+. 
+. * --- Step 5: Extract and export results for the INTERACTION TERM ---
+. if _rc == 0 {
+.     capture {
+.     if _rc == 0 {
+.         local test_stat_family "t"
+.         local df_residual = e(df_r)
+.         local t_stat = `coefficient' / `se'
+.         local p_value = 2 * ttail(`df_residual', abs(`t_stat'))
+.         local num_obs = e(N)
+.         quietly levelsof pid if e(sample), local(participants)
+.         local num_participants : word count `participants'
+.         
+.         * For H4, a POSITIVE interaction coefficient is in line with the hypo
+> thesis
+.                 local interpretation "positive coefficient is in line with hy
+> pothesis"
+. 
+.         file write myfile "`coefficient',`se',`test_stat_family',`df_residual
+> ',,`p_value',`num_obs',`num_participants',`interpretation'" _n
+.     }
+.     else {
+.         di "Model for `dv' ran, but interaction term was dropped. Result not 
+> saved."
+.     }
+. }
+
+. else {
+.     di "Model for `dv' failed to run (e.g. no observations). Result not saved
+> ."
+. }
+
+. 
+. * --- Step 6: Close the file ---
+. file close myfile
+
+. 
+. di ""
+
+
+. di "Final analysis for H4 complete. Results saved in 'h4_final_results.csv'."
+Final analysis for H4 complete. Results saved in 'h4_final_results.csv'.
+
+. 
+. 
+. /*
+> =============================================================================
+> ===
+> ================== SUPERSEDED ANALYSIS (COMMENTED OUT) ======================
+> ===
+> =============================================================================
+> ===
+> *
+> * The following code block contains the previous analysis strategy, which
+> * involved multiple dependent variables and model specifications. It has been
+> * commented out to adhere to the project's single-test requirement.
+> *
+> 
+> * ================================================================
+> * H4 Analysis: Combined Output (NOW SUPERSEDED)
+> * ================================================================
+> 
+> use "$DATA/h4_data_final.dta", clear
+> 
+> file open myfile using "$OUT/h4_results_combined.csv", write replace
+> file write myfile "dependent_var," ///
+>     "interact_coef_share,se_share,p_val_share,n_obs_share,n_part_share,df_r_s
+> hare,interpretation_share," ///
+>     "interact_coef_same,se_same,p_val_same,n_obs_same,n_part_same,df_r_same,i
+> nterpretation_same" _n
+> 
+> local dep_vars "plh0395i01 plh0395i02 plh0395i03 plh0395i04 plh0395i05 plh039
+> 5i06"
+> gen male = (sex == 1)
+> 
+> foreach dv of local dep_vars {
+>     
+>     di ""
+>     di "*********************************************************************
+> ***********"
+>     di "Processing Combined H4 Models for: `dv'"
+>     di "*********************************************************************
+> ***********"
+> 
+>     * --- Analysis A: Interaction with share_daughters ---
+>     di "--- Running Model A: share_daughters*male Interaction ---"
+>     local ind_vars_A "c.share_daughters##i.male age age_sq sampreg is_german 
+> pgbilzeit"
+>     capture reg `dv' `ind_vars_A', vce(robust)
+>     
+>     if _rc == 0 {
+>         capture {
+>             local coef_A = _b[1.male#c.share_daughters]
+>             local se_A = _se[1.male#c.share_daughters]
+>         }
+>         if _rc == 0 {
+>             local df_r_A = e(df_r)
+>             local p_A = 2 * ttail(`df_r_A', abs(`coef_A'/`se_A'))
+>             local n_A = e(N)
+>             quietly levelsof pid if e(sample), local(pids_A)
+>             local n_part_A : word count `pids_A'
+>             local interp_A "not in line with H4"
+>             if `coef_A' > 0 { local interp_A "in line with H4" }
+>         }
+>         else {
+>             local coef_A . ; local se_A . ; local df_r_A . ; local p_A .
+>             local n_A = e(N) ; local n_part_A . ; local interp_A "term droppe
+> d"
+>         }
+>     }
+>     else {
+>         local coef_A . ; local se_A . ; local df_r_A . ; local p_A .
+>         local n_A . ; local n_part_A . ; local interp_A "not estimated"
+>     }
+> 
+>     * --- Analysis B: Interaction with has_only_daughters ---
+>     di "--- Running Model B: has_only_daughters*male Interaction ---"
+>     preserve 
+>     
+>     keep if share_daughters == 0 | share_daughters == 1
+>     gen has_only_daughters = (share_daughters == 1)
+>     
+>     local ind_vars_B "i.has_only_daughters##i.male age age_sq sampreg is_germ
+> an pgbilzeit"
+>     capture reg `dv' `ind_vars_B', vce(robust)
+> 
+>     if _rc == 0 {
+>         capture {
+>             local coef_B = _b[1.has_only_daughters#1.male]
+>             local se_B = _se[1.has_only_daughters#1.male]
+>         }
+>         if _rc == 0 {
+>             local df_r_B = e(df_r)
+>             local p_B = 2 * ttail(`df_r_B', abs(`coef_B'/`se_B'))
+>             local n_B = e(N)
+>             quietly levelsof pid if e(sample), local(pids_B)
+>             local n_part_B : word count `pids_B'
+>             local interp_B "not in line with H4"
+>             if `coef_B' > 0 { local interp_B "in line with H4" }
+>         }
+>         else {
+>              local coef_B . ; local se_B . ; local df_r_B . ; local p_B .
+>              local n_B = e(N) ; local n_part_B . ; local interp_B "term dropp
+> ed"
+>         }
+>     }
+>     else {
+>         local coef_B . ; local se_B . ; local df_r_B . ; local p_B .
+>         local n_B . ; local n_part_B . ; local interp_B "not estimated"
+>     }
+>     
+>     restore
+> 
+>     * --- Write the combined results for this DV to the CSV file ---
+>     file write myfile "`dv'," ///
+>         "`coef_A',`se_A',`p_A',`n_A',`n_part_A',`df_r_A',`interp_A'," ///
+>         "`coef_B',`se_B',`p_B',`n_B',`n_part_B',`df_r_B',`interp_B'" _n
+> 
+> }
+> 
+> * --- Final Step: Close the file ---
+> file close myfile
+> 
+> di ""
+> di "Combined analysis for H4 complete. Results saved in 'h4_results_combined.
+> csv'."
+> 
+> =============================================================================
+> ===
+> */
+. 
+end of do-file
+
+. 
+end of do-file

@@ -1,0 +1,910 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmpqt6fx86n.do 
+
+. do "5%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. 
+. * the following code automatically sets paths based on the project location o
+> n your system *local curdir = c(pwd)
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/5%-sample" // folder, in which the ori
+> ginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/5%-sample
+
+. global DATA "$ROOT/data/derived_confidential/5%-sample" // folder for dataset
+> s
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/5%-sample
+
+. global OUT "$ROOT/data/derived/5_results" // folder for output (results, tabl
+> es)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/5_results
+
+. 
+end of do-file
+
+. do "20250715_185515_01s0XX_h2.do"
+
+. *****************************************************************************
+> ***
+. ****************** Do-File H2: #ManyDaughters Project ******************
+. *****************************************************************************
+> ***
+. 
+. *  Initial Authors: Tina Wang, David Albrecht
+. * Edited by: Research Team - [REDACTED] 
+. 
+. * ============================
+. * Setup * (Please adapt according to your needs)
+. * ============================
+. 
+. * clear all
+. version 16.1 // indicate the version of stata you are using here
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. * INSTALL PACKAGES * (Please adapt according to your needs)
+. * install all packages you need here, for example:
+. * ssc install outreg2
+. * ssc install fre 
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. /*
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> */
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA * (Please adapt according to your needs)
+. 
+.         use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. 
+.         * Merge ppathl with all datasets, that you deem relevant for your ana
+> lysis. (Tip: use keepusing() to specify which variables to keep from the usin
+> g dataset; the default is all.)
+. 
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches)
+(variable pid was long, now double to accommodate using data's values)
+(variable cid was long, now double to accommodate using data's values)
+(variable gebjahr was int, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * pgen contains user-friendly data on the individual level that are c
+> onsolidated from different sources
+.         merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * pl contains all variables from the individual questionnaire
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches)
+(variable inputdataset was str6, now str9 to accommodate using data's values)
+(label cid already defined)
+(label pid_EN already defined)
+(label cid_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * hgen contains generated variables on household level from the house
+> hold interview; use for household net income
+.         merge m:1 hid syear using "$IN/hgen.dta", nogen keep(master matches) 
+> keepusing(hid syear hghinc)
+(label iyear already defined)
+(label iyear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+. 
+.         label language EN // change language of the labels to English
+
+.         
+.         keep pop  plh0004 hid pid syear parid sex sumkids kidgeb01-kidgeb19 k
+> idsex01-kidsex19 hghinc pgbilzeit partner migback  
+
+. 
+.         save "$DATA/h2_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/5%-sample/h2_dataset.dta saved
+
+. 
+. 
+. * ============================
+. * Analysis
+. * ============================
+. * Decode missings into Stata missings
+. mvdecode _all, mv(-1= .a \ -2=.b \ -3=.c \ -5=.e \ -8=.h) 
+         hid: 55 missing values generated
+       parid: 13329 missing values generated
+     partner: 55 missing values generated
+         pop: 219 missing values generated
+    kidgeb01: 10693 missing values generated
+    kidgeb02: 17388 missing values generated
+    kidgeb03: 28693 missing values generated
+    kidgeb04: 32761 missing values generated
+    kidgeb05: 34340 missing values generated
+    kidgeb06: 34820 missing values generated
+    kidgeb07: 34993 missing values generated
+    kidgeb08: 35068 missing values generated
+    kidgeb09: 35179 missing values generated
+    kidgeb10: 35212 missing values generated
+    kidgeb11: 35218 missing values generated
+    kidgeb12: 35218 missing values generated
+    kidgeb13: 35228 missing values generated
+    kidgeb14: 35228 missing values generated
+    kidgeb15: 35228 missing values generated
+    kidgeb16: 35228 missing values generated
+    kidgeb17: 35228 missing values generated
+    kidgeb18: 35228 missing values generated
+    kidgeb19: 35228 missing values generated
+    kidsex01: 10637 missing values generated
+    kidsex02: 17351 missing values generated
+    kidsex03: 28716 missing values generated
+    kidsex04: 32754 missing values generated
+    kidsex05: 34336 missing values generated
+    kidsex06: 34816 missing values generated
+    kidsex07: 34993 missing values generated
+    kidsex08: 35068 missing values generated
+    kidsex09: 35179 missing values generated
+    kidsex10: 35212 missing values generated
+    kidsex11: 35218 missing values generated
+    kidsex12: 35218 missing values generated
+    kidsex13: 35228 missing values generated
+    kidsex14: 35228 missing values generated
+    kidsex15: 35228 missing values generated
+    kidsex16: 35228 missing values generated
+    kidsex17: 35228 missing values generated
+    kidsex18: 35228 missing values generated
+    kidsex19: 35228 missing values generated
+   pgbilzeit: 1548 missing values generated
+     plh0004: 22543 missing values generated
+      hghinc: 1699 missing values generated
+
+. 
+. * FILTERS * (Please adapt according to your needs)
+.  
+. * exclude respondents without partner
+.         drop if partner == 0 
+(13,191 observations deleted)
+
+. 
+. 
+. * GENERATE VARIABLES * (Please adapt according to your needs)
+. 
+.                 * Generate Outcome Variable: LeftLeaning
+.         
+.         gen LeftLeaning = 10 - plh0004 if syear==2019
+(21,182 missing values generated)
+
+.         
+.         * generate dummy variable for whether participant has at least one da
+> ughter born before 2019 (1) or not (0), 0 includes individuals without childr
+> en born before 2019
+.         fre kidsex* // no more than 12 kids
+
+kidsex01 -- Sex 1st. Child
+-------------------------------------------------------------------
+                      |      Freq.    Percent      Valid       Cum.
+----------------------+--------------------------------------------
+Valid   1  [1] Male   |      10568      47.96      54.58      54.58
+        2  [2] Female |       8795      39.91      45.42     100.00
+        Total         |      19363      87.87     100.00           
+Missing .a            |         22       0.10                      
+        .b            |       2652      12.03                      
+        Total         |       2674      12.13                      
+Total                 |      22037     100.00                      
+-------------------------------------------------------------------
+
+kidsex02 -- Sex 2nd. Child
+-------------------------------------------------------------------
+                      |      Freq.    Percent      Valid       Cum.
+----------------------+--------------------------------------------
+Valid   1  [1] Male   |       7043      31.96      47.96      47.96
+        2  [2] Female |       7643      34.68      52.04     100.00
+        Total         |      14686      66.64     100.00           
+Missing .a            |         19       0.09                      
+        .b            |       7332      33.27                      
+        Total         |       7351      33.36                      
+Total                 |      22037     100.00                      
+-------------------------------------------------------------------
+
+kidsex03 -- Sex 3rd. Child
+-------------------------------------------------------------------
+                      |      Freq.    Percent      Valid       Cum.
+----------------------+--------------------------------------------
+Valid   1  [1] Male   |       2518      11.43      47.75      47.75
+        2  [2] Female |       2755      12.50      52.25     100.00
+        Total         |       5273      23.93     100.00           
+Missing .a            |         20       0.09                      
+        .b            |      16744      75.98                      
+        Total         |      16764      76.07                      
+Total                 |      22037     100.00                      
+-------------------------------------------------------------------
+
+kidsex04 -- Sex 4th. Child
+-------------------------------------------------------------------
+                      |      Freq.    Percent      Valid       Cum.
+----------------------+--------------------------------------------
+Valid   1  [1] Male   |       1001       4.54      49.60      49.60
+        2  [2] Female |       1017       4.61      50.40     100.00
+        Total         |       2018       9.16     100.00           
+Missing .a            |          1       0.00                      
+        .b            |      20018      90.84                      
+        Total         |      20019      90.84                      
+Total                 |      22037     100.00                      
+-------------------------------------------------------------------
+
+kidsex05 -- Sex 5th. Child
+-------------------------------------------------------------------
+                      |      Freq.    Percent      Valid       Cum.
+----------------------+--------------------------------------------
+Valid   1  [1] Male   |        351       1.59      48.21      48.21
+        2  [2] Female |        377       1.71      51.79     100.00
+        Total         |        728       3.30     100.00           
+Missing .b            |      21309      96.70                      
+Total                 |      22037     100.00                      
+-------------------------------------------------------------------
+
+kidsex06 -- Sex 6th. Child
+-------------------------------------------------------------------
+                      |      Freq.    Percent      Valid       Cum.
+----------------------+--------------------------------------------
+Valid   1  [1] Male   |        157       0.71      47.29      47.29
+        2  [2] Female |        175       0.79      52.71     100.00
+        Total         |        332       1.51     100.00           
+Missing .b            |      21705      98.49                      
+Total                 |      22037     100.00                      
+-------------------------------------------------------------------
+
+kidsex07 -- Sex 7th. Child
+-------------------------------------------------------------------
+                      |      Freq.    Percent      Valid       Cum.
+----------------------+--------------------------------------------
+Valid   1  [1] Male   |        102       0.46      54.26      54.26
+        2  [2] Female |         86       0.39      45.74     100.00
+        Total         |        188       0.85     100.00           
+Missing .b            |      21849      99.15                      
+Total                 |      22037     100.00                      
+-------------------------------------------------------------------
+
+kidsex08 -- Sex 8th. Child
+-------------------------------------------------------------------
+                      |      Freq.    Percent      Valid       Cum.
+----------------------+--------------------------------------------
+Valid   1  [1] Male   |         51       0.23      40.48      40.48
+        2  [2] Female |         75       0.34      59.52     100.00
+        Total         |        126       0.57     100.00           
+Missing .b            |      21911      99.43                      
+Total                 |      22037     100.00                      
+-------------------------------------------------------------------
+
+kidsex09 -- Sex 9th. Child
+-------------------------------------------------------------------
+                      |      Freq.    Percent      Valid       Cum.
+----------------------+--------------------------------------------
+Valid   1  [1] Male   |         32       0.15      66.67      66.67
+        2  [2] Female |         16       0.07      33.33     100.00
+        Total         |         48       0.22     100.00           
+Missing .b            |      21989      99.78                      
+Total                 |      22037     100.00                      
+-------------------------------------------------------------------
+
+kidsex10 -- Sex 10th. Child
+-------------------------------------------------------------------
+                      |      Freq.    Percent      Valid       Cum.
+----------------------+--------------------------------------------
+Valid   2  [2] Female |         16       0.07     100.00     100.00
+Missing .b            |      22021      99.93                      
+Total                 |      22037     100.00                      
+-------------------------------------------------------------------
+
+kidsex11 -- Sex 11th. Child
+-------------------------------------------------------------------
+                      |      Freq.    Percent      Valid       Cum.
+----------------------+--------------------------------------------
+Valid   2  [2] Female |         10       0.05     100.00     100.00
+Missing .b            |      22027      99.95                      
+Total                 |      22037     100.00                      
+-------------------------------------------------------------------
+
+kidsex12 -- Sex 12th. Child
+-------------------------------------------------------------------
+                      |      Freq.    Percent      Valid       Cum.
+----------------------+--------------------------------------------
+Valid   2  [2] Female |         10       0.05     100.00     100.00
+Missing .b            |      22027      99.95                      
+Total                 |      22037     100.00                      
+-------------------------------------------------------------------
+
+kidsex13 -- Sex 13th. Child
+-----------------------------------------------------------
+              |      Freq.    Percent      Valid       Cum.
+--------------+--------------------------------------------
+Missing .b    |      22037     100.00                      
+-----------------------------------------------------------
+
+kidsex14 -- Sex 14th. Child
+-----------------------------------------------------------
+              |      Freq.    Percent      Valid       Cum.
+--------------+--------------------------------------------
+Missing .b    |      22037     100.00                      
+-----------------------------------------------------------
+
+kidsex15 -- Sex 15th. Child
+-----------------------------------------------------------
+              |      Freq.    Percent      Valid       Cum.
+--------------+--------------------------------------------
+Missing .b    |      22037     100.00                      
+-----------------------------------------------------------
+
+kidsex16 -- Sex 16th. Child
+-----------------------------------------------------------
+              |      Freq.    Percent      Valid       Cum.
+--------------+--------------------------------------------
+Missing .b    |      22037     100.00                      
+-----------------------------------------------------------
+
+kidsex17 -- Sex 17th. Child
+-----------------------------------------------------------
+              |      Freq.    Percent      Valid       Cum.
+--------------+--------------------------------------------
+Missing .b    |      22037     100.00                      
+-----------------------------------------------------------
+
+kidsex18 -- Sex 18th. Child
+-----------------------------------------------------------
+              |      Freq.    Percent      Valid       Cum.
+--------------+--------------------------------------------
+Missing .b    |      22037     100.00                      
+-----------------------------------------------------------
+
+kidsex19 -- Sex 19th. Child
+-----------------------------------------------------------
+              |      Freq.    Percent      Valid       Cum.
+--------------+--------------------------------------------
+Missing .b    |      22037     100.00                      
+-----------------------------------------------------------
+
+.         gen Daughters = ((kidsex01==2& kidgeb01<2019)  | (kidsex02==2& kidgeb
+> 02<2019) | (kidsex03==2& kidgeb03<2019) | (kidsex04==2& kidgeb04<2019) | (kid
+> sex05==2& kidgeb05<2019) | (kidsex06==2& kidgeb06<2019) | (kidsex07==2& kidge
+> b07<2019) | (kidsex08==2& kidgeb08<2019) | (kidsex09==2& kidgeb09<2019) | (ki
+> dsex10==2& kidgeb10<2019) | (kidsex11==2& kidgeb11<2019) | (kidsex12==2& kidg
+> eb12<2019)) 
+
+.         fre Daughters if syear==2019
+
+Daughters
+-----------------------------------------------------------
+              |      Freq.    Percent      Valid       Cum.
+--------------+--------------------------------------------
+Valid   0     |        455      35.03      35.03      35.03
+        1     |        844      64.97      64.97     100.00
+        Total |       1299     100.00     100.00           
+-----------------------------------------------------------
+
+.         bysort pid (syear): replace Daughters = Daughters[_n-1] if missing(Da
+> ughters) // write forward info from previous years if missing 
+(0 real changes made)
+
+.         fre Daughters if syear==2019    
+
+Daughters
+-----------------------------------------------------------
+              |      Freq.    Percent      Valid       Cum.
+--------------+--------------------------------------------
+Valid   0     |        455      35.03      35.03      35.03
+        1     |        844      64.97      64.97     100.00
+        Total |       1299     100.00     100.00           
+-----------------------------------------------------------
+
+.         
+. 
+.         * generate dummy variable whether respondent is male (1) or not (0)
+.         fre sex 
+
+sex -- Gender
+------------------------------------------------------------------
+                     |      Freq.    Percent      Valid       Cum.
+---------------------+--------------------------------------------
+Valid   1 [1] Male   |      10910      49.51      49.51      49.51
+        2 [2] Female |      11127      50.49      50.49     100.00
+        Total        |      22037     100.00     100.00           
+------------------------------------------------------------------
+
+.         recode sex (2=0) , gen(male)
+(11,127 differences between sex and male)
+
+.         
+.         * Count value of the total number of kids
+.         fre sumkids 
+
+sumkids -- Total Number Of Births
+-----------------------------------------------------------
+              |      Freq.    Percent      Valid       Cum.
+--------------+--------------------------------------------
+Valid   0     |       2635      11.96      11.96      11.96
+        1     |       4697      21.31      21.31      33.27
+        2     |       9403      42.67      42.67      75.94
+        3     |       3283      14.90      14.90      90.84
+        4     |       1291       5.86       5.86      96.70
+        5     |        396       1.80       1.80      98.49
+        6     |        144       0.65       0.65      99.15
+        7     |         62       0.28       0.28      99.43
+        8     |         78       0.35       0.35      99.78
+        9     |         32       0.15       0.15      99.93
+        10    |          6       0.03       0.03      99.95
+        12    |         10       0.05       0.05     100.00
+        Total |      22037     100.00     100.00           
+-----------------------------------------------------------
+
+.         
+.         * Household income
+.         fre hghinc if syear==2019 
+
+hghinc -- Monthly Household Net Income (EUR)
+------------------------------------------------------------
+               |      Freq.    Percent      Valid       Cum.
+---------------+--------------------------------------------
+Valid   350    |          2       0.15       0.19       0.19
+        506    |          2       0.15       0.19       0.38
+        628    |          2       0.15       0.19       0.58
+        745    |          2       0.15       0.19       0.77
+        760    |          2       0.15       0.19       0.96
+        790    |          2       0.15       0.19       1.15
+        800    |          2       0.15       0.19       1.35
+        830    |          2       0.15       0.19       1.54
+        850    |          4       0.31       0.38       1.92
+        890    |          2       0.15       0.19       2.12
+        900    |          2       0.15       0.19       2.31
+        909    |          2       0.15       0.19       2.50
+        1000   |          3       0.23       0.29       2.79
+        1100   |          5       0.38       0.48       3.27
+        1200   |         16       1.23       1.54       4.81
+        1250   |          2       0.15       0.19       5.00
+        1265   |          2       0.15       0.19       5.20
+        1272   |          2       0.15       0.19       5.39
+        1300   |          8       0.62       0.77       6.16
+        1311   |          2       0.15       0.19       6.35
+        :      |          :          :          :          :
+        8400   |          1       0.08       0.10      94.80
+        8500   |          5       0.38       0.48      95.28
+        8700   |          1       0.08       0.10      95.38
+        9400   |          2       0.15       0.19      95.57
+        9500   |          2       0.15       0.19      95.77
+        10000  |         13       1.00       1.25      97.02
+        10200  |          2       0.15       0.19      97.21
+        10500  |          1       0.08       0.10      97.31
+        11500  |          2       0.15       0.19      97.50
+        12000  |          6       0.46       0.58      98.08
+        13000  |          2       0.15       0.19      98.27
+        13600  |          1       0.08       0.10      98.36
+        14000  |          2       0.15       0.19      98.56
+        14500  |          2       0.15       0.19      98.75
+        15000  |          4       0.31       0.38      99.13
+        16000  |          2       0.15       0.19      99.33
+        20000  |          1       0.08       0.10      99.42
+        24000  |          1       0.08       0.10      99.52
+        30000  |          3       0.23       0.29      99.81
+        58000  |          2       0.15       0.19     100.00
+        Total  |       1039      79.98     100.00           
+Missing .      |        199      15.32                      
+        .a     |         55       4.23                      
+        .c     |          6       0.46                      
+        Total  |        260      20.02                      
+Total          |       1299     100.00                      
+------------------------------------------------------------
+
+.         bysort pid (syear): replace hghinc = hghinc[_n-1] if missing(hghinc) 
+> // write forward info from previous years if missing 
+(3,319 real changes made, 502 to missing)
+
+.         fre hghinc if syear==2019       
+
+hghinc -- Monthly Household Net Income (EUR)
+------------------------------------------------------------
+               |      Freq.    Percent      Valid       Cum.
+---------------+--------------------------------------------
+Valid   313    |          1       0.08       0.08       0.08
+        350    |          2       0.15       0.16       0.24
+        506    |          2       0.15       0.16       0.39
+        600    |          3       0.23       0.24       0.63
+        628    |          2       0.15       0.16       0.79
+        745    |          2       0.15       0.16       0.94
+        760    |          2       0.15       0.16       1.10
+        781    |          1       0.08       0.08       1.18
+        790    |          2       0.15       0.16       1.34
+        800    |          6       0.46       0.47       1.81
+        830    |          2       0.15       0.16       1.97
+        850    |          5       0.38       0.39       2.36
+        890    |          2       0.15       0.16       2.52
+        900    |          2       0.15       0.16       2.68
+        909    |          2       0.15       0.16       2.83
+        930    |          2       0.15       0.16       2.99
+        997    |          2       0.15       0.16       3.15
+        1000   |          3       0.23       0.24       3.38
+        1027   |          2       0.15       0.16       3.54
+        1066   |          1       0.08       0.08       3.62
+        :      |          :          :          :          :
+        8500   |          5       0.38       0.39      95.59
+        8700   |          1       0.08       0.08      95.67
+        9000   |          2       0.15       0.16      95.83
+        9400   |          2       0.15       0.16      95.99
+        9500   |          3       0.23       0.24      96.22
+        10000  |         15       1.15       1.18      97.40
+        10200  |          2       0.15       0.16      97.56
+        10500  |          1       0.08       0.08      97.64
+        11500  |          2       0.15       0.16      97.80
+        12000  |          8       0.62       0.63      98.43
+        13000  |          2       0.15       0.16      98.58
+        13600  |          1       0.08       0.08      98.66
+        14000  |          2       0.15       0.16      98.82
+        14500  |          2       0.15       0.16      98.98
+        15000  |          4       0.31       0.31      99.29
+        16000  |          2       0.15       0.16      99.45
+        20000  |          1       0.08       0.08      99.53
+        24000  |          1       0.08       0.08      99.61
+        30000  |          3       0.23       0.24      99.84
+        58000  |          2       0.15       0.16     100.00
+        Total  |       1271      97.84     100.00           
+Missing .      |         28       2.16                      
+Total          |       1299     100.00                      
+------------------------------------------------------------
+
+.         
+.         * education in years
+.         fre pgbilzeit if syear==2019
+
+pgbilzeit -- Amount Of Education Or Training In Years
+-----------------------------------------------------------
+              |      Freq.    Percent      Valid       Cum.
+--------------+--------------------------------------------
+Valid   7     |         49       3.77       5.01       5.01
+        8.5   |          4       0.31       0.41       5.42
+        9     |         96       7.39       9.82      15.24
+        10    |          9       0.69       0.92      16.16
+        10.5  |        152      11.70      15.54      31.70
+        11    |         41       3.16       4.19      35.89
+        11.5  |        140      10.78      14.31      50.20
+        12    |        134      10.32      13.70      63.91
+        13    |         29       2.23       2.97      66.87
+        13.5  |         20       1.54       2.04      68.92
+        14    |         21       1.62       2.15      71.06
+        14.5  |         31       2.39       3.17      74.23
+        15    |         54       4.16       5.52      79.75
+        16    |         40       3.08       4.09      83.84
+        17    |          8       0.62       0.82      84.66
+        18    |        150      11.55      15.34     100.00
+        Total |        978      75.29     100.00           
+Missing .     |        282      21.71                      
+        .a    |          8       0.62                      
+        .b    |         31       2.39                      
+        Total |        321      24.71                      
+Total         |       1299     100.00                      
+-----------------------------------------------------------
+
+.                 bysort pid (syear): replace pgbilzeit = pgbilzeit[_n-1] if mi
+> ssing(pgbilzeit) // write forward info from previous years if missing 
+(3103 real changes made, 254 to missing)
+
+.         fre pgbilzeit if syear==2019
+
+pgbilzeit -- Amount Of Education Or Training In Years
+-----------------------------------------------------------
+              |      Freq.    Percent      Valid       Cum.
+--------------+--------------------------------------------
+Valid   7     |         86       6.62       6.98       6.98
+        8.5   |          5       0.38       0.41       7.39
+        9     |        153      11.78      12.42      19.81
+        10    |         12       0.92       0.97      20.78
+        10.5  |        197      15.17      15.99      36.77
+        11    |         46       3.54       3.73      40.50
+        11.5  |        164      12.63      13.31      53.81
+        12    |        167      12.86      13.56      67.37
+        13    |         30       2.31       2.44      69.81
+        13.5  |         21       1.62       1.70      71.51
+        14    |         26       2.00       2.11      73.62
+        14.5  |         35       2.69       2.84      76.46
+        15    |         61       4.70       4.95      81.41
+        16    |         45       3.46       3.65      85.06
+        17    |          8       0.62       0.65      85.71
+        18    |        176      13.55      14.29     100.00
+        Total |       1232      94.84     100.00           
+Missing .     |         67       5.16                      
+Total         |       1299     100.00                      
+-----------------------------------------------------------
+
+. 
+. 
+.         * Migration Background 
+.         fre migback if syear == 2019
+
+migback -- Migration background
+------------------------------------------------------------------------------
+                                 |      Freq.    Percent      Valid       Cum.
+---------------------------------+--------------------------------------------
+Valid   1 [1] no migration       |        831      63.97      63.97      63.97
+          background             |                                            
+        2 [2] direct migration   |        411      31.64      31.64      95.61
+          background             |                                            
+        3 [3] indirect migration |         57       4.39       4.39     100.00
+          background             |                                            
+        Total                    |       1299     100.00     100.00           
+------------------------------------------------------------------------------
+
+.         
+.         * partnershiop status
+.         fre partner
+
+partner -- Status Of Partnership
+-----------------------------------------------------------------------------
+                                |      Freq.    Percent      Valid       Cum.
+--------------------------------+--------------------------------------------
+Valid   1  [1] Spouse,          |      18751      85.09      85.30      85.30
+           registered partner   |                                            
+        2  [2] Partner          |       3066      13.91      13.95      99.25
+        3  [3] Probably spouse, |         38       0.17       0.17      99.42
+           registered partner   |                                            
+        4  [4] Probably partner |         44       0.20       0.20      99.62
+        5  [5] not clear        |         83       0.38       0.38     100.00
+        Total                   |      21982      99.75     100.00           
+Missing .b                      |         55       0.25                      
+Total                           |      22037     100.00                      
+-----------------------------------------------------------------------------
+
+. 
+.         
+. * HYPOTHESIS TEST FOR H2 * (Please adapt according to your needs)
+. 
+.         * Please add a verbal description of your model here
+. 
+.         * I refrain from using the alternative specification using a 2SLS IV-
+> regression, as I have serious concerns about the exclusion restriction being 
+> violated. Thus, I stick with the main specification: linear OLS regression
+. 
+.         * Having Daughters (Daughters) leads to stronger more Left-Leaning po
+> litical preferences (LeftLeaning).
+.         * Accordingly, we run a linear OLS regression analysis with LeftLeani
+> ng as dependent variable and the dummy variable Daughters as independent vari
+> able, additionally controlling for total number of children (sumkids), income
+>  (hghinc), education (pgbilzeit), marital status (partner), migration backgro
+> und (migback), male (male) using heteroskedasticity robus standard errors
+. 
+.         regress LeftLeaning Daughters sumkids hghinc pgbilzeit ib1.partner ib
+> 1.migback i.male, robust
+
+Linear regression                               Number of obs     =        817
+                                                F(11, 805)        =       5.01
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.0251
+                                                Root MSE          =     1.6386
+
+------------------------------------------------------------------------------
+             |               Robust
+ LeftLeaning | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+   Daughters |   .2082868   .1445391     1.44   0.150    -.0754312    .4920047
+     sumkids |  -.1184039   .0615635    -1.92   0.055    -.2392479    .0024401
+      hghinc |  -8.06e-06   .0000195    -0.41   0.679    -.0000463    .0000302
+   pgbilzeit |   .0462437    .022123     2.09   0.037     .0028181    .0896693
+             |
+     partner |
+[2] Partner  |  -.1626583    .169257    -0.96   0.337    -.4948954    .1695789
+[3] Proba..  |   .8212996   .3153323     2.60   0.009      .202329     1.44027
+[4] Proba..  |   .1796662   .2978936     0.60   0.547    -.4050738    .7644061
+[5] not c..  |  -.6874619   .1936728    -3.55   0.000    -1.067625   -.3072985
+             |
+     migback |
+[2] direc..  |  -.0979715   .1732388    -0.57   0.572    -.4380245    .2420815
+[3] indir..  |    .112901   .2489696     0.45   0.650    -.3758053    .6016072
+             |
+      1.male |  -.3451297   .1162646    -2.97   0.003    -.5733474   -.1169121
+       _cons |   4.986018   .3136388    15.90   0.000     4.370372    5.601665
+------------------------------------------------------------------------------
+
+. 
+. 
+. 
+. * EXTRACT AND EXPORT RESULTS * (Please check whether the suggested code autom
+> atically picks up the correct statistics for your chosen regression analysis 
+> and adapt if needed)
+. 
+.         * Extract the required statistics
+. 
+.                 * (i) coefficient estimate
+.                 local coefficient = _b[Daughters]
+
+. 
+.                 * (ii) standard error
+.                 local se = _se[Daughters]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "t"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 local p_value = _b[Daughters] / _se[Daughters]
+
+.                 local p_value = 2 * ttail(e(df_r), abs(`p_value'))
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation of directionality
+.                 scalar coef_Daughters = _b[Daughters]
+
+.                 local interpretation "positive coefficient is in line with hy
+> pothesis"
+
+. 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: .2082867841104443
+
+.         di "Standard Error: `se'"
+Standard Error: .144539063675772
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: t
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: 805
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 11
+
+.         di "p-value: " `p_value'
+p-value: .14996182
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 817
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 817
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h2_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/5_res
+    > ults/h2_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

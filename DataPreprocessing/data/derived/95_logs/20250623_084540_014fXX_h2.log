@@ -1,0 +1,713 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmpnjs12_1o.do 
+
+. do "95%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. * the following code automatically sets paths based on the project location o
+> n your system *
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/95%-sample" // folder, in which the or
+> iginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/95%-sample
+
+. global DATA "$ROOT/data/derived_confidential/95%-sample" // folder for datase
+> ts
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/95%-sample
+
+. global OUT "$ROOT/data/derived/95_results" // folder for output (results, tab
+> les)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/95_results
+
+. 
+end of do-file
+
+. do "20250623_084540_014fXX_h2.do"
+
+. *****************************************************************************
+> ***
+. ****************** Example Do-File H2: #ManyDaughters Project ***************
+> ***
+. *****************************************************************************
+> ***
+. 
+. * Authors: Tina Wang, David Albrecht
+. 
+. * ============================
+. * Setup * (Please adapt according to your needs)
+. * ============================
+. 
+. * clear all
+. version 19.5 // BE-Basic Edition, indicate the version of stata you are using
+>  here
+
+.              // maxvar not settable in this version of Stata (maxvar is fixed
+>  at 2,048)
+. 
+. * INSTALL PACKAGES * (Please adapt according to your needs)
+. * install all packages you need here, for example:
+. * ssc install outreg2
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. /*
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> */
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA * (Please adapt according to your needs)
+.                 
+.         * The full 'pl.dta' file contains ~4,000 variables, which exceeds Sta
+> ta's
+.         * 2,048-variable limit (my version of stata). To avoid this, we creat
+> e a pl subset
+.         * containing only the merge keys (pid, syear, hid, cid) and the 
+.         * questionnaire item needed for H2 (plh0004).
+.         
+.    * pl scontains all variables from the individual questionnaire
+.         use pid syear hid cid plh0004 using "$IN/pl.dta", clear
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+.         save "$IN/pl_subset_h2.dta", replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/raw_confident
+    > ial/95%-sample/pl_subset_h2.dta not found)
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/raw_confident
+    > ial/95%-sample/pl_subset_h2.dta saved
+
+.         
+.         * Merge pl with all datasets, that we deem relevant for our analysis.
+>  (Tip: use keepusing() to specify which variables to keep from the using data
+> set; the default is all.)
+. 
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches) ke
+> epusing(kidsex01 kidgeb01)
+(variable pid was long, now double to accommodate using data's values)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         
+.         * ppathl 
+.         merge m:1 pid syear using "$IN/ppathl.dta", nogen keep(master matches
+> )
+(label sex_EN already defined)
+(label sex already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         
+.         * pgen contains user-friendly data on the individual level that are c
+> onsolidated from different sources
+.         merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. 
+.         label language EN // change language of the labels to English
+
+. 
+.         save "$DATA/h2_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h2_dataset.dta saved
+
+. 
+. 
+. * ============================
+. * Analysis
+. * ============================
+. 
+. use "$DATA/h2_dataset.dta", clear
+
+. 
+. * GENERATE VARIABLES * (Please adapt according to your needs)
+. 
+.         *1*Generate DEPENDENT VARIABLE left_pol_preferences
+.         
+.         *Recode nonresponse values (–1 through –8) to missing
+.         mvdecode plh0004, mv(-1/-8=.)
+     plh0004: 428081 missing values generated
+
+. 
+. // 1. Create a new variable left_pol_preferences
+.         generate left_pol_preferences = .
+(663,123 missing values generated)
+
+.     replace left_pol_preferences = 1 if inrange(plh0004, 0, 4)
+(29,724 real changes made)
+
+.     replace left_pol_preferences = 0 if inrange(plh0004, 6, 10)
+(19,026 real changes made)
+
+. 
+.     *2*Generate INDEPENDENT VARIABLE firstborn_child_female called 'daughter_
+> h1'
+.    
+.    *Code firstborn_child_female as 1 if firstborn is female (kidsex[01]=2), 0
+>  if male (kidsex[01]=1)
+.     gen firstborn_child_female = .
+(663,123 missing values generated)
+
+.     replace firstborn_child_female = 1 if kidsex01 == 2
+(216,749 real changes made)
+
+.     replace firstborn_child_female = 0 if kidsex01 == 1
+(229,481 real changes made)
+
+.         
+.         *3* Compute the age group of the firstborn child in 2018
+.           * (survey year – birth year of first child)
+.     gen firstborn_age_2019 = 2019 - kidgeb01    // kidgeb01 = birth year of f
+> irst child 
+
+. 
+.       *Categorize into three mutually exclusive age groups:
+.        *    0 = 0–5 years; 1 = 6–10 years; 2 = 11–18 years
+.     gen firstborn_age_group_2019 = .
+(663,123 missing values generated)
+
+.     replace firstborn_age_group_2019 = 0 if inrange(firstborn_age_2019,  0,  
+> 5)
+(17,960 real changes made)
+
+.     replace firstborn_age_group_2019 = 1 if inrange(firstborn_age_2019,  6, 1
+> 0)
+(30,651 real changes made)
+
+.     replace firstborn_age_group_2019 = 2 if inrange(firstborn_age_2019, 11, 1
+> 8)
+(75,958 real changes made)
+
+.         
+.         *3*Generate CONTROLS VARIABLES sex, age, and education level
+.     *Respondent sex → respondent_female (1 = female, 0 = male)
+.     gen respondent_female = .
+(663,123 missing values generated)
+
+.     replace respondent_female = 1 if sex == 2       // 
+(343,767 real changes made)
+
+.     replace respondent_female = 0 if sex == 1
+(319,343 real changes made)
+
+. 
+.     *Age in 2018 and its square
+.     gen age_2019        = 2019 - gebjahr           // 
+
+.     gen age_square_2019 = age_2019^2
+
+. 
+.     *Education level (0=Primary or below; 1=Secondary; 2=Post-secondary; 3=Te
+> rtiary)
+.     gen education_level = .
+(663,123 missing values generated)
+
+.     replace education_level = 0 if inrange(pgisced11, 0, 1)
+(23,523 real changes made)
+
+.     replace education_level = 1 if inrange(pgisced11, 2, 3)
+(173,250 real changes made)
+
+.     replace education_level = 2 if inrange(pgisced11, 4, 5)
+(36,552 real changes made)
+
+.     replace education_level = 3 if inrange(pgisced11, 6, 8)  // 
+(73,386 real changes made)
+
+. 
+. * FILTERS *
+. 
+. 
+. * 1. Restrict to respondents surveyed in 2018
+. keep if syear == 2019
+(624,726 observations deleted)
+
+. 
+. * 2. Drop respondents with missing dependent variable
+. drop if missing(left_pol_preferences)
+(25,191 observations deleted)
+
+. drop if left_pol_preferences < 0
+(0 observations deleted)
+
+. 
+. inspect left_pol_preferences
+
+left_pol_preferences:                           Number of observations
+-----------------------                ---------------------------------------
+                                             Total      Integers   Nonintegers
+|      #                     Negative            -             -             -
+|      #                     Zero            4,813         4,813             -
+|      #                     Positive        8,393         8,393             -
+|  #   #                               -----------   -----------   -----------
+|  #   #                     Total          13,206        13,206             -
+|  #   #                     Missing             -
++----------------------                -----------
+0                     1                     13,206
+   (2 unique values)
+
+. 
+. * 3. Drop respondents with no firstborn information
+. drop if missing(firstborn_child_female)
+(4,050 observations deleted)
+
+. drop if missing(firstborn_age_group_2019)
+(5,953 observations deleted)
+
+. 
+. inspect firstborn_child_female
+
+firstborn_child_female:                         Number of observations
+-------------------------              ---------------------------------------
+                                             Total      Integers   Nonintegers
+|  #                         Negative            -             -             -
+|  #   #                     Zero            1,619         1,619             -
+|  #   #                     Positive        1,584         1,584             -
+|  #   #                               -----------   -----------   -----------
+|  #   #                     Total           3,203         3,203             -
+|  #   #                     Missing             -
++----------------------                -----------
+0                     1                      3,203
+   (2 unique values)
+
+. inspect firstborn_age_group_2019
+
+firstborn_age_group_2019:                       Number of observations
+---------------------------            ---------------------------------------
+                                             Total      Integers   Nonintegers
+|          #                 Negative            -             -             -
+|          #                 Zero              692           692             -
+|          #                 Positive        2,511         2,511             -
+|          #                           -----------   -----------   -----------
+|  #   #   #                 Total           3,203         3,203             -
+|  #   #   #                 Missing             -
++----------------------                -----------
+0                     2                      3,203
+   (3 unique values)
+
+. 
+. inspect respondent_female
+
+respondent_female:                              Number of observations
+--------------------                   ---------------------------------------
+                                             Total      Integers   Nonintegers
+|  #                         Negative            -             -             -
+|  #   #                     Zero            1,608         1,608             -
+|  #   #                     Positive        1,594         1,594             -
+|  #   #                               -----------   -----------   -----------
+|  #   #                     Total           3,202         3,202             -
+|  #   #                     Missing             1
++----------------------                -----------
+0                     1                      3,203
+   (2 unique values)
+
+. 
+. * 4. Drop respondents missing key controls
+. drop if missing(respondent_female)
+(1 observation deleted)
+
+. drop if missing(age_2019)
+(0 observations deleted)
+
+. drop if missing(age_square_2019)
+(0 observations deleted)
+
+. drop if missing(education_level)
+(22 observations deleted)
+
+. 
+. inspect respondent_female
+
+respondent_female:                              Number of observations
+--------------------                   ---------------------------------------
+                                             Total      Integers   Nonintegers
+|  #                         Negative            -             -             -
+|  #   #                     Zero            1,595         1,595             -
+|  #   #                     Positive        1,585         1,585             -
+|  #   #                               -----------   -----------   -----------
+|  #   #                     Total           3,180         3,180             -
+|  #   #                     Missing             -
++----------------------                -----------
+0                     1                      3,180
+   (2 unique values)
+
+. inspect age_2019
+
+age_2019:                                       Number of observations
+-----------                            ---------------------------------------
+                                             Total      Integers   Nonintegers
+|          #                 Negative            -             -             -
+|      #   #                 Zero                -             -             -
+|      #   #                 Positive        3,180         3,180             -
+|      #   #                           -----------   -----------   -----------
+|      #   #                 Total           3,180         3,180             -
+|  .   #   #   .   .         Missing             -
++----------------------                -----------
+18                   76                      3,180
+  (48 unique values)
+
+. inspect age_square_2019
+
+age_square_2019:                                Number of observations
+------------------                     ---------------------------------------
+                                             Total      Integers   Nonintegers
+|      #                     Negative            -             -             -
+|      #                     Zero                -             -             -
+|      #                     Positive        3,180         3,180             -
+|      #                               -----------   -----------   -----------
+|  #   #                     Total           3,180         3,180             -
+|  #   #   #   .   .         Missing             -
++----------------------                -----------
+324                5776                      3,180
+  (48 unique values)
+
+. inspect education_level
+
+education_level:                                Number of observations
+------------------                     ---------------------------------------
+                                             Total      Integers   Nonintegers
+|              #             Negative            -             -             -
+|      #       #             Zero               50            50             -
+|      #       #             Positive        3,130         3,130             -
+|      #       #                       -----------   -----------   -----------
+|      #   #   #             Total           3,180         3,180             -
+|  .   #   #   #             Missing             -
++----------------------                -----------
+0                     3                      3,180
+   (4 unique values)
+
+. 
+. * 4. Restrict age
+. keep if inrange(age_2019, 18, 54)
+(106 observations deleted)
+
+. keep if inrange(age_square_2019, 324, 2916)
+(0 observations deleted)
+
+. 
+. *5. Ensure at least one child under 18
+. keep if firstborn_age_2019 <= 18
+(0 observations deleted)
+
+. 
+. 
+. *CHECK THE REMAINING SAMPLE SIMPLE
+. count  
+  3,074
+
+. 
+. **COUNT RESULTS : 187 OBSERVATIONS
+. * For the main effect (models 1 and 2), assuming a small effect size of Cohen
+> 's d = 0.15. With a significance level of 𝛼 = 0.05 and desired power = 0.80,
+>  
+. * we would require approximately 700 individuals per group (i.e., 1,400 total
+>  observations) to detect a statistically significant difference between 
+. * respondents with firstborn daughters and those with firstborn sons.
+. 
+. inspect firstborn_child_female
+
+firstborn_child_female:                         Number of observations
+-------------------------              ---------------------------------------
+                                             Total      Integers   Nonintegers
+|  #                         Negative            -             -             -
+|  #   #                     Zero            1,546         1,546             -
+|  #   #                     Positive        1,528         1,528             -
+|  #   #                               -----------   -----------   -----------
+|  #   #                     Total           3,074         3,074             -
+|  #   #                     Missing             -
++----------------------                -----------
+0                     1                      3,074
+   (2 unique values)
+
+. ** The results indicate 104 observations with firstborn_child_female = 0 and 
+> 83 observations with firstborn_child_female = 1. Given that these 187 observa
+> tions represent 5% of the data, we extrapolate to about 2080 individuals with
+>  firstborn_child_female = 0 group and 1660 with firstborn_child_female = 1 in
+>  the full dataset, which exceeds the required per-group sample size for suffi
+> cient power.
+. 
+. 
+. * HYPOTHESIS TEST FOR H1 * (Please adapt according to your needs)
+. 
+.         * In the PAP, the results should be presented in a single table with 
+> one column. 
+.         * Our RT misunderstood and thought it implied a single table with mul
+> tiple columns (and thus the possibility of having multiple estimations). 
+.         * Accordingly, of the four models proposed in the PAP, we generated a
+> nd estimated, we chose to extract results only for the control model (Model 2
+> ) 
+.         * and not the age-group effects models (Models 3 and 4). 
+.         * We present the code for the others models but their results were no
+> t extracted.
+.         
+.         * We consider a: logistic regression
+. 
+.         * Let's assume that the measure we built previsously based on plh0004
+>  is a good measure of left leaning political preferences.
+.         * If having a firstborn child female, the respondent is more likely t
+> o having left leaning political preferences (1 left, 0 right).
+.         * Accordingly, we run a logistic regression with left_pol_preferences
+>  as the dependent variable and firstborn_child_female, respondent_female (sex
+> ), age_2019
+.         *(and its square), and education_level as independent variables, usin
+> g analytic weights (phrf) and clustering standard errors by hid.
+. 
+.         **In the PAP: model 2
+.         logit left_pol_preferences firstborn_child_female respondent_female a
+> ge_2019 age_square_2019 ib0.education_level [pweight=phrf], cluster(hid)
+
+Iteration 0:  Log pseudolikelihood =   -4156781  
+Iteration 1:  Log pseudolikelihood = -3861196.7  
+Iteration 2:  Log pseudolikelihood =   -3858451  
+Iteration 3:  Log pseudolikelihood = -3858450.9  
+
+Logistic regression                                     Number of obs =  3,072
+                                                        Wald chi2(7)  = 108.87
+                                                        Prob > chi2   = 0.0000
+Log pseudolikelihood = -3858450.9                       Pseudo R2     = 0.0718
+
+                                (Std. err. adjusted for 2,413 clusters in hid)
+------------------------------------------------------------------------------
+             |               Robust
+left_pol_p~s | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+firstborn_~e |  -.0050115   .1468003    -0.03   0.973    -.2927347    .2827118
+respondent~e |    .832195   .1192039     6.98   0.000     .5985597     1.06583
+    age_2019 |   .1407973   .0895871     1.57   0.116    -.0347901    .3163848
+age_squ~2019 |   -.001593   .0011197    -1.42   0.155    -.0037875    .0006016
+             |
+education_~l |
+          1  |  -1.459993   .4700719    -3.11   0.002    -2.381317   -.5386687
+          2  |  -1.194967   .4859884    -2.46   0.014    -2.147487   -.2424472
+          3  |  -.3231442    .476068    -0.68   0.497     -1.25622     .609932
+             |
+       _cons |  -1.931215   1.757341    -1.10   0.272    -5.375541    1.513111
+------------------------------------------------------------------------------
+
+.         
+.         *Joint hypothesis test wald test
+.         test firstborn_child_female
+
+ ( 1)  [left_pol_preferences]firstborn_child_female = 0
+
+           chi2(  1) =    0.00
+         Prob > chi2 =    0.9728
+
+.         
+.          //OTHERS MODELS IN THE PAP 
+.          * Model 1: daughter only
+.       *logit left_pol_preferences firstborn_child_female [pweight=phrf], clus
+> ter(hid)
+. 
+.      // Model 3: + age-group interactions
+.       * logit left_pol_preference i.firstborn_child_female##i.firstborn_age_g
+> roup_2019 [pweight=phrf], cluster(hid)
+. 
+.     // Model 4: full (all interactions + controls)
+.      *logit left_pol_preference i.firstborn_child_female##i.firstborn_age_gro
+> up_2019 respondent_female i.education_level age_2019 age_square_2019 [pweight
+> =phrf], cluster(hid)
+. 
+. * EXTRACT AND EXPORT RESULTS * (Please check whether the suggested code autom
+> atically picks up the correct statistics for your chosen regression analysis 
+> and adapt if needed)
+. 
+.         * Extract the required statistics
+. 
+.                 * (i) coefficient estimate
+.                 local coefficient = _b[firstborn_child_female]
+
+. 
+.                 * (ii) standard error
+.                 local se = _se[firstborn_child_female]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "z"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 *in logistic regression estimation is by maximum likelihood;
+.                 *Stata does not define or store a residual degrees of freedom
+>  in the same way, so e(df_r) is missing.
+.                 *That slot is not applicable
+.                 local df_residual = "Not applicable for logit regression"
+
+.                 local df_model = e(df_m)
+
+.                 
+.                 
+.                 * (v) p-value
+.                 
+.                 local z = _b[firstborn_child_female] / _se[firstborn_child_fe
+> male]
+
+.         local p_value = 2 * normal(-abs(`z'))
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation of directionality
+.                 scalar coef_firstborn_child_female = _b[firstborn_child_femal
+> e]
+
+.                 local interpretation "positive coefficient is in line with hy
+> pothesis"
+
+. 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: -.0050114590140682
+
+.         di "Standard Error: `se'"
+Standard Error: .1468002713923844
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: z
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: Not applicable for logit regression
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 7
+
+.         di "p-value: " `p_value'
+p-value: .97276715
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 3072
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 3072
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h2_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/95_re
+    > sults/h2_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

@@ -1,0 +1,1074 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmpa_m7vac7.do 
+
+. do "95%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. * the following code automatically sets paths based on the project location o
+> n your system *
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/95%-sample" // folder, in which the or
+> iginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/95%-sample
+
+. global DATA "$ROOT/data/derived_confidential/95%-sample" // folder for datase
+> ts
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/95%-sample
+
+. global OUT "$ROOT/data/derived/95_results" // folder for output (results, tab
+> les)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/95_results
+
+. 
+end of do-file
+
+. do "20250731_013615_013534_h2.do"
+
+. *****************************************************************************
+> ***
+. ****************** Example Do-File H2: #ManyDaughters Project ***************
+> ***
+. *****************************************************************************
+> ***
+. 
+. * Authors: Tina Wang, David Albrecht
+. 
+. * ============================
+. * Setup * (Please adapt according to your needs)
+. * ============================
+. 
+. * clear all
+. version 17 // indicate the version of stata you are using here
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. * INSTALL PACKAGES * (Please adapt according to your needs)
+. * install all packages you need here, for example:
+. ssc install outreg2
+checking outreg2 consistency and verifying not already installed...
+all files already exist and are up to date.
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. /*
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> */
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA * (Please adapt according to your needs)
+. 
+.         use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. 
+.         * Merge ppathl with all datasets, that you deem relevant for your ana
+> lysis. (Tip: use keepusing() to specify which variables to keep from the usin
+> g dataset; the default is all.)
+. 
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches)
+(variable pid was long, now double to accommodate using data's values)
+(variable cid was long, now double to accommodate using data's values)
+(variable gebjahr was int, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * pgen contains user-friendly data on the individual level that are c
+> onsolidated from different sources
+.         merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * pl contains all variables from the individual questionnaire
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches)
+(variable inputdataset was str6, now str9 to accommodate using data's values)
+(label cid_EN already defined)
+(label pid_EN already defined)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * hgen contains generated variables on household level from the house
+> hold interview; use for household net income
+.         merge m:1 hid syear using "$IN/hgen.dta", nogen keep(master matches) 
+> keepusing(hid syear hghinc)
+(label iyear already defined)
+(label iyear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. 
+.         label language EN // change language of the labels to English
+
+. 
+. *---------------------------------------------------------------------------
+. * 1.  Make CLEAN copies of the original birth-year and sex variables
+. *     so that the raw SOEP variables remain untouched
+. *---------------------------------------------------------------------------
+. foreach v of varlist kidgeb01-kidgeb19 {
+  2.     gen  `v'_c = `v'               // copy birth year
+  3.     replace `v'_c = . if `v'_c < 0 // turn SOEP's negative missings into .
+  4. }
+(217,072 real changes made, 217,072 to missing)
+(340,439 real changes made, 340,439 to missing)
+(533,355 real changes made, 533,355 to missing)
+(617,900 real changes made, 617,900 to missing)
+(646,336 real changes made, 646,336 to missing)
+(656,160 real changes made, 656,160 to missing)
+(659,927 real changes made, 659,927 to missing)
+(661,674 real changes made, 661,674 to missing)
+(662,356 real changes made, 662,356 to missing)
+(662,649 real changes made, 662,649 to missing)
+(662,837 real changes made, 662,837 to missing)
+(662,982 real changes made, 662,982 to missing)
+(663,094 real changes made, 663,094 to missing)
+(663,103 real changes made, 663,103 to missing)
+(663,104 real changes made, 663,104 to missing)
+(663,107 real changes made, 663,107 to missing)
+(663,112 real changes made, 663,112 to missing)
+(663,118 real changes made, 663,118 to missing)
+(663,118 real changes made, 663,118 to missing)
+
+. 
+. foreach v of varlist kidsex01-kidsex19 {
+  2.     gen  `v'_c = `v'               // copy child's sex (1 = boy, 2 = girl)
+  3.     replace `v'_c = . if `v'_c < 0 // convert negative missings to .
+  4. }       
+(216,893 real changes made, 216,893 to missing)
+(340,489 real changes made, 340,489 to missing)
+(533,397 real changes made, 533,397 to missing)
+(617,915 real changes made, 617,915 to missing)
+(646,325 real changes made, 646,325 to missing)
+(656,112 real changes made, 656,112 to missing)
+(659,897 real changes made, 659,897 to missing)
+(661,654 real changes made, 661,654 to missing)
+(662,340 real changes made, 662,340 to missing)
+(662,645 real changes made, 662,645 to missing)
+(662,837 real changes made, 662,837 to missing)
+(662,982 real changes made, 662,982 to missing)
+(663,094 real changes made, 663,094 to missing)
+(663,103 real changes made, 663,103 to missing)
+(663,104 real changes made, 663,104 to missing)
+(663,107 real changes made, 663,107 to missing)
+(663,112 real changes made, 663,112 to missing)
+(663,118 real changes made, 663,118 to missing)
+(663,118 real changes made, 663,118 to missing)
+
+.         
+. *---------------------------------------------------------------------------
+. * 2.  Compute running totals by survey year (syear)
+. *     – number of children already born
+. *     – number of girls among them
+. *---------------------------------------------------------------------------
+. gen numkids_sofar       = 0        // children born up to and incl. syear
+
+. gen numdaughters_sofar  = 0        // girls born up to and incl. syear
+
+. 
+. forvalues i = 1/19 {
+  2.     local g = string(`i',"%02.0f") // pads 1→"01", 2→"02", … 19→"19"
+  3. 
+.     * add 1 child if birth year exists and is ≤ survey year
+.     replace numkids_sofar = numkids_sofar + ///
+>         ( kidgeb`g'_c <= syear & !missing(kidgeb`g'_c) )
+  4. 
+.     * add 1 daughter under the same condition AND sex = 2 (female)
+.     replace numdaughters_sofar = numdaughters_sofar + ///
+>         ( kidgeb`g'_c <= syear & !missing(kidgeb`g'_c) & kidsex`g'_c == 2 )
+  5. }
+(428,594 real changes made)
+(207,974 real changes made)
+(305,528 real changes made)
+(150,194 real changes made)
+(122,333 real changes made)
+(57,789 real changes made)
+(42,231 real changes made)
+(20,575 real changes made)
+(15,547 real changes made)
+(7,422 real changes made)
+(6,418 real changes made)
+(3,117 real changes made)
+(2,944 real changes made)
+(1,396 real changes made)
+(1,393 real changes made)
+(676 real changes made)
+(727 real changes made)
+(342 real changes made)
+(445 real changes made)
+(230 real changes made)
+(257 real changes made)
+(134 real changes made)
+(121 real changes made)
+(72 real changes made)
+(27 real changes made)
+(13 real changes made)
+(20 real changes made)
+(4 real changes made)
+(19 real changes made)
+(8 real changes made)
+(16 real changes made)
+(0 real changes made)
+(11 real changes made)
+(6 real changes made)
+(5 real changes made)
+(5 real changes made)
+(5 real changes made)
+(5 real changes made)
+
+. 
+. gen anydaughter_sofar = numdaughters_sofar > 0   // 1 if at least one daughte
+> r
+
+. 
+. label var numkids_sofar       "Children born up to survey year"
+
+. label var numdaughters_sofar  "Daughters born up to survey year"
+
+. label var anydaughter_sofar   "Has ≥1 daughter by survey year (0/1)"
+
+. 
+. 
+. /***********************************************************************
+> * 3. Y – Left-leaning political preference (z-score)
+> *        Source : plh0004   (0 = far left … 10 = far right)
+> *        Steps  : 1) clean missings   2) reverse scale   3) standardise
+> ***********************************************************************/
+. 
+. * Treat SOEP negative codes as missing
+. replace plh0004 = . if plh0004 < 0           // -1, -2, -8 …
+(428,081 real changes made, 428,081 to missing)
+
+. 
+. * Reverse so that higher = more left
+. gen Y_raw = 10 - plh0004
+(576,714 missing values generated)
+
+. label var Y_raw "Reversed left–right scale (0–10; higher = more left)"
+
+. 
+. * Standardise (z-score: mean 0, SD 1) over the full sample in memory
+. summarize Y_raw 
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+       Y_raw |     86,409    5.290525    1.642925          0         10
+
+. gen Y = (Y_raw - r(mean)) / r(sd)
+(576,714 missing values generated)
+
+. label var Y "Left-leaning preference (z-score; ↑ = more left)"
+
+. 
+. 
+. *---------------------------------------------------------------------------
+. * 4. Create the key control variables 
+. *  – create AGE, NATIONALITY, 
+. *  – drop rows with no valid info for control variables
+. *---------------------------------------------------------------------------
+. 
+. * 1)  AGE  = survey year – year of birth
+. gen age = syear - gebjahr
+
+. label var age "Age in survey year"
+
+. 
+. * 2)  EDUCATION  (here we use pgisced11; 
+. *     alternative variables: pgcasmin or pgbilzeit if preferred)
+. *     convert SOEP negative codes to missing
+. *     drop observations with no valid education info
+. replace pgisced11 = . if pgisced11 < 0
+(213,102 real changes made, 213,102 to missing)
+
+. drop if missing(pgisced11)
+(356,412 observations deleted)
+
+. 
+. * 3)  NATIONALITY  – create a dummy: 1 = German citizen, 0 = other
+. *     (SOEP codebook: pgnation == 1  → German nationality)
+. replace pgnation = . if pgnation < 0            // clean missing codes
+(11 real changes made, 11 to missing)
+
+. gen german = pgnation == 1 if !missing(pgnation)
+(11 missing values generated)
+
+. label var german "German nationality (1 = German, 0 = non-German)"
+
+. 
+. 
+. * 4)  Calculate age at first birth
+. *     (missing if respondent has no children or missing dates)
+. *.    - remove those without information
+. gen age1stb = kidgeb01_c - gebjahr if !missing(kidgeb01_c, gebjahr)
+(80,473 missing values generated)
+
+. label var age1stb "Age at first birth (years)"
+
+. drop if missing(age1stb)
+(80,473 observations deleted)
+
+. 
+. * 5)  Labour-force status  (pglfs)
+. *     – treat <0 as missing
+. *     – "working" = employed (code 1)
+. replace pglfs = . if pglfs < 0
+(1 real change made, 1 to missing)
+
+. gen working = (pglfs == 11 | pglfs == 12)  if !missing(pglfs)
+(1 missing value generated)
+
+. label var working "Working (1 = Working (employed), 0 = Non-working)"
+
+. 
+. * 6)  Net personal labour income  (pglabnet)
+. *     – negative codes are SOEP missings → set to .
+. replace pglabnet = . if pglabnet < 0
+(92,003 real changes made, 92,003 to missing)
+
+. replace pglabnet = 0 if pglabnet ==. & working ==0
+(91,987 real changes made)
+
+. label var pglabnet "Net monthly labour income (€)"
+
+. 
+. * 7)  Marital status  (pgfamstd)
+. *     – recode into four broad groups
+. *       1 married,                                              → "married"
+. *       2 married-living apart, 4 divorced      → "divorced / separated"
+. *       3 single                                → "single"
+. *       5, 6, 7, 8                              → "other"
+. *.    - remove those without information
+. 
+. replace pgfamstd = . if pgfamstd < 0
+(990 real changes made, 990 to missing)
+
+. recode pgfamstd (1   = 1 "Married") ///
+>                 (2 4 = 2 "Divorced/Separated") ///
+>                 (3   = 3 "Single") ///
+>                 (5 6 7 8   = 4 "Other"), gen(marstat)
+(37,560 differences between pgfamstd and marstat)
+
+. label var marstat "Marital status (4 categories)"
+
+. drop if missing(marstat)
+(990 observations deleted)
+
+. 
+. * 8) Household net income (hghinc)
+. *     – negative codes are SOEP missings → set to .
+. *     - remove those without information
+. replace hghinc = . if hghinc < 0
+(10,781 real changes made, 10,781 to missing)
+
+. drop if missing(hghinc)
+(11,092 observations deleted)
+
+. label var hghinc "Household net income (€)"
+
+. 
+. * 9) Male (sex)
+. *     – create the dummy for male
+. gen male = (sex == 1)
+
+. 
+. /***********************************************************************
+> *  SUMMARY NOTE – KEY CONTROL VARIABLES IN THE ANALYSIS DATASET
+> *  (You can add any important variables for controls)
+> *
+> *  ▸ Time-INVARIANT (drop out automatically in FE models)
+> *    ------------------------------------------------------------------
+> *      male         : Respondent's biological sex (male=1 / female=0)
+> *      pgisced11    : Highest educational attainment (ISCED-2011)
+> *      pgcasmin     : Highest educational attainment (CASMIN)   [alt.]
+> *      pgbilzeit    : Years of schooling                        [alt.]
+> *      german       : German nationality dummy (1 German / 0 non-German)
+> *      age1stb      : Age at first birth (years)
+> *      sumkids      : Total number of births
+> *
+> *  ▸ Time-VARIANT (must be included explicitly on RHS of FE regressions)
+> *    ------------------------------------------------------------------
+> *      age          : Current age  (syear − gebjahr)
+> *      working      : Labour-force status (working/non-working)
+> *      pglabnet     : Net personal labour income (€)
+> *      marstat      : Marital status (category variable)
+> *      hghinc       : Net household income (€)
+> *      numkids_sofar: Number of kids so far 
+> *
+> *  Outcome & Treatment (already in dataset)
+> *      Y                   : z-standardised Left-leaning political preference
+>  index
+> *      anydaughter_sofar   : 1 if respondent has ≥1 daughter by this year
+> ***********************************************************************/
+. 
+. 
+. *---------------------------------------------------------------------------
+. * 5. FILTERS 
+. *    - Keep only observations with a valid composite attitude score  Y
+. *    - Exclude observations where the respondent has no children
+. *    - KEEP only variables needed for analysis
+. *--------------------=------------------------------------------------------
+. keep if !missing(Y)                                     // retains rows where
+>  Y is not missing
+(180,507 observations deleted)
+
+. keep if numkids_sofar > 0               // drops the pre-parenthood rows
+(537 observations deleted)
+
+. 
+. keep pid syear                             /// identifiers
+>      Y                                     /// outcome (left-leaning preferen
+> ce z-mean)
+>      anydaughter_sofar                     /// treatment
+>      age working pglabnet marstat          /// time-variant variables
+>          hghinc numkids_sofar                  ///
+>      male pgisced11 german age1stb sumkids /// time-invariant variables
+> 
+
+. order pid syear                             /// identifiers
+>       Y                                     /// outcome (left-leaning prefere
+> nce z-mean)
+>       anydaughter_sofar                     /// treatment
+>       age working pglabnet marstat          /// time-variant variables
+>           hghinc numkids_sofar                  ///
+>       male pgisced11 german age1stb sumkids /// time-invariant variables
+> 
+
+.         save "$DATA/h2_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h2_dataset.dta saved
+
+. 
+. 
+. 
+. * ============================
+. * Analysis
+. * ============================
+. 
+.         
+. * HYPOTHESIS TEST FOR H2 * (Please adapt according to your needs)
+. 
+.         * Please add a verbal description of your model here
+. 
+. /***********************************************************************
+> *  ANALYSIS ROADMAP  –  Two-Way Fixed Effects Model
+> *
+> *  Outcome variable      :  Y                   (Left-leaning political prefe
+> rence index)
+> *  Treatment dummy       :  anydaughter_sofar   (1 = ≥1 daughter by wave)
+> *  Control-variable set  :  W                   (age, income, education, etc.
+> )
+> *
+> *  ────────────────────────────────────────────────────────────────────
+> *  MODEL    Two-way Fixed Effects (panel)
+> *  ────────────────────────────────────────────────────────────────────
+> *      Y_it = β0 + β1·anydaughter_sofar_it  +  W_it·β  +
+> *              γ_t  +  α_i  +  ε_it
+> *
+> *      • γ_t : year fixed effects
+> *      • α_i : individual fixed effects
+> *      Estimation:  xtreg , fe   (clustered SE at pid)
+> *          => H1 implies β1>0
+> *
+> ***********************************************************************/
+. 
+. /***********************************************************************
+> *  MODEL  –  Eight regressions exported with outreg2
+> *  Outcome   : Y
+> *  Treatment : anydaughter_sofar 
+> *  Controls  : time-variant  (age working pglabnet marstat hghinc numkids_sof
+> ar)
+> *              time-invariant (sex pgisced11 german age1stb sumkids)
+> *
+> *  Column layout
+> *    1  OLS  no controls
+> *    2  OLS  + time-invariant controls
+> *    3  OLS  + all controls
+> *    4  FE   + time-variant controls                 (individual FE only)
+> *    5  OLS  + year FE
+> *    6  OLS  + time-invariant controls + year FE
+> *    7  OLS  + all controls + year FE
+> *    8  FE   + time-variant controls + year FE       (two-way FE)
+> *
+> *  outreg2 will include two information rows:
+> *      – Individual FE   (Yes / No)
+> *      – Year FE         (Yes / No)
+> ***********************************************************************/
+. 
+. * panel declaration
+. xtset pid syear
+
+Panel variable: pid (unbalanced)
+ Time variable: syear, 2014 to 2019, but with gaps
+         Delta: 1 unit
+
+. 
+. * control lists
+. global TV  age working pglabnet i.marstat hghinc numkids_sofar
+
+. global INV male i.pgisced11 german age1stb sumkids
+
+. 
+. * file path
+. local outfile "$OUT/h2_model_results.xls"
+
+. 
+. * ---------------- Column 1  ----------------
+. reg Y anydaughter_sofar, vce(cluster pid)
+
+Linear regression                               Number of obs     =     33,112
+                                                F(1, 23343)       =       0.26
+                                                Prob > F          =     0.6124
+                                                R-squared         =     0.0000
+                                                Root MSE          =      .9704
+
+                               (Std. err. adjusted for 23,344 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+           Y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+anydaughte~r |  -.0067453    .013312    -0.51   0.612    -.0328377    .0193472
+       _cons |   .0112762   .0112008     1.01   0.314    -.0106781    .0332305
+------------------------------------------------------------------------------
+
+. outreg2 using "`outfile'", replace dec(3)                                   /
+> //
+>         addtext("Individual FE","No","Year FE","No")
+C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaughters_DataPreprocess
+> ing/data/derived/95_results/h2_model_results.xls
+dir : seeout
+
+. 
+. * ---------------- Column 2  ----------------
+. reg Y anydaughter_sofar $INV, vce(cluster pid)
+
+Linear regression                               Number of obs     =     33,112
+                                                F(12, 23343)      =      54.55
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.0250
+                                                Root MSE          =     .95835
+
+                               (Std. err. adjusted for 23,344 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+           Y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+anydaughte~r |   .0017588   .0136781     0.13   0.898    -.0250513    .0285689
+        male |   -.175343   .0127863   -13.71   0.000    -.2004051    -.150281
+             |
+   pgisced11 |
+[2] Lower..  |  -.1117978   .0433112    -2.58   0.010    -.1966906    -.026905
+[3] Upper..  |  -.0818757   .0411619    -1.99   0.047    -.1625556   -.0011957
+[4] Post-..  |   .0582373    .045079     1.29   0.196    -.0301204     .146595
+[5] Short..  |  -.0598375   .0484918    -1.23   0.217    -.1548845    .0352096
+[6] Bache..  |   .1217821   .0431537     2.82   0.005     .0371979    .2063662
+[7] Maste..  |   .3126401   .0456863     6.84   0.000     .2230919    .4021882
+[8] Docto..  |   .2718799   .0709897     3.83   0.000     .1327355    .4110243
+             |
+      german |  -.0143377   .0197764    -0.72   0.468    -.0531007    .0244252
+     age1stb |   .0000489    .001212     0.04   0.968    -.0023268    .0024245
+     sumkids |  -.0094566   .0064532    -1.47   0.143    -.0221053    .0031922
+       _cons |   .1081773   .0548256     1.97   0.048     .0007155     .215639
+------------------------------------------------------------------------------
+
+. outreg2 using "`outfile'", append dec(3)                                    /
+> //
+>         addtext("Individual FE","No","Year FE","No")
+C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaughters_DataPreprocess
+> ing/data/derived/95_results/h2_model_results.xls
+dir : seeout
+
+. 
+. * ---------------- Column 3  ----------------
+. reg Y anydaughter_sofar $INV $TV, vce(cluster pid)
+
+Linear regression                               Number of obs     =     33,112
+                                                F(20, 23343)      =      38.58
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.0285
+                                                Root MSE          =     .95674
+
+                               (Std. err. adjusted for 23,344 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+           Y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+anydaughte~r |    .003556   .0136704     0.26   0.795    -.0232389    .0303509
+        male |  -.1701661    .013109   -12.98   0.000    -.1958606   -.1444716
+             |
+   pgisced11 |
+[2] Lower..  |  -.0950708   .0434248    -2.19   0.029    -.1801862   -.0099554
+[3] Upper..  |  -.0632124    .041413    -1.53   0.127    -.1443845    .0179598
+[4] Post-..  |   .0671179   .0453286     1.48   0.139    -.0217291    .1559649
+[5] Short..  |  -.0420412   .0488245    -0.86   0.389    -.1377404    .0536581
+[6] Bache..  |   .1488994   .0434121     3.43   0.001     .0638088    .2339899
+[7] Maste..  |   .3379987   .0459606     7.35   0.000     .2479129    .4280845
+[8] Docto..  |   .2976928   .0713461     4.17   0.000     .1578497    .4375359
+             |
+      german |  -.0028003   .0202376    -0.14   0.890    -.0424673    .0368667
+     age1stb |   .0001335   .0012248     0.11   0.913    -.0022672    .0025342
+     sumkids |   -.009225   .0284822    -0.32   0.746     -.065052     .046602
+         age |  -.0015818   .0005123    -3.09   0.002     -.002586   -.0005776
+     working |    .009336   .0141112     0.66   0.508    -.0183229    .0369949
+    pglabnet |   7.23e-06   1.73e-06     4.18   0.000     3.84e-06    .0000106
+             |
+     marstat |
+Divorced/~d  |   .0843218   .0178045     4.74   0.000     .0494238    .1192198
+     Single  |   .0833644   .0235566     3.54   0.000     .0371919    .1295369
+      Other  |  -.0159192   .0245685    -0.65   0.517    -.0640751    .0322368
+             |
+      hghinc |  -8.13e-06   1.54e-06    -5.29   0.000    -.0000111   -5.12e-06
+numkids_so~r |   .0049036   .0285906     0.17   0.864    -.0511358    .0609429
+       _cons |   .1425707   .0606931     2.35   0.019     .0236084    .2615331
+------------------------------------------------------------------------------
+
+. outreg2 using "`outfile'", append dec(3)                                    /
+> //
+>         addtext("Individual FE","No","Year FE","No")
+C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaughters_DataPreprocess
+> ing/data/derived/95_results/h2_model_results.xls
+dir : seeout
+
+. 
+. * ---------------- Column 4  ----------------
+. xtreg Y anydaughter_sofar $TV, fe vce(cluster pid)
+
+Fixed-effects (within) regression               Number of obs     =     33,112
+Group variable: pid                             Number of groups  =     23,344
+
+R-squared:                                      Obs per group:
+     Within  = 0.0005                                         min =          1
+     Between = 0.0000                                         avg =        1.4
+     Overall = 0.0000                                         max =          2
+
+                                                F(9, 23343)       =       0.50
+corr(u_i, Xb) = -0.0850                         Prob > F          =     0.8763
+
+                               (Std. err. adjusted for 23,344 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+           Y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+anydaughte~r |   .0098925   .1192072     0.08   0.934    -.2237613    .2435464
+         age |   .0016929   .0020908     0.81   0.418    -.0024052    .0057909
+     working |   .0487526   .0299203     1.63   0.103    -.0098932    .1073983
+    pglabnet |  -8.19e-06   .0000104    -0.79   0.431    -.0000286    .0000122
+             |
+     marstat |
+Divorced/~d  |  -.0107533   .0451992    -0.24   0.812    -.0993467    .0778401
+     Single  |   .0480895   .0861082     0.56   0.577    -.1206882    .2168672
+      Other  |   .0640644   .0659246     0.97   0.331    -.0651522    .1932809
+             |
+      hghinc |   1.06e-06   2.92e-06     0.36   0.717    -4.67e-06    6.79e-06
+numkids_so~r |  -.0018497   .0463559    -0.04   0.968    -.0927103    .0890109
+       _cons |  -.1169427   .1368994    -0.85   0.393    -.3852746    .1513891
+-------------+----------------------------------------------------------------
+     sigma_u |  .91998694
+     sigma_e |  .68823227
+         rho |  .64117467   (fraction of variance due to u_i)
+------------------------------------------------------------------------------
+
+. outreg2 using "`outfile'", append dec(3)                                    /
+> //
+>         drop(i.pid)                                                         /
+> //
+>         addtext("Individual FE","Yes","Year FE","No")
+C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaughters_DataPreprocess
+> ing/data/derived/95_results/h2_model_results.xls
+dir : seeout
+
+. 
+. * ---------------- Column 5  ----------------
+. reg Y anydaughter_sofar i.syear, vce(cluster pid)
+
+Linear regression                               Number of obs     =     33,112
+                                                F(2, 23343)       =       4.56
+                                                Prob > F          =     0.0105
+                                                R-squared         =     0.0002
+                                                Root MSE          =     .97032
+
+                               (Std. err. adjusted for 23,344 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+           Y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+anydaughte~r |  -.0067821   .0133108    -0.51   0.610    -.0328722    .0193081
+             |
+       syear |
+       2019  |   .0267108   .0089524     2.98   0.003     .0091635    .0442581
+             |
+       _cons |  -.0015199   .0118466    -0.13   0.898      -.02474    .0217002
+------------------------------------------------------------------------------
+
+. outreg2 using "`outfile'", append dec(3)                                    /
+> //
+>         drop(i.syear)                                                       /
+> //
+>         addtext("Individual FE","No","Year FE","Yes")
+C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaughters_DataPreprocess
+> ing/data/derived/95_results/h2_model_results.xls
+dir : seeout
+
+. 
+. * ---------------- Column 6  ----------------
+. reg Y anydaughter_sofar $INV i.syear, vce(cluster pid)
+
+Linear regression                               Number of obs     =     33,112
+                                                F(13, 23343)      =      50.64
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.0251
+                                                Root MSE          =     .95833
+
+                               (Std. err. adjusted for 23,344 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+           Y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+anydaughte~r |   .0016119   .0136799     0.12   0.906    -.0252015    .0284254
+        male |  -.1755698   .0127862   -13.73   0.000    -.2006316    -.150508
+             |
+   pgisced11 |
+[2] Lower..  |  -.1115723   .0432928    -2.58   0.010    -.1964291   -.0267155
+[3] Upper..  |  -.0818524    .041146    -1.99   0.047    -.1625014   -.0012035
+[4] Post-..  |   .0575436   .0450749     1.28   0.202    -.0308062    .1458934
+[5] Short..  |  -.0603764    .048489    -1.25   0.213     -.155418    .0346652
+[6] Bache..  |   .1213691   .0431454     2.81   0.005     .0368014    .2059368
+[7] Maste..  |   .3114598   .0456921     6.82   0.000     .2219002    .4010194
+[8] Docto..  |   .2696184   .0709899     3.80   0.000     .1304736    .4087633
+             |
+      german |   -.015242    .019783    -0.77   0.441     -.054018     .023534
+     age1stb |   .0000413   .0012121     0.03   0.973    -.0023344    .0024171
+     sumkids |  -.0092832   .0064549    -1.44   0.150    -.0219351    .0033688
+             |
+       syear |
+       2019  |    .014523    .008912     1.63   0.103    -.0029452    .0319912
+             |
+       _cons |   .1023344   .0548528     1.87   0.062    -.0051808    .2098495
+------------------------------------------------------------------------------
+
+. outreg2 using "`outfile'", append dec(3)                                    /
+> //
+>         drop(i.syear)                                                       /
+> //
+>         addtext("Individual FE","No","Year FE","Yes")
+C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaughters_DataPreprocess
+> ing/data/derived/95_results/h2_model_results.xls
+dir : seeout
+
+. 
+. * ---------------- Column 7  ----------------
+. reg Y anydaughter_sofar $INV $TV i.syear, vce(cluster pid)
+
+Linear regression                               Number of obs     =     33,112
+                                                F(21, 23343)      =      36.85
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.0287
+                                                Root MSE          =     .95669
+
+                               (Std. err. adjusted for 23,344 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+           Y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+anydaughte~r |   .0034862   .0136701     0.26   0.799    -.0233082    .0302805
+        male |   -.170369   .0131127   -12.99   0.000    -.1960708   -.1446671
+             |
+   pgisced11 |
+[2] Lower..  |  -.0941855   .0434075    -2.17   0.030    -.1792671   -.0091039
+[3] Upper..  |  -.0623204    .041398    -1.51   0.132    -.1434632    .0188225
+[4] Post-..  |   .0668128   .0453219     1.47   0.140    -.0220211    .1556466
+[5] Short..  |  -.0418611   .0488189    -0.86   0.391    -.1375494    .0538271
+[6] Bache..  |   .1493932   .0434003     3.44   0.001     .0643257    .2344606
+[7] Maste..  |   .3373148   .0459583     7.34   0.000     .2472336    .4273961
+[8] Docto..  |   .2953059   .0713291     4.14   0.000     .1554961    .4351157
+             |
+      german |   -.003208   .0202296    -0.16   0.874    -.0428594    .0364434
+     age1stb |   .0001336   .0012249     0.11   0.913    -.0022672    .0025345
+     sumkids |  -.0026728   .0286766    -0.09   0.926    -.0588808    .0535353
+         age |  -.0016781   .0005176    -3.24   0.001    -.0026926   -.0006636
+     working |   .0072395     .01416     0.51   0.609    -.0205151    .0349941
+    pglabnet |   7.46e-06   1.78e-06     4.20   0.000     3.98e-06    .0000109
+             |
+     marstat |
+Divorced/~d  |   .0835768   .0178097     4.69   0.000     .0486686     .118485
+     Single  |   .0814168   .0235741     3.45   0.001     .0352101    .1276236
+      Other  |  -.0152753   .0245729    -0.62   0.534    -.0634398    .0328892
+             |
+      hghinc |  -8.39e-06   1.58e-06    -5.31   0.000    -.0000115   -5.29e-06
+numkids_so~r |  -.0016047   .0287776    -0.06   0.956    -.0580106    .0548013
+             |
+       syear |
+       2019  |   .0222313   .0091849     2.42   0.016     .0042282    .0402344
+             |
+       _cons |   .1389523   .0606145     2.29   0.022     .0201439    .2577606
+------------------------------------------------------------------------------
+
+. outreg2 using "`outfile'", append dec(3)                                    /
+> //
+>         drop(i.syear)                                                       /
+> //
+>         addtext("Individual FE","No","Year FE","Yes")
+C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaughters_DataPreprocess
+> ing/data/derived/95_results/h2_model_results.xls
+dir : seeout
+
+. 
+. * ---------------- Column 8  ----------------
+. xtreg Y anydaughter_sofar $TV i.syear, fe vce(cluster pid)
+note: 2019.syear omitted because of collinearity.
+
+Fixed-effects (within) regression               Number of obs     =     33,112
+Group variable: pid                             Number of groups  =     23,344
+
+R-squared:                                      Obs per group:
+     Within  = 0.0005                                         min =          1
+     Between = 0.0000                                         avg =        1.4
+     Overall = 0.0000                                         max =          2
+
+                                                F(9, 23343)       =       0.50
+corr(u_i, Xb) = -0.0850                         Prob > F          =     0.8763
+
+                               (Std. err. adjusted for 23,344 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+           Y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+anydaughte~r |   .0098925   .1192072     0.08   0.934    -.2237613    .2435464
+         age |   .0016929   .0020908     0.81   0.418    -.0024052    .0057909
+     working |   .0487526   .0299203     1.63   0.103    -.0098932    .1073983
+    pglabnet |  -8.19e-06   .0000104    -0.79   0.431    -.0000286    .0000122
+             |
+     marstat |
+Divorced/~d  |  -.0107533   .0451992    -0.24   0.812    -.0993467    .0778401
+     Single  |   .0480895   .0861082     0.56   0.577    -.1206882    .2168672
+      Other  |   .0640644   .0659246     0.97   0.331    -.0651522    .1932809
+             |
+      hghinc |   1.06e-06   2.92e-06     0.36   0.717    -4.67e-06    6.79e-06
+numkids_so~r |  -.0018497   .0463559    -0.04   0.968    -.0927103    .0890109
+             |
+       syear |
+       2019  |          0  (omitted)
+             |
+       _cons |  -.1169427   .1368994    -0.85   0.393    -.3852746    .1513891
+-------------+----------------------------------------------------------------
+     sigma_u |  .91998694
+     sigma_e |  .68823227
+         rho |  .64117467   (fraction of variance due to u_i)
+------------------------------------------------------------------------------
+
+. outreg2 using "`outfile'", append dec(3)                                    /
+> //
+>         drop(i.pid i.syear 2016o.syear 2017o.syear 2019o.syear)             /
+> //
+>         addtext("Individual FE","Yes","Year FE","Yes")
+C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaughters_DataPreprocess
+> ing/data/derived/95_results/h2_model_results.xls
+dir : seeout
+
+. 
+. /***********************************************************************
+> *  The spreadsheet  $OUT/h2_model_results.xls  now contains eight
+> *  columns with coefficients ± cluster-robust SEs and two info rows
+> *  indicating whether individual and/or year fixed effects were used.
+> ***********************************************************************/
+. 
+. /***********************************************************************
+> *  EXTRACT & EXPORT  –  Column 8 results (FE + TV + Year FE)
+> *  (Our preferred specification for the two-way fixed effects model)
+> ***********************************************************************/
+. 
+. *--------------------------------------------------
+. * 1.  Pull raw statistics
+. *--------------------------------------------------
+. local coef  = _b[anydaughter_sofar]
+
+. local se    = _se[anydaughter_sofar]
+
+. local tstat = `coef' / `se'
+
+. 
+. * (iv) residual and model degrees of freedom (DFs) if applicable
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+. * p-value (use df_r if available, else normal)
+. capture local df = e(df_r)
+
+. if missing(`df') {
+.     local pval = 2*normal(-abs(`tstat'))
+. }
+
+. else {
+.     local pval = 2*ttail(`df',abs(`tstat'))
+. }
+
+. 
+. local nobs = e(N)
+
+. 
+. *--------------------------------------------------
+. * 2.  Conclusion
+. *  Rule: if the treatment coefficient is statistically insignificant
+. *        (p ≥ .05), treat it as zero and mark as "not in line".
+. *--------------------------------------------------
+. 
+. * interpretation
+. local interpretation = "positive coefficient is in line with hypothesis"
+
+. 
+. * (iii) family of the test statistic (e.g. z, t, F, Chi²) // Added by DA for 
+> consistency
+. local test_stat_family = "t"
+
+. 
+. *--------------------------------------------------
+. * 3.  Display for quick check
+. *--------------------------------------------------
+. di "Coefficient (adjusted) : " `coef'
+Coefficient (adjusted) : .00989255
+
+. di "Standard Error         : " `se'
+Standard Error         : .11920717
+
+. di "p-value                : " `pval'
+p-value                : .93386325
+
+. di "Number of observations : " `nobs'
+Number of observations : 33112
+
+. di "Interpretation         : " "`interpretation'"
+Interpretation         : positive coefficient is in line with hypothesis
+
+. di "Family                 : " "`test_stat_family'"
+Family                 : t
+
+. 
+. *--------------------------------------------------
+. * 4.  Export to CSV
+. *--------------------------------------------------
+. file open myfile using "$OUT/h2_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/95_re
+    > sults/h2_results.csv not found)
+
+. //file write myfile "coefficient,se,p_value,df_residual,df_model,num_obs,inte
+> rpretation" _n
+. file write myfile "coefficient,se,family,residual_df,model_df,p_value,num_obs
+> ,num_participants,interpretation" _n //Adapted by DA to ensure consistent exp
+> ort of results.
+
+. file write myfile "`coef',`se',`test_stat_family',`df_residual',`df_model',`p
+> val',`nobs',,`interpretation'" _n
+
+. file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

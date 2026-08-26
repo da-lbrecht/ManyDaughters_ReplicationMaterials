@@ -1,0 +1,1083 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmprfpjguo6.do 
+
+. do "5%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. 
+. * the following code automatically sets paths based on the project location o
+> n your system *local curdir = c(pwd)
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/5%-sample" // folder, in which the ori
+> ginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/5%-sample
+
+. global DATA "$ROOT/data/derived_confidential/5%-sample" // folder for dataset
+> s
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/5%-sample
+
+. global OUT "$ROOT/data/derived/5_results" // folder for output (results, tabl
+> es)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/5_results
+
+. 
+end of do-file
+
+. do "20250730_104550_01db08_h1.do"
+
+. ************************************************************************
+. ****************** Do-File H1: #ManyDaughters Project ******************
+. ************************************************************************
+. 
+. * Authors: [REDACTED], [REDACTED]
+. 
+. * ============================
+. * Setup * (Please adapt according to your needs)
+. * ============================
+. 
+. *clear all
+. version 18.5 // indicate the version of stata you are using here
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. * INSTALL PACKAGES * (Please adapt according to your needs)
+. /*
+> * CONFIGURE FILE PATHS * (Please do not change)
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> *cd "/Users/jackfitzgerald/Desktop/PhD Stuff/My Research/ManyDaughters/#ManyD
+> aughters_RT_AnalysisPackage"
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> */
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA * (Please adapt according to your needs)
+. 
+.         use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. 
+.         * Merge ppathl with all datasets, that you deem relevant for your ana
+> lysis. (Tip: use keepusing() to specify which variables to keep from the usin
+> g dataset; the default is all.)
+. 
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches)
+(variable pid was long, now double to accommodate using data's values)
+(variable cid was long, now double to accommodate using data's values)
+(variable gebjahr was int, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * pgen contains user-friendly data on the individual level that are c
+> onsolidated from different sources
+.         merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * pl contains all variables from the individual questionnaire
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches)
+(variable inputdataset was str6, now str9 to accommodate using data's values)
+(label cid already defined)
+(label pid_EN already defined)
+(label cid_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * hgen contains generated variables on household level from the house
+> hold interview; use for household net income
+.         merge m:1 hid syear using "$IN/hgen.dta", nogen keep(master matches) 
+> keepusing(hid syear hghinc)
+(label iyear already defined)
+(label iyear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+. 
+.         label language EN // change language of the labels to English
+
+. 
+.         save "$DATA/h1_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/5%-sample/h1_dataset.dta saved
+
+. 
+. 
+. * ============================
+. * Analysis
+. * ============================
+. 
+. * FILTERS * (Please adapt according to your needs)
+.  
+.         *Save only subset containing valid values of plh0308_v1 and plh0308_v
+> 2 with exactly one child
+.         keep if ((plh0308_v1 > 0 & plh0308_v1 != .) |  (plh0308_v2 > 0 & plh0
+> 308_v2 != .)) & (kidsex02 == -2 & kidsex01 > 0 & !missing(kidsex01))
+(34,926 observations deleted)
+
+.         
+.         *Replace remaining missing values with actual missings
+.         replace plh0308_v1 = . if plh0308_v1 < 0
+(245 real changes made, 245 to missing)
+
+.         replace plh0308_v2 = . if plh0308_v2 < 0
+(57 real changes made, 57 to missing)
+
+.         
+.         *Keep only relevant variables
+.         keep pid syear pgmonth plh0308_v1 plh0308_v2 kidsex01 kidgeb01 kidmon
+> 01 sex gebjahr gebmonat
+
+.         
+.         *Dropping observations who have not already given birth to their baby
+>  at the time of the survey
+.         drop if syear < kidgeb01
+(11 observations deleted)
+
+.         drop if (pgmonth < kidmon01 & syear == kidgeb01 & kidmon01 > 0 & !mis
+> sing(kidmon01)) 
+(14 observations deleted)
+
+.         *Kids with unknown birth months but born in the same year as the surv
+> ey are assumed to be already born and zero years old
+. 
+. * GENERATE VARIABLES * (Please adapt according to your needs)
+. 
+.         *Generate standardized outcome
+.         gen standard_attitude_respondent = .
+(277 missing values generated)
+
+.         
+.         *Reverse-score outcome in 2012 (so that 'stimme voll' is the maximum,
+>  rather than the minimum value)
+.         replace plh0308_v1 = 8 if plh0308_v1 == 1
+(17 real changes made)
+
+.         replace plh0308_v1 = 7 if plh0308_v1 == 2
+(25 real changes made)
+
+.         replace plh0308_v1 = 6 if plh0308_v1 == 3
+(9 real changes made)
+
+.         replace plh0308_v1 = 5 if plh0308_v1 == 4
+(4 real changes made)
+
+.         replace plh0308_v1 = plh0308_v1 - 4
+(55 real changes made)
+
+.         
+.         *Replace the standardized outcome with the standardized 2012 question
+>  for 2012 observations
+.         qui sum plh0308_v1
+
+.         replace standard_attitude_respondent = (plh0308_v1 - r(mean))/r(sd)
+(55 real changes made)
+
+.         
+.         *Replace the standardized outcome with the standardized 2018 question
+>  for 2018 observations
+.         qui sum plh0308_v2
+
+.         replace standard_attitude_respondent = (plh0308_v2 - r(mean))/r(sd) i
+> f missing(standard_attitude_respondent)
+(222 real changes made)
+
+.         
+.         *Code first-child-daughter dummy
+.         gen first_child_daughter = (kidsex01 == 2)
+
+.         
+.         *Code age of child in years
+.         gen surveymonth = ym(syear, pgmonth)
+
+.         gen childbirthmonth = ym(kidgeb01, kidmon01)
+(78 missing values generated)
+
+.         gen age_of_child = floor((surveymonth - childbirthmonth)/12)
+(78 missing values generated)
+
+.         replace age_of_child = syear - kidgeb01 if missing(age_of_child)
+(78 real changes made)
+
+.         
+.         *Code age of respondent in years
+.         gen respondentbirthmonth = ym(gebjahr, gebmonat)
+
+.         gen age_respondent = floor((surveymonth - respondentbirthmonth)/12)
+
+.         
+.         *Generate respondent gender
+.         gen gender_respondent = (sex == 2)
+
+.         
+.         *Rename survey year and personal ID
+.         rename syear year
+
+.         rename pid respondent_ID
+
+.         
+. 
+. * HYPOTHESIS TEST FOR H1 * (Please adapt according to your needs)
+. 
+.         *Testing the code we pre-registered, it appears that the margins() co
+> mmand does not evaluate the average marginal effect of first_child_daughter o
+> n standard_attitude_respondent. We suspect that this is because we only have 
+> 5% of the dataset at the moment, and treating child age as a factor variable 
+> when interacting with first_child_daughter could be yielding a sparsity issue
+> , where not enough children are observed with the same age but different gend
+> ers. This could potentially be remedied with the receipt of the full data. We
+>  thus implement a conditional strategy: if the margins() average marginal eff
+> ect evaluates, then we will use that average marginal effect, as it comes fro
+> m the model we pre-registered. If it does not evaluate, then we will change c
+> hild age from being treated as a factor variable to being treated as a contin
+> uous variable. Our testing implies that this parameterization will yield a de
+> fined average marginal effect estimate 
+.         
+.         *Original pre-registered model
+.         reg standard_attitude_respondent i.first_child_daughter##i.age_of_chi
+> ld i.gender_respondent i.age_respondent i.year, vce(cluster respondent_ID)
+note: 0b.first_child_daughter#24.age_of_child identifies no observations in
+      the sample.
+note: 0b.first_child_daughter#27.age_of_child identifies no observations in
+      the sample.
+note: 0b.first_child_daughter#32.age_of_child identifies no observations in
+      the sample.
+note: 0b.first_child_daughter#45.age_of_child identifies no observations in
+      the sample.
+note: 0b.first_child_daughter#49.age_of_child identifies no observations in
+      the sample.
+note: 0b.first_child_daughter#51.age_of_child identifies no observations in
+      the sample.
+note: 0b.first_child_daughter#52.age_of_child identifies no observations in
+      the sample.
+note: 0b.first_child_daughter#60.age_of_child identifies no observations in
+      the sample.
+note: 1.first_child_daughter#6.age_of_child identifies no observations in the
+      sample.
+note: 1.first_child_daughter#15.age_of_child identifies no observations in
+      the sample.
+note: 1.first_child_daughter#18.age_of_child identifies no observations in
+      the sample.
+note: 1.first_child_daughter#24.age_of_child omitted because of collinearity.
+note: 1.first_child_daughter#26.age_of_child identifies no observations in
+      the sample.
+note: 1.first_child_daughter#27.age_of_child omitted because of collinearity.
+note: 1.first_child_daughter#28.age_of_child identifies no observations in
+      the sample.
+note: 1.first_child_daughter#32.age_of_child omitted because of collinearity.
+note: 1.first_child_daughter#33.age_of_child identifies no observations in
+      the sample.
+note: 1.first_child_daughter#37.age_of_child identifies no observations in
+      the sample.
+note: 1.first_child_daughter#38.age_of_child identifies no observations in
+      the sample.
+note: 1.first_child_daughter#39.age_of_child identifies no observations in
+      the sample.
+note: 1.first_child_daughter#45.age_of_child omitted because of collinearity.
+note: 1.first_child_daughter#49.age_of_child omitted because of collinearity.
+note: 1.first_child_daughter#50.age_of_child identifies no observations in
+      the sample.
+note: 1.first_child_daughter#51.age_of_child omitted because of collinearity.
+note: 1.first_child_daughter#52.age_of_child omitted because of collinearity.
+note: 1.first_child_daughter#58.age_of_child omitted because of collinearity.
+note: 1.first_child_daughter#59.age_of_child identifies no observations in
+      the sample.
+note: 1.first_child_daughter#60.age_of_child omitted because of collinearity.
+note: 90.age_respondent omitted because of collinearity.
+
+Linear regression                               Number of obs     =        277
+                                                F(120, 249)       =          .
+                                                Prob > F          =          .
+                                                R-squared         =     0.5372
+                                                Root MSE          =     1.0214
+
+                        (Std. err. adjusted for 250 clusters in respondent_ID)
+------------------------------------------------------------------------------
+             |               Robust
+standard_a~t | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+1.first_ch~r |  -1.283345   .9794309    -1.31   0.191     -3.21237    .6456805
+             |
+age_of_child |
+          1  |  -1.675856   1.596739    -1.05   0.295    -4.820693    1.468981
+          2  |  -1.468577   .6394205    -2.30   0.022    -2.727939   -.2092146
+          3  |  -1.616007   .8628581    -1.87   0.062    -3.315437    .0834242
+          4  |  -1.538462   1.150531    -1.34   0.182    -3.804476    .7275522
+          5  |  -1.162705   .9937425    -1.17   0.243    -3.119917    .7945076
+          6  |  -.9089183   .7414998    -1.23   0.221    -2.369329    .5514929
+          7  |  -.4930982   1.173032    -0.42   0.675    -2.803428    1.817232
+          8  |  -1.793653   1.173939    -1.53   0.128    -4.105768    .5184628
+          9  |  -.7420111   .9866358    -0.75   0.453    -2.685227    1.201205
+         10  |  -1.396721   .8777472    -1.59   0.113    -3.125476    .3320348
+         11  |    .327443   1.008445     0.32   0.746    -1.658727    2.313613
+         12  |  -1.547868   .8877853    -1.74   0.082    -3.296394    .2006574
+         13  |  -.7964904   1.234301    -0.65   0.519    -3.227492    1.634511
+         14  |  -1.444325   .9362985    -1.54   0.124    -3.288399    .3997496
+         15  |   -1.35248   1.079801    -1.25   0.212    -3.479188    .7742291
+         16  |   -.250832   .9304281    -0.27   0.788    -2.083344     1.58168
+         17  |  -2.095574   .9682541    -2.16   0.031    -4.002587   -.1885623
+         18  |  -1.479347   .9250966    -1.60   0.111    -3.301359    .3426653
+         19  |  -.6717275   1.026862    -0.65   0.514    -2.694171    1.350716
+         20  |  -1.110671   1.043554    -1.06   0.288    -3.165991    .9446476
+         21  |  -.5976911   .9486988    -0.63   0.529    -2.466188    1.270806
+         22  |  -2.158637   1.743436    -1.24   0.217    -5.592399    1.275125
+         23  |  -2.374951   1.099148    -2.16   0.032    -4.539762   -.2101392
+         24  |  -1.662393   .9277687    -1.79   0.074    -3.489667    .1648818
+         25  |  -.7943407   .9584344    -0.83   0.408    -2.682013    1.093331
+         26  |  -.9126657   .9594964    -0.95   0.342    -2.802429    .9770979
+         27  |  -1.894761   .8783422    -2.16   0.032    -3.624688   -.1648333
+         28  |  -2.756574   .9904348    -2.78   0.006    -4.707272   -.8058766
+         29  |  -2.465771   1.416457    -1.74   0.083    -5.255536    .3239944
+         30  |  -.8863552   .9498219    -0.93   0.352    -2.757064     .984354
+         31  |  -.9043754   .9798857    -0.92   0.357    -2.834296    1.025546
+         32  |  -.1640087   .8351169    -0.20   0.844    -1.808802    1.480785
+         33  |  -1.637579   .9721131    -1.68   0.093    -3.552191     .277034
+         35  |  -2.969726   .9695548    -3.06   0.002      -4.8793   -1.060152
+         36  |  -1.155912   1.139521    -1.01   0.311    -3.400241    1.088416
+         37  |   -2.90663   1.090273    -2.67   0.008    -5.053962   -.7592979
+         38  |  -2.484328   1.168318    -2.13   0.034    -4.785373    -.183284
+         39  |   .0851106     .98654     0.09   0.931    -1.857916    2.028137
+         40  |  -2.585812   1.117208    -2.31   0.021    -4.786194   -.3854306
+         42  |   -1.31192   1.231552    -1.07   0.288    -3.737506    1.113667
+         43  |  -2.315662   1.132914    -2.04   0.042    -4.546977   -.0843471
+         44  |  -1.844654   1.144177    -1.61   0.108    -4.098153    .4088446
+         45  |  -.8120474   .9410423    -0.86   0.389    -2.665465     1.04137
+         46  |  -.9333062   1.107069    -0.84   0.400    -3.113719    1.247106
+         47  |  -1.724055   1.150011    -1.50   0.135    -3.989045    .5409355
+         49  |  -.8302272   1.040831    -0.80   0.426    -2.880181    1.219727
+         50  |  -2.744977   1.062489    -2.58   0.010    -4.837588   -.6523665
+         51  |    2.11019   1.037908     2.03   0.043     .0659916    4.154388
+         52  |   3.240691   .9977515     3.25   0.001     1.275582    5.205799
+         53  |  -.3809357   1.075838    -0.35   0.724    -2.499837    1.737966
+         54  |   -2.59698   1.042546    -2.49   0.013    -4.650314   -.5436462
+         57  |  -.6852474   1.123769    -0.61   0.543    -2.898551    1.528057
+         58  |   -.984826   1.060748    -0.93   0.354    -3.074009    1.104357
+         59  |   -1.69004   1.796975    -0.94   0.348     -5.22925    1.849169
+         60  |  -.8484045   1.617912    -0.52   0.600    -4.034942    2.338133
+             |
+first_chil~r#|
+age_of_child |
+       0 24  |          0  (empty)
+       0 27  |          0  (empty)
+       0 32  |          0  (empty)
+       0 45  |          0  (empty)
+       0 49  |          0  (empty)
+       0 51  |          0  (empty)
+       0 52  |          0  (empty)
+       0 60  |          0  (empty)
+       1  1  |   .6548583   1.683913     0.39   0.698     -2.66167    3.971386
+       1  2  |    1.12633   1.480709     0.76   0.448    -1.789981    4.042641
+       1  3  |   .2210855   1.277268     0.17   0.863    -2.294541    2.736712
+       1  4  |   1.952458   1.523207     1.28   0.201    -1.047554    4.952471
+       1  5  |   .6972053   1.538964     0.45   0.651    -2.333841    3.728252
+       1  6  |          0  (empty)
+       1  7  |  -.1562311   1.460126    -0.11   0.915    -3.032003    2.719541
+       1  8  |   1.474697   1.586931     0.93   0.354    -1.650822    4.600217
+       1  9  |   1.212316    1.23727     0.98   0.328    -1.224532    3.649165
+       1 10  |   1.033936   1.089455     0.95   0.344    -1.111786    3.179658
+       1 11  |  -.8917809   1.283722    -0.69   0.488     -3.42012    1.636558
+       1 12  |   2.285729   1.300443     1.76   0.080    -.2755411    4.846999
+       1 13  |   1.128251   1.418621     0.80   0.427    -1.665776    3.922278
+       1 14  |   .5731439   1.407959     0.41   0.684    -2.199883    3.346171
+       1 15  |          0  (empty)
+       1 16  |  -.3330988   1.979134    -0.17   0.866    -4.231076    3.564879
+       1 17  |   2.095561    1.15516     1.81   0.071    -.1795682    4.370691
+       1 18  |          0  (empty)
+       1 19  |   .5810068   1.295432     0.45   0.654    -1.970393    3.132407
+       1 20  |   .7447353    1.24649     0.60   0.551    -1.710274    3.199744
+       1 21  |  -.0166146   1.134366    -0.01   0.988    -2.250791    2.217562
+       1 22  |   2.922927   1.976937     1.48   0.141    -.9707233    6.816577
+       1 23  |   3.175148   1.245707     2.55   0.011     .7216826    5.628613
+       1 24  |          0  (omitted)
+       1 25  |   1.008307   1.126662     0.89   0.372    -1.210695     3.22731
+       1 26  |          0  (empty)
+       1 27  |          0  (omitted)
+       1 28  |          0  (empty)
+       1 29  |   1.436942   1.683574     0.85   0.394     -1.87892    4.752804
+       1 30  |   1.259047    1.29223     0.97   0.331    -1.286047    3.804141
+       1 31  |   .0599908   1.050214     0.06   0.954    -2.008445    2.128427
+       1 32  |          0  (omitted)
+       1 33  |          0  (empty)
+       1 35  |   4.338182    1.17395     3.70   0.000     2.026044    6.650319
+       1 36  |    .949734   1.290189     0.74   0.462    -1.591341    3.490809
+       1 37  |          0  (empty)
+       1 38  |          0  (empty)
+       1 39  |          0  (empty)
+       1 40  |   2.520897   1.047887     2.41   0.017     .4570457    4.584749
+       1 42  |   .6787401   1.561219     0.43   0.664    -2.396138    3.753618
+       1 43  |   1.297827   1.064064     1.22   0.224    -.7978854     3.39354
+       1 44  |   .7760601   1.512454     0.51   0.608    -2.202774    3.754894
+       1 45  |          0  (omitted)
+       1 46  |  -1.332906   1.336343    -1.00   0.320    -3.964882    1.299071
+       1 47  |   2.112563   1.414188     1.49   0.136    -.6727335    4.897859
+       1 49  |          0  (omitted)
+       1 50  |          0  (empty)
+       1 51  |          0  (omitted)
+       1 52  |          0  (omitted)
+       1 53  |   1.573724   1.130656     1.39   0.165    -.6531442    3.800592
+       1 54  |   2.984606   1.055486     2.83   0.005     .9057868    5.063424
+       1 57  |   1.878036   1.026622     1.83   0.069    -.1439348    3.900006
+       1 58  |          0  (omitted)
+       1 59  |          0  (empty)
+       1 60  |          0  (omitted)
+             |
+1.gender_r~t |   .1222375   .2091925     0.58   0.560    -.2897748    .5342499
+             |
+age_respon~t |
+         19  |  -.5382235   1.532726    -0.35   0.726    -3.556983    2.480536
+         20  |  -.6283948   1.903938    -0.33   0.742    -4.378271    3.121481
+         23  |  -1.137452   1.599445    -0.71   0.478    -4.287618    2.012714
+         24  |  -1.548772   1.613874    -0.96   0.338    -4.727356    1.629811
+         25  |   -.507648   1.509064    -0.34   0.737    -3.479805    2.464509
+         26  |    .750724   1.476976     0.51   0.612    -2.158235    3.659683
+         27  |  -.2027685   1.153304    -0.18   0.861    -2.474243    2.068706
+         28  |  -1.672117   1.532726    -1.09   0.276    -4.690877    1.346643
+         29  |  -.7506694   1.560786    -0.48   0.631    -3.824696    2.323357
+         30  |  -.4732673   1.586384    -0.30   0.766    -3.597708    2.651174
+         31  |  -.0573647   1.640861    -0.03   0.972    -3.289101    3.174371
+         32  |  -.0828384   1.559641    -0.05   0.958    -3.154609    2.988932
+         33  |  -.5375893   1.671894    -0.32   0.748    -3.830446    2.755268
+         34  |   .1133324   1.577863     0.07   0.943    -2.994326    3.220991
+         35  |  -.7676487   1.557439    -0.49   0.623    -3.835083    2.299785
+         36  |   -1.20035   1.566913    -0.77   0.444    -4.286442    1.885742
+         37  |  -.2800494   1.534704    -0.18   0.855    -3.302705    2.742606
+         38  |  -.5621132   1.559296    -0.36   0.719    -3.633205    2.508978
+         39  |  -1.214994   1.527095    -0.80   0.427    -4.222664    1.792676
+         40  |  -1.415914   1.600418    -0.88   0.377    -4.567995    1.736168
+         41  |  -.6905839   1.642084    -0.42   0.674     -3.92473    2.543562
+         42  |   -1.36831   1.600002    -0.86   0.393    -4.519573    1.782953
+         43  |  -1.221704   1.464495    -0.83   0.405     -4.10608    1.662672
+         44  |   -.578671   1.686079    -0.34   0.732    -3.899466    2.742124
+         45  |  -.1591177   1.583493    -0.10   0.920    -3.277865     2.95963
+         46  |  -.1624489   1.544302    -0.11   0.916    -3.204009    2.879111
+         47  |  -.7631906   1.585739    -0.48   0.631    -3.886362     2.35998
+         48  |  -.3012353   1.728829    -0.17   0.862    -3.706229    3.103758
+         49  |  -.4675943   1.540684    -0.30   0.762    -3.502029     2.56684
+         50  |   -.695803    1.59653    -0.44   0.663    -3.840227    2.448621
+         51  |  -.3033851   1.566422    -0.19   0.847    -3.388512    2.781741
+         52  |  -.6510084   1.598263    -0.41   0.684    -3.798846     2.49683
+         53  |  -.0826952   1.613227    -0.05   0.959    -3.260005    3.094614
+         54  |  -.8882253    1.72796    -0.51   0.608    -4.291507    2.515056
+         55  |  -.1099049   1.645741    -0.07   0.947    -3.351252    3.131443
+         56  |   .1057534   1.572075     0.07   0.946    -2.990506    3.202012
+         57  |  -.1322316   1.566705    -0.08   0.933    -3.217916    2.953453
+         58  |   .8841098   1.550514     0.57   0.569    -2.169685    3.937904
+         59  |  -1.182836      1.584    -0.75   0.456    -4.302583    1.936911
+         60  |   .4228781   1.585217     0.27   0.790    -2.699265    3.545021
+         61  |   .0581865   1.695097     0.03   0.973    -3.280369    3.396742
+         62  |   1.203454   1.697667     0.71   0.479    -2.140164    4.547071
+         63  |   .1967504   1.675668     0.12   0.907    -3.103539     3.49704
+         64  |   .4829539   1.588435     0.30   0.761    -2.645528    3.611436
+         65  |   .4348085    1.64936     0.26   0.792    -2.813666    3.683283
+         66  |   1.082861   1.693036     0.64   0.523    -2.251636    4.417359
+         67  |  -.4671336   1.924112    -0.24   0.808    -4.256742    3.322475
+         68  |    .720536   1.684828     0.43   0.669    -2.597795    4.038867
+         69  |   .1948101   1.830654     0.11   0.915     -3.41073     3.80035
+         70  |   .1233322   1.667847     0.07   0.941    -3.161554    3.408219
+         71  |  -.3182838   1.586214    -0.20   0.841     -3.44239    2.805823
+         73  |   .2004279   1.671537     0.12   0.905    -3.091726    3.492582
+         74  |  -1.950331   1.717506    -1.14   0.257    -5.333021     1.43236
+         75  |  -2.932834   1.676208    -1.75   0.081    -6.234187    .3685186
+         76  |   -.097212   1.710479    -0.06   0.955    -3.466064     3.27164
+         77  |  -.5172729   1.675307    -0.31   0.758    -3.816853    2.782307
+         78  |   .5923145    1.98282     0.30   0.765    -3.312922    4.497551
+         79  |  -.6910302    1.65285    -0.42   0.676    -3.946379    2.564319
+         81  |  -.8849317   1.706514    -0.52   0.605    -4.245975    2.476112
+         82  |  -.1854462    1.70739    -0.11   0.914    -3.548214    3.177321
+         86  |   1.034023   .2091925     4.94   0.000     .6220111    1.446036
+         90  |          0  (omitted)
+             |
+        year |
+       2018  |  -.0210453   .2783124    -0.08   0.940    -.5691918    .5271012
+             |
+       _cons |   1.884563   1.560786     1.21   0.228    -1.189463    4.958589
+------------------------------------------------------------------------------
+
+.         margins, dydx(*) post
+
+Average marginal effects                                   Number of obs = 277
+Model VCE: Robust
+
+Expression: Linear prediction, predict()
+dy/dx wrt:  1.first_child_daughter 1.age_of_child 2.age_of_child
+            3.age_of_child 4.age_of_child 5.age_of_child 6.age_of_child
+            7.age_of_child 8.age_of_child 9.age_of_child 10.age_of_child
+            11.age_of_child 12.age_of_child 13.age_of_child 14.age_of_child
+            15.age_of_child 16.age_of_child 17.age_of_child 18.age_of_child
+            19.age_of_child 20.age_of_child 21.age_of_child 22.age_of_child
+            23.age_of_child 24.age_of_child 25.age_of_child 26.age_of_child
+            27.age_of_child 28.age_of_child 29.age_of_child 30.age_of_child
+            31.age_of_child 32.age_of_child 33.age_of_child 35.age_of_child
+            36.age_of_child 37.age_of_child 38.age_of_child 39.age_of_child
+            40.age_of_child 42.age_of_child 43.age_of_child 44.age_of_child
+            45.age_of_child 46.age_of_child 47.age_of_child 49.age_of_child
+            50.age_of_child 51.age_of_child 52.age_of_child 53.age_of_child
+            54.age_of_child 57.age_of_child 58.age_of_child 59.age_of_child
+            60.age_of_child 1.gender_respondent 19.age_respondent
+            20.age_respondent 23.age_respondent 24.age_respondent
+            25.age_respondent 26.age_respondent 27.age_respondent
+            28.age_respondent 29.age_respondent 30.age_respondent
+            31.age_respondent 32.age_respondent 33.age_respondent
+            34.age_respondent 35.age_respondent 36.age_respondent
+            37.age_respondent 38.age_respondent 39.age_respondent
+            40.age_respondent 41.age_respondent 42.age_respondent
+            43.age_respondent 44.age_respondent 45.age_respondent
+            46.age_respondent 47.age_respondent 48.age_respondent
+            49.age_respondent 50.age_respondent 51.age_respondent
+            52.age_respondent 53.age_respondent 54.age_respondent
+            55.age_respondent 56.age_respondent 57.age_respondent
+            58.age_respondent 59.age_respondent 60.age_respondent
+            61.age_respondent 62.age_respondent 63.age_respondent
+            64.age_respondent 65.age_respondent 66.age_respondent
+            67.age_respondent 68.age_respondent 69.age_respondent
+            70.age_respondent 71.age_respondent 73.age_respondent
+            74.age_respondent 75.age_respondent 76.age_respondent
+            77.age_respondent 78.age_respondent 79.age_respondent
+            81.age_respondent 82.age_respondent 86.age_respondent
+            90.age_respondent 2018.year
+
+------------------------------------------------------------------------------
+             |            Delta-method
+             |      dy/dx   std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+1.first_ch~r |          .  (not estimable)
+             |
+age_of_child |
+          1  |          .  (not estimable)
+          2  |          .  (not estimable)
+          3  |          .  (not estimable)
+          4  |          .  (not estimable)
+          5  |          .  (not estimable)
+          6  |          .  (not estimable)
+          7  |          .  (not estimable)
+          8  |          .  (not estimable)
+          9  |          .  (not estimable)
+         10  |          .  (not estimable)
+         11  |          .  (not estimable)
+         12  |          .  (not estimable)
+         13  |          .  (not estimable)
+         14  |          .  (not estimable)
+         15  |          .  (not estimable)
+         16  |          .  (not estimable)
+         17  |          .  (not estimable)
+         18  |          .  (not estimable)
+         19  |          .  (not estimable)
+         20  |          .  (not estimable)
+         21  |          .  (not estimable)
+         22  |          .  (not estimable)
+         23  |          .  (not estimable)
+         24  |          .  (not estimable)
+         25  |          .  (not estimable)
+         26  |          .  (not estimable)
+         27  |          .  (not estimable)
+         28  |          .  (not estimable)
+         29  |          .  (not estimable)
+         30  |          .  (not estimable)
+         31  |          .  (not estimable)
+         32  |          .  (not estimable)
+         33  |          .  (not estimable)
+         35  |          .  (not estimable)
+         36  |          .  (not estimable)
+         37  |          .  (not estimable)
+         38  |          .  (not estimable)
+         39  |          .  (not estimable)
+         40  |          .  (not estimable)
+         42  |          .  (not estimable)
+         43  |          .  (not estimable)
+         44  |          .  (not estimable)
+         45  |          .  (not estimable)
+         46  |          .  (not estimable)
+         47  |          .  (not estimable)
+         49  |          .  (not estimable)
+         50  |          .  (not estimable)
+         51  |          .  (not estimable)
+         52  |          .  (not estimable)
+         53  |          .  (not estimable)
+         54  |          .  (not estimable)
+         57  |          .  (not estimable)
+         58  |          .  (not estimable)
+         59  |          .  (not estimable)
+         60  |          .  (not estimable)
+             |
+1.gender_r~t |   .1222375   .2091925     0.58   0.560    -.2897748    .5342499
+             |
+age_respon~t |
+         19  |          .  (not estimable)
+         20  |          .  (not estimable)
+         23  |          .  (not estimable)
+         24  |          .  (not estimable)
+         25  |          .  (not estimable)
+         26  |          .  (not estimable)
+         27  |          .  (not estimable)
+         28  |          .  (not estimable)
+         29  |          .  (not estimable)
+         30  |          .  (not estimable)
+         31  |          .  (not estimable)
+         32  |          .  (not estimable)
+         33  |          .  (not estimable)
+         34  |          .  (not estimable)
+         35  |          .  (not estimable)
+         36  |          .  (not estimable)
+         37  |          .  (not estimable)
+         38  |          .  (not estimable)
+         39  |          .  (not estimable)
+         40  |          .  (not estimable)
+         41  |          .  (not estimable)
+         42  |          .  (not estimable)
+         43  |          .  (not estimable)
+         44  |          .  (not estimable)
+         45  |          .  (not estimable)
+         46  |          .  (not estimable)
+         47  |          .  (not estimable)
+         48  |          .  (not estimable)
+         49  |          .  (not estimable)
+         50  |          .  (not estimable)
+         51  |          .  (not estimable)
+         52  |          .  (not estimable)
+         53  |          .  (not estimable)
+         54  |          .  (not estimable)
+         55  |          .  (not estimable)
+         56  |          .  (not estimable)
+         57  |          .  (not estimable)
+         58  |          .  (not estimable)
+         59  |          .  (not estimable)
+         60  |          .  (not estimable)
+         61  |          .  (not estimable)
+         62  |          .  (not estimable)
+         63  |          .  (not estimable)
+         64  |          .  (not estimable)
+         65  |          .  (not estimable)
+         66  |          .  (not estimable)
+         67  |          .  (not estimable)
+         68  |          .  (not estimable)
+         69  |          .  (not estimable)
+         70  |          .  (not estimable)
+         71  |          .  (not estimable)
+         73  |          .  (not estimable)
+         74  |          .  (not estimable)
+         75  |          .  (not estimable)
+         76  |          .  (not estimable)
+         77  |          .  (not estimable)
+         78  |          .  (not estimable)
+         79  |          .  (not estimable)
+         81  |          .  (not estimable)
+         82  |          .  (not estimable)
+         86  |          .  (not estimable)
+         90  |          .  (not estimable)
+             |
+        year |
+       2018  |  -.0210453   .2783124    -0.08   0.940    -.5691919    .5271012
+------------------------------------------------------------------------------
+Note: dy/dx for factor levels is the discrete change from the base level.
+
+.         
+.         *If the pre-registered model does not evaluate...
+.         if e(b)[1, 2] == 0 {
+.                 
+.                 *Estimate the modified model
+.                 reg standard_attitude_respondent i.first_child_daughter##c.ag
+> e_of_child i.gender_respondent i.age_respondent i.year, vce(cluster responden
+> t_ID)
+
+Linear regression                               Number of obs     =        277
+                                                F(57, 249)        =          .
+                                                Prob > F          =          .
+                                                R-squared         =     0.2555
+                                                Root MSE          =     .98972
+
+                        (Std. err. adjusted for 250 clusters in respondent_ID)
+------------------------------------------------------------------------------
+             |               Robust
+standard_a~t | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+1.first_ch~r |  -.4277583   .2666539    -1.60   0.110     -.952943    .0974263
+age_of_child |   .0220528   .0136025     1.62   0.106     -.004738    .0488435
+             |
+first_chil~r#|
+          c. |
+age_of_child |
+          1  |   .0119231   .0089016     1.34   0.182     -.005609    .0294553
+             |
+1.gender_r~t |   .0914196   .1587564     0.58   0.565    -.2212569    .4040961
+             |
+age_respon~t |
+         19  |  -.4399509   .1968973    -2.23   0.026    -.8277475   -.0521544
+         20  |  -.1962712   .2567441    -0.76   0.445    -.7019381    .3093957
+         23  |  -.1039907   .3183432    -0.33   0.744    -.7309793    .5229979
+         24  |  -.7064498   .2623381    -2.69   0.008    -1.223134   -.1897653
+         25  |  -.2338459    .551612    -0.42   0.672    -1.320266    .8525743
+         26  |   .5072548   .3106129     1.63   0.104    -.1045088    1.119018
+         27  |  -.3245031   .6224768    -0.52   0.603    -1.550494    .9014879
+         28  |  -1.573844   .1968973    -7.99   0.000    -1.961641   -1.186048
+         29  |  -.3145122   .5985111    -0.53   0.600    -1.493302    .8642774
+         30  |  -.0462456   .3698924    -0.13   0.901    -.7747623    .6822711
+         31  |   .2270341   .5645521     0.40   0.688    -.8848721     1.33894
+         32  |  -.0397152    .367709    -0.11   0.914    -.7639316    .6845013
+         33  |   -.566766   .6110514    -0.93   0.355    -1.770254    .6367223
+         34  |   .3079639   .2683651     1.15   0.252     -.220591    .8365188
+         35  |  -.4462934   .3899788    -1.14   0.254    -1.214371    .3217842
+         36  |  -.7943727   .4532172    -1.75   0.081    -1.687001    .0982553
+         37  |   -.146103   .4541344    -0.32   0.748    -1.040537    .7483315
+         38  |  -.4300462   .3784771    -1.14   0.257    -1.175471    .3153784
+         39  |  -1.012406   .4558708    -2.22   0.027    -1.910261   -.1145521
+         40  |   -1.15078   .5354095    -2.15   0.033    -2.205289   -.0962713
+         41  |  -.6876507   .4736726    -1.45   0.148    -1.620566    .2452649
+         42  |  -1.158598   .4995779    -2.32   0.021    -2.142535   -.1746606
+         43  |   -.884461   .4960421    -1.78   0.076    -1.861434    .0925123
+         44  |  -.3834145   .6892569    -0.56   0.579    -1.740931    .9741024
+         45  |  -.0620738   .3852231    -0.16   0.872     -.820785    .6966373
+         46  |  -.0660163   .4274894    -0.15   0.877    -.9079725    .7759399
+         47  |  -.4381295   .4231385    -1.04   0.301    -1.271516    .3952575
+         48  |   .0033346   .4461711     0.01   0.994    -.8754159     .882085
+         49  |  -.7806186   .5688518    -1.37   0.171    -1.900993     .339756
+         50  |   -.665347   .4335132    -1.53   0.126    -1.519167    .1884731
+         51  |  -.0359268   .3773157    -0.10   0.924    -.7790639    .7072104
+         52  |  -.3592999   .4468083    -0.80   0.422    -1.239305    .5207055
+         53  |  -.4373781   .7768192    -0.56   0.574    -1.967352    1.092596
+         54  |  -1.073435   .6287192    -1.71   0.089    -2.311721    .1648508
+         55  |  -.6796799   .8228214    -0.83   0.410    -2.300257    .9408972
+         56  |   -.323632   .4822993    -0.67   0.503    -1.273538    .6262743
+         57  |  -.5853837   .5087901    -1.15   0.251    -1.587465    .4166971
+         58  |   .2340283   .3591848     0.65   0.515    -.4733994     .941456
+         59  |  -.6023526     .58839    -1.02   0.307    -1.761208    .5565033
+         60  |  -.5009796   .5504916    -0.91   0.364    -1.585193    .5832338
+         61  |  -.6678281   .5591148    -1.19   0.233    -1.769025     .433369
+         62  |  -.4330223   .5818227    -0.74   0.457    -1.578944     .712899
+         63  |  -1.600425   .5517248    -2.90   0.004    -2.687068   -.5137831
+         64  |  -.3536066   .5026358    -0.70   0.482    -1.343566    .6363532
+         65  |  -.6676204   .6447051    -1.04   0.301    -1.937391    .6021502
+         66  |  -.3238308   .5127268    -0.63   0.528    -1.333665    .6860036
+         67  |  -1.542833   .9069554    -1.70   0.090    -3.329116    .2434486
+         68  |  -.7691692   .6563144    -1.17   0.242    -2.061805    .5234661
+         69  |  -1.514852   .7787769    -1.95   0.053    -3.048681    .0189783
+         70  |  -1.072225   .7261623    -1.48   0.141    -2.502428    .3579787
+         71  |  -1.458276   .6887556    -2.12   0.035    -2.814806   -.1017464
+         73  |  -1.814152    .756035    -2.40   0.017    -3.303191   -.3251136
+         74  |  -1.625982   .9745151    -1.67   0.096    -3.545326    .2933611
+         75  |  -2.105062   .9055449    -2.32   0.021    -3.888566   -.3215582
+         76  |  -1.253013   .6599725    -1.90   0.059    -2.552853    .0468271
+         77  |  -1.886744   .8987877    -2.10   0.037    -3.656939   -.1165484
+         78  |  -1.110861   .8330426    -1.33   0.184    -2.751569    .5298474
+         79  |  -1.863092   .9277241    -2.01   0.046    -3.690279   -.0359049
+         81  |  -1.089262    .770387    -1.41   0.159    -2.606568    .4280433
+         82  |  -.5214556   .7202476    -0.72   0.470     -1.94001    .8970986
+         86  |  -1.010613   .7983089    -1.27   0.207    -2.582912    .5616863
+         90  |  -2.075454   .8355263    -2.48   0.014    -3.721054   -.4298542
+             |
+        year |
+       2018  |  -.1079994   .1928515    -0.56   0.576    -.4878275    .2718287
+             |
+       _cons |   .3044258   .2303906     1.32   0.188     -.149337    .7581885
+------------------------------------------------------------------------------
+.                 margins, dydx(*) post
+
+Average marginal effects                                   Number of obs = 277
+Model VCE: Robust
+
+Expression: Linear prediction, predict()
+dy/dx wrt:  1.first_child_daughter age_of_child 1.gender_respondent
+            19.age_respondent 20.age_respondent 23.age_respondent
+            24.age_respondent 25.age_respondent 26.age_respondent
+            27.age_respondent 28.age_respondent 29.age_respondent
+            30.age_respondent 31.age_respondent 32.age_respondent
+            33.age_respondent 34.age_respondent 35.age_respondent
+            36.age_respondent 37.age_respondent 38.age_respondent
+            39.age_respondent 40.age_respondent 41.age_respondent
+            42.age_respondent 43.age_respondent 44.age_respondent
+            45.age_respondent 46.age_respondent 47.age_respondent
+            48.age_respondent 49.age_respondent 50.age_respondent
+            51.age_respondent 52.age_respondent 53.age_respondent
+            54.age_respondent 55.age_respondent 56.age_respondent
+            57.age_respondent 58.age_respondent 59.age_respondent
+            60.age_respondent 61.age_respondent 62.age_respondent
+            63.age_respondent 64.age_respondent 65.age_respondent
+            66.age_respondent 67.age_respondent 68.age_respondent
+            69.age_respondent 70.age_respondent 71.age_respondent
+            73.age_respondent 74.age_respondent 75.age_respondent
+            76.age_respondent 77.age_respondent 78.age_respondent
+            79.age_respondent 81.age_respondent 82.age_respondent
+            86.age_respondent 90.age_respondent 2018.year
+
+------------------------------------------------------------------------------
+             |            Delta-method
+             |      dy/dx   std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+1.first_ch~r |  -.1806438    .148952    -1.21   0.226    -.4740103    .1127226
+age_of_child |   .0276915   .0129177     2.14   0.033     .0022497    .0531333
+1.gender_r~t |   .0914196   .1587564     0.58   0.565    -.2212569    .4040961
+             |
+age_respon~t |
+         19  |  -.4399509   .1968973    -2.23   0.026    -.8277475   -.0521544
+         20  |  -.1962712   .2567441    -0.76   0.445    -.7019381    .3093957
+         23  |  -.1039907   .3183432    -0.33   0.744    -.7309793    .5229979
+         24  |  -.7064498   .2623381    -2.69   0.008    -1.223134   -.1897653
+         25  |  -.2338459    .551612    -0.42   0.672    -1.320266    .8525743
+         26  |   .5072548   .3106129     1.63   0.104    -.1045088    1.119018
+         27  |  -.3245031   .6224768    -0.52   0.603    -1.550494    .9014879
+         28  |  -1.573844   .1968973    -7.99   0.000    -1.961641   -1.186048
+         29  |  -.3145122   .5985111    -0.53   0.600    -1.493302    .8642774
+         30  |  -.0462456   .3698924    -0.13   0.901    -.7747623    .6822711
+         31  |   .2270341   .5645521     0.40   0.688    -.8848721     1.33894
+         32  |  -.0397152    .367709    -0.11   0.914    -.7639316    .6845013
+         33  |   -.566766   .6110514    -0.93   0.355    -1.770254    .6367223
+         34  |   .3079639   .2683651     1.15   0.252     -.220591    .8365188
+         35  |  -.4462934   .3899788    -1.14   0.254    -1.214371    .3217842
+         36  |  -.7943727   .4532172    -1.75   0.081    -1.687001    .0982553
+         37  |   -.146103   .4541344    -0.32   0.748    -1.040537    .7483315
+         38  |  -.4300462   .3784771    -1.14   0.257    -1.175471    .3153784
+         39  |  -1.012406   .4558708    -2.22   0.027    -1.910261   -.1145521
+         40  |   -1.15078   .5354095    -2.15   0.033    -2.205289   -.0962713
+         41  |  -.6876507   .4736726    -1.45   0.148    -1.620566    .2452649
+         42  |  -1.158598   .4995779    -2.32   0.021    -2.142535   -.1746606
+         43  |   -.884461   .4960421    -1.78   0.076    -1.861434    .0925123
+         44  |  -.3834145   .6892569    -0.56   0.579    -1.740931    .9741024
+         45  |  -.0620738   .3852231    -0.16   0.872     -.820785    .6966373
+         46  |  -.0660163   .4274894    -0.15   0.877    -.9079725    .7759399
+         47  |  -.4381295   .4231385    -1.04   0.301    -1.271516    .3952575
+         48  |   .0033346   .4461711     0.01   0.994    -.8754159     .882085
+         49  |  -.7806186   .5688518    -1.37   0.171    -1.900993     .339756
+         50  |   -.665347   .4335132    -1.53   0.126    -1.519167    .1884731
+         51  |  -.0359268   .3773157    -0.10   0.924    -.7790639    .7072104
+         52  |  -.3592999   .4468083    -0.80   0.422    -1.239305    .5207055
+         53  |  -.4373781   .7768192    -0.56   0.574    -1.967352    1.092596
+         54  |  -1.073435   .6287192    -1.71   0.089    -2.311721    .1648508
+         55  |  -.6796799   .8228214    -0.83   0.410    -2.300257    .9408972
+         56  |   -.323632   .4822993    -0.67   0.503    -1.273538    .6262743
+         57  |  -.5853837   .5087901    -1.15   0.251    -1.587465    .4166971
+         58  |   .2340283   .3591848     0.65   0.515    -.4733994     .941456
+         59  |  -.6023526     .58839    -1.02   0.307    -1.761208    .5565033
+         60  |  -.5009796   .5504916    -0.91   0.364    -1.585193    .5832338
+         61  |  -.6678281   .5591148    -1.19   0.233    -1.769025     .433369
+         62  |  -.4330223   .5818227    -0.74   0.457    -1.578944     .712899
+         63  |  -1.600425   .5517248    -2.90   0.004    -2.687068   -.5137831
+         64  |  -.3536066   .5026358    -0.70   0.482    -1.343566    .6363532
+         65  |  -.6676204   .6447051    -1.04   0.301    -1.937391    .6021502
+         66  |  -.3238308   .5127268    -0.63   0.528    -1.333665    .6860036
+         67  |  -1.542833   .9069554    -1.70   0.090    -3.329116    .2434486
+         68  |  -.7691692   .6563144    -1.17   0.242    -2.061805    .5234661
+         69  |  -1.514852   .7787769    -1.95   0.053    -3.048681    .0189783
+         70  |  -1.072225   .7261623    -1.48   0.141    -2.502428    .3579787
+         71  |  -1.458276   .6887556    -2.12   0.035    -2.814806   -.1017464
+         73  |  -1.814152    .756035    -2.40   0.017    -3.303191   -.3251136
+         74  |  -1.625982   .9745151    -1.67   0.096    -3.545326    .2933611
+         75  |  -2.105062   .9055449    -2.32   0.021    -3.888566   -.3215582
+         76  |  -1.253013   .6599725    -1.90   0.059    -2.552853    .0468271
+         77  |  -1.886744   .8987877    -2.10   0.037    -3.656939   -.1165484
+         78  |  -1.110861   .8330426    -1.33   0.184    -2.751569    .5298474
+         79  |  -1.863092   .9277241    -2.01   0.046    -3.690279   -.0359049
+         81  |  -1.089262    .770387    -1.41   0.159    -2.606568    .4280433
+         82  |  -.5214556   .7202476    -0.72   0.470     -1.94001    .8970986
+         86  |  -1.010613   .7983089    -1.27   0.207    -2.582912    .5616863
+         90  |  -2.075454   .8355263    -2.48   0.014    -3.721054   -.4298542
+             |
+        year |
+       2018  |  -.1079994   .1928515    -0.56   0.576    -.4878275    .2718287
+------------------------------------------------------------------------------
+Note: dy/dx for factor levels is the discrete change from the base level.
+.                 
+.         }
+
+. 
+. 
+. * EXTRACT AND EXPORT RESULTS * (Please check whether the suggested code autom
+> atically picks up the correct statistics for your chosen regression analysis 
+> and adapt if needed)
+. 
+. 
+.         * Extract the required statistics
+. 
+.                 * (i) coefficient estimate
+.                 local coefficient = e(b)[1, 2]
+
+. 
+.                 * (ii) standard error
+.                 local se = sqrt(e(V)[2, 2])
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "t"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 local p_value = r(table)[4, 2]
+
+.                 dis `p_value'
+.22636888
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof respondent_ID if e(sample), local(participan
+> ts)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation of directionality
+. 
+.                 local interpretation "positive coefficient is in line with hy
+> pothesis"
+
+. 
+. 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: -.1806438275996542
+
+.         di "Standard Error: `se'"
+Standard Error: .1489520019823804
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: t
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: 249
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: .
+
+.         di "p-value: " `p_value'
+p-value: .22636888
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 277
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 250
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h1_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/5_res
+    > ults/h1_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

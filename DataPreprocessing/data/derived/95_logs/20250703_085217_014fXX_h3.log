@@ -1,0 +1,910 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmp339x3sag.do 
+
+. do "95%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. * the following code automatically sets paths based on the project location o
+> n your system *
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/95%-sample" // folder, in which the or
+> iginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/95%-sample
+
+. global DATA "$ROOT/data/derived_confidential/95%-sample" // folder for datase
+> ts
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/95%-sample
+
+. global OUT "$ROOT/data/derived/95_results" // folder for output (results, tab
+> les)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/95_results
+
+. 
+end of do-file
+
+. do "20250703_085217_014fXX_h3.do"
+
+. *****************************************************************************
+> ***
+. ****************** Example Do-File H3: #ManyDaughters Project ***************
+> ***
+. *****************************************************************************
+> ***
+. 
+. * Authors: Tina Wang, David Albrecht
+. 
+. * ============================
+. * Setup * (Please adapt according to your needs)
+. * ============================
+. 
+. * clear all
+. version 19.5 // BE-Basic Edition, indicate the version of stata you are using
+>  here
+
+.              // maxvar not settable in this version of Stata (maxvar is fixed
+>  at 2,048)
+. 
+. * INSTALL PACKAGES * (Please adapt according to your needs)
+. * install all packages you need here, for example:
+. *ssc install outreg2
+. *ssc install estout
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. /*
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> */
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA * (Please adapt according to your needs)
+.                 
+.         * The full 'pl.dta' file contains ~4,000 variables, which exceeds Sta
+> ta's
+.         * 2,048-variable limit (my version of stata). To avoid this, we creat
+> e a pl subset
+.         * containing only the merge keys (pid, syear, hid, cid) and the three
+.         * questionnaire items needed for H3 (pli0043_v3, pli0040, pli0049_v3)
+> .
+.         
+.    * pl scontains all variables from the individual questionnaire
+.         use pid syear hid cid pli0043_v3 pli0040 pli0049_v3 using "$IN/pl.dta
+> ", clear
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+.         save "$IN/pl_subset_h3.dta", replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/raw_confident
+    > ial/95%-sample/pl_subset_h3.dta not found)
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/raw_confident
+    > ial/95%-sample/pl_subset_h3.dta saved
+
+.         
+.         * Merge pl with all datasets, that we deem relevant for our analysis.
+>  (Tip: use keepusing() to specify which variables to keep from the using data
+> set; the default is all.)
+. 
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches) ke
+> epusing(kidsex01 kidgeb01)
+(variable pid was long, now double to accommodate using data's values)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         
+.         * ppathl 
+.         merge m:1 pid syear using "$IN/ppathl.dta", nogen keep(master matches
+> )
+(label sex_EN already defined)
+(label sex already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         
+.         * pgen contains user-friendly data on the individual level that are c
+> onsolidated from different sources
+.         merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. 
+.         label language EN // change language of the labels to English
+
+. 
+.         save "$DATA/h3_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h3_dataset.dta saved
+
+. 
+. 
+. * ============================
+. * Analysis
+. * ============================
+. 
+. use "$DATA/h3_dataset.dta", clear
+
+. 
+. * Analytic weights
+. * The fixed effects estimator in xtreg requires that the weight is constant w
+> ithin each panel (household, here "hid").
+. * Therefore, we create a household-level (panel-level) weight by averaging ph
+> rf within each household.
+. * This ensures phrf_panel is constant for all years of the same household and
+>  can be safely used in xtreg, fe.
+. 
+. bysort hid: egen phrf_panel = mean(phrf)
+
+. 
+. 
+. *1*Generate DEPENDENT VARIABLE gender_inequality_behavior 
+. foreach var in pli0043_v3 pli0040 pli0049_v3 {
+  2.         mvdecode `var', mv(-1/-8=.) 
+  3.            }
+  pli0043_v3: 21018 missing values generated
+     pli0040: 26962 missing values generated
+  pli0049_v3: 20952 missing values generated
+
+. 
+. gen total_hours = pli0043_v3 + pli0040 + pli0049_v3
+(195,754 missing values generated)
+
+. 
+. * For each observation, find partner's hours
+. preserve
+
+. keep pid syear total_hours
+
+. rename (pid total_hours) (pgpartnr partner_hours)
+
+. tempfile partner_hours_data
+
+. save `partner_hours_data'
+file C:\Users\DALBRE~1\AppData\Local\Temp\ST_7b70_000002.tmp saved as .dta
+    format
+
+. restore
+
+. 
+. merge m:1 pgpartnr syear using `partner_hours_data', keep(1 3) nogen
+(variable pgpartnr was long, now double to accommodate using data's values)
+(label pid_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                       328,522
+        from master                   328,522  
+        from using                          0  
+
+    Matched                           334,601  
+    -----------------------------------------
+
+. 
+. *Absolute difference between my hours and partner hours: DEPENDENT VARIABLE g
+> ender_inequality_behavior 
+. gen gender_inequality_behavior = abs(total_hours - partner_hours) if !missing
+> (partner_hours) & !missing(total_hours)
+(374,499 missing values generated)
+
+. 
+. 
+. *2*Generate INDEPENDENT VARIABLE firstborn_child_female 
+.  *Code firstborn_child_female as 1 if firstborn is female (kidsex[01]=2), 0 i
+> f male (kidsex[01]=1)
+.     gen firstborn_child_female = .
+(663,123 missing values generated)
+
+.     replace firstborn_child_female = 1 if kidsex01 == 2
+(216,749 real changes made)
+
+.     replace firstborn_child_female = 0 if kidsex01 == 1
+(229,481 real changes made)
+
+.         
+. **Generate EVENT TIME : year of the firstborn child
+.         gen firstborn_year_child = kidgeb01
+
+. 
+.         gen event_time = syear - firstborn_year_child
+
+.         
+.         keep if inrange(event_time, -3, 3)
+(627,084 observations deleted)
+
+.         
+.         
+. *KEY CONTROLS
+.         
+. *AGE
+. gen age =  syear - gebjahr           // 
+
+. gen age_square = age^2
+
+.  
+. * For each observation, find partner's age
+. preserve
+
+. keep pid syear age
+
+. rename (pid age) (pgpartnr partner_age)
+
+. tempfile partner_age_data
+
+. save `partner_age_data'
+file C:\Users\DALBRE~1\AppData\Local\Temp\ST_7b70_000004.tmp saved as .dta
+    format
+
+. restore
+
+. 
+. merge m:1 pgpartnr syear using `partner_age_data', keep(1 3) nogen
+(label pid_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                        13,235
+        from master                    13,235  
+        from using                          0  
+
+    Matched                            22,804  
+    -----------------------------------------
+
+. 
+. gen partner_age_square = partner_age^2
+(13,235 missing values generated)
+
+. 
+. *SEX (to identify heterosexual couples)
+. preserve
+
+. keep pid syear sex
+
+. rename (pid sex) (pgpartnr partner_sex)
+
+. tempfile partner_sex_data
+
+. save `partner_sex_data'
+file C:\Users\DALBRE~1\AppData\Local\Temp\ST_7b70_000006.tmp saved as .dta
+    format
+
+. restore
+
+. 
+. merge m:1 pgpartnr syear using `partner_sex_data', keep(1 3) nogen
+(label pid_EN already defined)
+(label sex_EN already defined)
+(label sex already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                        13,235
+        from master                    13,235  
+        from using                          0  
+
+    Matched                            22,804  
+    -----------------------------------------
+
+. 
+. *****
+. *SELECTION DES VARIABLES A GARDER
+. keep pid hid syear pgpartnr sex partner_sex age age_square partner_age partne
+> r_age_square gender_inequality_behavior event_time firstborn_child_female phr
+> f phrf_panel
+
+. 
+. * Tout le reste sera supprimé de la base
+. 
+. ****
+. 
+. * FILTERS *
+. 
+. * 2. Drop respondents with missing dependent variable
+. count
+  36,039
+
+. drop if missing(gender_inequality_behavior)
+(15,730 observations deleted)
+
+. drop if gender_inequality_behavior < 0
+(0 observations deleted)
+
+. 
+. inspect gender_inequality_behavior
+
+gender_inequality_behavior:                     Number of observations
+-----------------------------          ---------------------------------------
+                                             Total      Integers   Nonintegers
+|  #                         Negative            -             -             -
+|  #                         Zero            3,519         3,519             -
+|  #                         Positive       16,790        16,790             -
+|  #                                   -----------   -----------   -----------
+|  #                         Total          20,309        20,309             -
+|  #   .   .   .   .         Missing             -
++----------------------                -----------
+0                    34                     20,309
+  (26 unique values)
+
+. 
+. * 3. Drop respondents with no firstborn information
+. count
+  20,309
+
+. drop if missing(firstborn_child_female)
+(10 observations deleted)
+
+. drop if missing(event_time)
+(0 observations deleted)
+
+. 
+. inspect firstborn_child_female
+
+firstborn_child_female:                         Number of observations
+-------------------------              ---------------------------------------
+                                             Total      Integers   Nonintegers
+|  #                         Negative            -             -             -
+|  #   #                     Zero           10,272        10,272             -
+|  #   #                     Positive       10,027        10,027             -
+|  #   #                               -----------   -----------   -----------
+|  #   #                     Total          20,299        20,299             -
+|  #   #                     Missing             -
++----------------------                -----------
+0                     1                     20,299
+   (2 unique values)
+
+. inspect event_time
+
+event_time:                                     Number of observations
+-------------                          ---------------------------------------
+                                             Total      Integers   Nonintegers
+|                  #         Negative        3,999         3,999             -
+|                  #         Zero            3,005         3,005             -
+|                  #         Positive       13,295        13,295             -
+|                  #                   -----------   -----------   -----------
+|              #   #         Total          20,299        20,299             -
+|  #   #   #   #   #         Missing             -
++----------------------                -----------
+-3                    3                     20,299
+   (7 unique values)
+
+. 
+. * 4. Drop respondents missing key controls
+. count
+  20,299
+
+. drop if missing(sex)
+(0 observations deleted)
+
+. drop if missing(partner_sex)
+(1,607 observations deleted)
+
+. 
+. drop if missing(age)
+(0 observations deleted)
+
+. drop if missing(partner_age)
+(0 observations deleted)
+
+. 
+. drop if missing(age_square)
+(0 observations deleted)
+
+. drop if missing(partner_age_square)
+(0 observations deleted)
+
+. 
+. inspect sex
+
+sex:  Gender                                    Number of observations
+------------                           ---------------------------------------
+                                             Total      Integers   Nonintegers
+|      #                     Negative            -             -             -
+|  #   #                     Zero                -             -             -
+|  #   #                     Positive       18,692        18,692             -
+|  #   #                               -----------   -----------   -----------
+|  #   #                     Total          18,692        18,692             -
+|  #   #                     Missing             -
++----------------------                -----------
+1                     2                     18,692
+   (2 unique values)
+
+      sex is labeled and all values are documented in the label.
+
+. inspect partner_sex
+
+partner_sex:  Gender                            Number of observations
+--------------------                   ---------------------------------------
+                                             Total      Integers   Nonintegers
+|      #                     Negative            -             -             -
+|  #   #                     Zero                -             -             -
+|  #   #                     Positive       18,692        18,692             -
+|  #   #                               -----------   -----------   -----------
+|  #   #                     Total          18,692        18,692             -
+|  #   #                     Missing             -
++----------------------                -----------
+1                     2                     18,692
+   (2 unique values)
+
+      partner_sex is labeled and all values are documented in the label.
+
+. 
+. inspect age
+
+age:                                            Number of observations
+------                                 ---------------------------------------
+                                             Total      Integers   Nonintegers
+|      #                     Negative            -             -             -
+|      #                     Zero                -             -             -
+|      #                     Positive       18,692        18,692             -
+|      #                               -----------   -----------   -----------
+|  #   #                     Total          18,692        18,692             -
+|  #   #   #   .   .         Missing             -
++----------------------                -----------
+18                   64                     18,692
+  (44 unique values)
+
+. inspect partner_age
+
+partner_age:                                    Number of observations
+--------------                         ---------------------------------------
+                                             Total      Integers   Nonintegers
+|      #                     Negative            -             -             -
+|      #                     Zero                -             -             -
+|      #                     Positive       18,692        18,692             -
+|      #                               -----------   -----------   -----------
+|  #   #                     Total          18,692        18,692             -
+|  #   #   #   .   .         Missing             -
++----------------------                -----------
+18                   64                     18,692
+  (44 unique values)
+
+. 
+. inspect age_square
+
+age_square:                                     Number of observations
+-------------                          ---------------------------------------
+                                             Total      Integers   Nonintegers
+|  #                         Negative            -             -             -
+|  #                         Zero                -             -             -
+|  #   #                     Positive       18,692        18,692             -
+|  #   #                               -----------   -----------   -----------
+|  #   #                     Total          18,692        18,692             -
+|  #   #   .   .   .         Missing             -
++----------------------                -----------
+324                4096                     18,692
+  (44 unique values)
+
+. inspect partner_age_square
+
+partner_age_square:                             Number of observations
+---------------------                  ---------------------------------------
+                                             Total      Integers   Nonintegers
+|  #                         Negative            -             -             -
+|  #                         Zero                -             -             -
+|  #   #                     Positive       18,692        18,692             -
+|  #   #                               -----------   -----------   -----------
+|  #   #                     Total          18,692        18,692             -
+|  #   #   .   .   .         Missing             -
++----------------------                -----------
+324                4096                     18,692
+  (44 unique values)
+
+. 
+. * 4. Restrict age
+. count
+  18,692
+
+. keep if inrange(age, 18, 54)
+(18 observations deleted)
+
+. keep if inrange(age_square, 324, 2916)
+(0 observations deleted)
+
+. 
+. *5. Restrict to heterosexual couples
+. count
+  18,674
+
+. keep if (sex == 1 & partner_sex == 2) | (sex == 2 & partner_sex == 1)
+(8 observations deleted)
+
+. 
+. *7. Restrict to one observation per year per household (keep arbitrarily men)
+. count
+  18,666
+
+. keep if sex == 1
+(9,342 observations deleted)
+
+. 
+. *6. At least, 2 observations per household
+. * Keep only those households with at least 2 observations
+. * (Note: This is a modification from the pre-analysis plan (PAP), which origi
+> nally required at least 3 observations per household. Due to sample size and 
+> power considerations, we are now including households with at least 2 observa
+> tions.)
+. count
+  9,324
+
+. egen n_obs = count(pid), by(hid)
+
+. keep if n_obs >= 2
+(1,015 observations deleted)
+
+. 
+. 
+. *7. 
+. 
+. *CHECK THE REMAINING SAMPLE SIMPLE
+. count  
+  8,309
+
+. 
+. **COUNT RESULTS : 418 OBSERVATIONS
+. * For our regression, assuming a small effect size of Cohen's d = 0.15. With 
+> a significance level of 𝛼 = 0.05 and desired power = 0.80, 
+. *We would require approximately 227 household-year observations per group (i.
+> e., 3,184 total observations) to detect a statistically significant differenc
+> e between respondents with firstborn daughters and those with firstborn sons,
+>  as well as to assess interaction effects with the variable event_time.
+. 
+. tabulate event_time firstborn_child_female
+
+           | firstborn_child_femal
+           |           e
+event_time |         0          1 |     Total
+-----------+----------------------+----------
+        -3 |       208        195 |       403 
+        -2 |       300        279 |       579 
+        -1 |       433        392 |       825 
+         0 |       666        643 |     1,309 
+         1 |       858        856 |     1,714 
+         2 |       937        910 |     1,847 
+         3 |       817        815 |     1,632 
+-----------+----------------------+----------
+     Total |     4,219      4,090 |     8,309 
+
+. 
+. 
+. *           | firstborn_child_femal
+. *           |           e
+. *event_time |         0          1 |     Total
+. *-----------+----------------------+----------
+. *        -3 |        15          5 |        20 
+. *        -2 |        18          7 |        25 
+. *        -1 |        23         14 |        37 
+. *         0 |        42         25 |        67 
+. *         1 |        51         38 |        89 
+. *         2 |        54         42 |        96 
+. *         3 |        49         35 |        84 
+. *-----------+----------------------+----------
+. *     Total |       252        166 |       418 
+. 
+. 
+. *Except for event times -2 and -3 (with group sizes 7 and 5, respectively), a
+> ll other groups exhibit sufficient extrapolated statistical power (eg. (15/5)
+> *100=300). Given that the group sizes for firstborn_child_female == 0 are suf
+> ficient, we assume that statistical power will also be sufficient in the full
+>  dataset for all groups with firstborn_child_female ==1 to detect a significa
+> nt effect.
+. 
+. * HYPOTHESIS TEST FOR H3 * (Please adapt according to your needs)
+.         * We estimate a household fixed effects panel linear OLS regression u
+> sing an event-study approach.
+.         * Let's assume that the measure gender_inequality_behavior, construct
+> ed from pli0043_v3, pli0040, and pli0049_v3, provides a valid measure of gend
+> er inequality in the household based on behaviors (Hypothesis 3).
+.         * If the household's firstborn child is a female, we expect the house
+> hold to exhibit lower gender inequality (higher values indicate greater inequ
+> ality).
+.         * Accordingly, we run a linear panel regression with gender_inequalit
+> y_behavior as the dependent variable, and firstborn_child_female, event_time 
+> (and their interactions), and age_square and partner_age_square as independen
+> t variables, using household fixed effects, analytic weights (phrf), and clus
+> tering standard errors by household ID (hid).
+.         
+. *Note, modification from the PAP: Since most individuals in our sample mainta
+> in stable partnerships, partner_age increases at thesame rate as individual a
+> ge, creating perfect collinearity that prevents separate identification of th
+> eir effects. Due to collinearity between age and partner_age in the fixed eff
+> ects specification, we include only age, partner_age_square and age_square in
+>  the final model. Alternative approaches such as using age difference (age - 
+> partner_age) would also be problematic, as this variable becomes time-invaria
+> nt for individuals with stable partnerships and would therefore be absorbed b
+> y the individual fixed effects. 
+.         
+. *Eliminate duplicates hid year
+. sort hid pid syear 
+
+. duplicates report 
+
+Duplicates in terms of all variables
+
+--------------------------------------
+   Copies | Observations       Surplus
+----------+---------------------------
+        1 |         8309             0
+--------------------------------------
+
+. duplicates list hid syear
+
+Duplicates in terms of hid syear
+
+  +--------------------------------+
+  | Group    Obs       hid   syear |
+  |--------------------------------|
+  |     1   7668   3234362    2014 |
+  |     1   7670   3234362    2014 |
+  |     2   7778   3304131    2018 |
+  |     2   7780   3304131    2018 |
+  |     3   7779   3304131    2019 |
+  |--------------------------------|
+  |     3   7781   3304131    2019 |
+  +--------------------------------+
+
+. duplicates tag hid syear, gen(isduplicate) 
+
+Duplicates in terms of hid syear
+
+. duplicates drop hid syear, force
+
+Duplicates in terms of hid syear
+
+(3 observations deleted)
+
+. 
+. * Set panel structure
+. xtset hid syear
+
+Panel variable: hid (unbalanced)
+ Time variable: syear, 2000 to 2020, but with gaps
+         Delta: 1 unit
+
+. 
+. *Because the extraction of results requires a single summary statistic, we tr
+> eat our event variable (event_time) as continuous in the analysis. Accordingl
+> y, we interpret the coefficient on event_time_adj (and its interaction) as th
+> e estimated effect of a one-unit increase in event time relative to the basel
+> ine, rather than estimating separate effects for each time period.
+. **Fixed-effects estimation absord the variable firstborn_child_female (single
+>  coefficient alone)
+.         * Panel regression with household fixed effects (xtreg), analytic wei
+> ghts, and clustered standard errors
+. xtreg gender_inequality_behavior c.event_time#1.firstborn_child_female age ag
+> e_square partner_age_square [aweight=phrf_panel], fe cluster(hid)
+
+Fixed-effects (within) regression               Number of obs     =      8,206
+Group variable: hid                             Number of groups  =      2,219
+
+R-squared:                                      Obs per group:
+     Within  = 0.0458                                         min =          2
+     Between = 0.0003                                         avg =        3.7
+     Overall = 0.0004                                         max =          7
+
+                                                F(4, 2218)        =      32.75
+corr(u_i, Xb) = -0.5718                         Prob > F          =     0.0000
+
+                                (Std. err. adjusted for 2,219 clusters in hid)
+------------------------------------------------------------------------------
+             |               Robust
+gender_ine~r | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+firstborn_~e#|
+c.event_time |
+          1  |   .0079523   .0399152     0.20   0.842    -.0703228    .0862274
+             |
+         age |   .2193889   .1593042     1.38   0.169    -.0930121    .5317899
+  age_square |  -.0011275   .0026755    -0.42   0.673    -.0063743    .0041192
+partner_a~re |   .0012058   .0031727     0.38   0.704     -.005016    .0074276
+       _cons |  -5.031837   2.889008    -1.74   0.082    -10.69728    .6336067
+-------------+----------------------------------------------------------------
+     sigma_u |  1.9460212
+     sigma_e |  1.7105767
+         rho |   .5641231   (fraction of variance due to u_i)
+------------------------------------------------------------------------------
+
+. 
+.         *Joint hypothesis test wald test
+.         test c.event_time#1.firstborn_child_female
+
+ ( 1)  1.firstborn_child_female#c.event_time = 0
+
+       F(  1,  2218) =    0.04
+            Prob > F =    0.8421
+
+. 
+. * EXTRACT AND EXPORT RESULTS * (Please check whether the suggested code autom
+> atically picks up the correct statistics for your chosen regression analysis 
+> and adapt if needed)
+. 
+.         * Extract the required statistics
+. 
+.                 * (i) coefficient estimate
+.                 local coefficient = _b[c.event_time#1.firstborn_child_female]
+
+. 
+.                 * (ii) standard error
+.                 local se = _se[c.event_time#1.firstborn_child_female]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "t"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 local p_value = _b[c.event_time#1.firstborn_child_female] / _
+> se[c.event_time#1.firstborn_child_female]
+
+.                 local p_value = 2 * ttail(e(df_r), abs(`p_value'))
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation of directionality
+.                 scalar coef_firstborn_female_event = _b[c.event_time#1.firstb
+> orn_child_female]
+
+.                 local interpretation "negative coefficient is in line with hy
+> pothesis"
+
+. 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: .0079522574772359
+
+.         di "Standard Error: `se'"
+Standard Error: .0399152180570924
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: t
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: 2218
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 3
+
+.         di "p-value: " `p_value'
+p-value: .8421021
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 8206
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 2215
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: negative coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h3_results.csv", write replace // Rename
+> d to original naming convention by David Albrecht on 03.07.2025
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/95_re
+    > sults/h3_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

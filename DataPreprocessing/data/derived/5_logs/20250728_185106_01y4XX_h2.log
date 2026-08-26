@@ -1,0 +1,477 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmpy081davt.do 
+
+. do "5%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. 
+. * the following code automatically sets paths based on the project location o
+> n your system *local curdir = c(pwd)
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/5%-sample" // folder, in which the ori
+> ginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/5%-sample
+
+. global DATA "$ROOT/data/derived_confidential/5%-sample" // folder for dataset
+> s
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/5%-sample
+
+. global OUT "$ROOT/data/derived/5_results" // folder for output (results, tabl
+> es)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/5_results
+
+. 
+end of do-file
+
+. do "20250728_185106_01y4XX_h2.do"
+
+. *****************************************************************************
+> ***
+. ********************** Do-File H2: #ManyDaughters Project *******************
+> ***
+. *****************************************************************************
+> ***
+. 
+. * Author: [REDACTED]
+. 
+. * ============================
+. * Setup
+. * ============================
+. 
+. * clear all
+. version 14
+
+. set maxvar 10000
+
+
+. 
+. * INSTALL PACKAGES
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. /*
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> */
+. 
+. * ============================
+. * Data Preparation
+. * ============================
+. 
+. * LOAD AND MERGE DATA * (Please adapt according to your needs)
+. 
+.         use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. 
+.         * Merge ppathl with all datasets, that you deem relevant for your ana
+> lysis. (Tip: use keepusing() to specify which variables to keep from the usin
+> g dataset; the default is all.)
+. 
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches)
+(variable pid was long, now double to accommodate using data's values)
+(variable cid was long, now double to accommodate using data's values)
+(variable gebjahr was int, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * pgen contains user-friendly data on the individual level that are c
+> onsolidated from different sources
+.         merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * pl contains all variables from the individual questionnaire
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches)
+(variable inputdataset was str6, now str9 to accommodate using data's values)
+(label cid already defined)
+(label pid_EN already defined)
+(label cid_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * hgen contains generated variables on household level from the house
+> hold interview; use for household net income
+.         merge m:1 hid syear using "$IN/hgen.dta", nogen keep(master matches) 
+> keepusing(hid syear hghinc)
+(label iyear already defined)
+(label iyear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+. 
+.         label language EN // change language of the labels to English
+
+. 
+.         save "$DATA/h2_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/5%-sample/h2_dataset.dta saved
+
+. 
+. * ============================
+. * Analysis
+. * ============================
+. 
+. * FILTERS * 
+.  
+.         keep if inlist(syear,2005, 2009, 2014, 2019)/*information present on 
+> 2005, 2009, 2014, 2019*/
+(28,692 observations deleted)
+
+.         gen age = syear - gebjahr
+
+.         keep if age >= 18 & age <= 60
+(1,963 observations deleted)
+
+.         keep if sumkids >= 1
+(1,337 observations deleted)
+
+.         keep if sex > 0
+(0 observations deleted)
+
+. 
+. * GENERATE VARIABLES * 
+. 
+.         * Has at least one daughter
+.         gen hasdaughter = 0
+
+.         replace hasdaughter = 1 if kidsex01 == 2 | kidsex02 == 2 | kidsex03 =
+> = 2 | ///
+>     kidsex04 == 2 | kidsex05 == 2 | kidsex06 == 2 | kidsex07 == 2 | ///
+>     kidsex08 == 2 | kidsex09 == 2 | kidsex10 == 2 | kidsex11 == 2 | ///
+>     kidsex12 == 2 | kidsex13 == 2 | kidsex14 == 2 | kidsex16 == 2 | ///
+>     kidsex17 == 2 | kidsex18 == 2 | kidsex19 == 2
+(2,335 real changes made)
+
+.         
+.                 
+.         * The first kid is a daughter
+.         gen first_daughter = .
+(3,236 missing values generated)
+
+.         replace first_daughter = 1 if kidsex01 == 2
+(1,477 real changes made)
+
+.         replace first_daughter = 0 if kidsex01 == 1
+(1,757 real changes made)
+
+.         
+. 
+.         * Education
+.         rename pgisced97 educ_aux
+
+.         gen educ = .
+(3,236 missing values generated)
+
+.         replace educ = 1 if inlist(educ_aux, 0, 1, 2)
+(286 real changes made)
+
+.         replace educ = 2 if educ_aux == 3
+(1,219 real changes made)
+
+.         replace educ = 3 if educ_aux == 4
+(227 real changes made)
+
+.         replace educ = 4 if educ_aux == 5
+(151 real changes made)
+
+.         replace educ = 5 if educ_aux == 6
+(729 real changes made)
+
+.         label define educlabel 1 "low" 2 "middle voc" 3 "voc + ab" 4 "higher 
+> voc" 5 "higher educ"
+
+.         label values educ educlabel
+
+. 
+.         * Income
+.         gen hhnetincome = hghinc if hghinc >= 0
+(567 missing values generated)
+
+.         gen log_hhnetincome = ln(hhnetincome)
+(567 missing values generated)
+
+.         
+.         
+.         * Political preferences
+.         replace plh0004= . if  plh0004 < 0
+(266 real changes made, 266 to missing)
+
+.         generate political = -1*(plh0004 -10) /*inverting so the gbigger the 
+> number, more leftist*/
+(853 missing values generated)
+
+. 
+. 
+. 
+. * HYPOTHESIS TEST FOR H2 *
+. 
+. 
+.         * IV two-stage least squares (2SLS)
+. 
+.         * The hypothesis is that having daughters (hasdaughter) leads to stro
+> nger support for gender equality measured by attides (genderatt).
+.         * I was asked to do a causal inference, so not a regular correlation 
+> analysis.
+.         * Accordingly, I use as a instrument a variable that affects whether 
+> someone has a daughter but does not directly affect gender attitudes.
+.         * This variable here is  the sex of the first child since whether the
+>  first child is a girl is random.
+.         * The IV estimator is a  two-stage least square regression analysis w
+> ith genderatt as dependent variable and the dummy variable hasdaughter as ind
+> ependent variable.
+.         *
+.         
+.     *reg political hasdaughter [aweight=phrf]
+.     *reg political hasdaughter hhnetincome i.educ age i.sex [aweight=phrf]
+.         
+.         * Intrument variable regression using the gender of the first kid as 
+> a instrument 
+.         * Panel (Random Effects) since first_daughter is time-invariant 
+.         *xtset pid syear
+.         *xtivreg political (hasdaughter = first_daughter) i.educ age i.sex lo
+> g_hhnetincome, re 
+. 
+.         *ivregress 2sls political (hasdaughter = first_daughter) i.educ age i
+> .sex log_hhnetincome [aweight=phrf]
+.         *ivregress 2sls political (hasdaughter = first_daughter) i.educ age i
+> .sex log_hhnetincome [aweight=phrf]
+. 
+. 
+.         * Pooled 2SLS with clustered at the individual SEs is the chosen mode
+> l since the instrument is fixed over time,
+.         *I have only four years and the panel is unbalanced.
+.         ivregress 2sls political (hasdaughter = first_daughter) i.educ age i.
+> sex log_hhnetincome [aweight=phrf], cluster(pid)
+(sum of wgt is   5.6233e+06)
+
+Instrumental-variables 2SLS regression            Number of obs   =      2,208
+                                                  Wald chi2(8)    =      20.63
+                                                  Prob > chi2     =     0.0082
+                                                  R-squared       =     0.0284
+                                                  Root MSE        =      1.676
+
+                                (Std. err. adjusted for 1,265 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+   political | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+ hasdaughter |  -.1316256   .2586222    -0.51   0.611    -.6385159    .3752647
+             |
+        educ |
+ middle voc  |  -.6687973   .2113664    -3.16   0.002    -1.083068   -.2545268
+   voc + ab  |  -.2903599   .2859243    -1.02   0.310    -.8507612    .2700414
+ higher voc  |  -.4175756   .3137469    -1.33   0.183    -1.032508    .1973571
+higher educ  |  -.1449819   .2309371    -0.63   0.530    -.5976103    .3076464
+             |
+         age |   .0128754   .0069565     1.85   0.064    -.0007592      .02651
+             |
+         sex |
+ [2] Female  |   .2323099   .1446035     1.61   0.108    -.0511077    .5157274
+log_hhneti~e |  -.0319703   .1037483    -0.31   0.758    -.2353132    .1713725
+       _cons |    5.43822   .9314855     5.84   0.000     3.612542    7.263898
+------------------------------------------------------------------------------
+Endogenous: hasdaughter
+Exogenous:  2.educ 3.educ 4.educ 5.educ age 2.sex log_hhnetincome
+            first_daughter
+
+. 
+.         
+. 
+. * EXTRACT AND EXPORT RESULTS * (Please check whether the suggested code autom
+> atically picks up the correct statistics for your chosen regression analysis 
+> and adapt if needed)
+. 
+.         * Extract the required statistics
+.                 * (i) coefficient estimate
+.                 local coefficient = _b[hasdaughter]
+
+. 
+.                 * (ii) standard error
+.                 local se = _se[hasdaughter]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "z"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 matrix M = r(table)
+
+.                 local col = colnumb(M, "hasdaughter")
+
+.                 local p_value = M[4, `col']
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation of directionality
+.                 scalar coef_d_daughter = _b[hasdaughter]
+
+.                 local interpretation "positive coefficient is in line with hy
+> pothesis"
+
+.                 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: -.1316256004258664
+
+.         di "Standard Error: `se'"
+Standard Error: .2586222305986378
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: z
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: .
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 8
+
+.         di "p-value: " `p_value'
+p-value: .61078777
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 2208
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 1265
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results
+.         file open myfile using "$OUT/h2_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/5_res
+    > ults/h2_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

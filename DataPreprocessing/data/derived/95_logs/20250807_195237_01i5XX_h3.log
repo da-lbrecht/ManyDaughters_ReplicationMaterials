@@ -1,0 +1,359 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmpyqm9l6mj.do 
+
+. do "95%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. * the following code automatically sets paths based on the project location o
+> n your system *
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/95%-sample" // folder, in which the or
+> iginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/95%-sample
+
+. global DATA "$ROOT/data/derived_confidential/95%-sample" // folder for datase
+> ts
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/95%-sample
+
+. global OUT "$ROOT/data/derived/95_results" // folder for output (results, tab
+> les)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/95_results
+
+. 
+end of do-file
+
+. do "20250807_195237_01i5XX_h3.do"
+
+. *****************************************************************************
+> ***
+. ***************** H3 Do-File: Daughters & Household Gender Equality *********
+> ***
+. *****************************************************************************
+> ***
+. 
+. * Author: [REDACTED]
+. 
+. * ============================
+. * Setup
+. * ============================
+. 
+. * clear all
+. version 15.1
+
+. set maxvar 10000
+
+
+. 
+. * ============================
+. * Load and Merge Data
+. * ============================
+. /*
+> // File path inserted by David Albrecht for reproducibility check
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> */
+. 
+. use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. 
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches)
+(variable pid was long, now double to accommodate using data's values)
+(variable cid was long, now double to accommodate using data's values)
+(variable gebjahr was int, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * pgen contains user-friendly data on the individual level that are c
+> onsolidated from different sources
+.         merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * pl contains all variables from the individual questionnaire
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches)
+(variable inputdataset was str6, now str9 to accommodate using data's values)
+(label cid_EN already defined)
+(label pid_EN already defined)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * hgen contains generated variables on household level from the house
+> hold interview; use for household net income
+.         merge m:1 hid syear using "$IN/hgen.dta", nogen keep(master matches) 
+> keepusing(hid syear hghinc)
+(label iyear already defined)
+(label iyear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. /*
+> * Start with ppathl.dta
+> use "D:\Ashish\Desktop\Daughters\#ManyDaughters_RT_AnalysisPackage\#ManyDaugh
+> ters_RT_AnalysisPackage\data\raw\ppathl.dta", clear
+> * Merge additional datasets
+> merge m:1 pid using "D:\Ashish\Desktop\Daughters\#ManyDaughters_RT_AnalysisPa
+> ckage\#ManyDaughters_RT_AnalysisPackage\data\raw\biobirth.dta", nogen keep(ma
+> ster match)
+> merge 1:1 pid syear using "D:\Ashish\Desktop\Daughters\#ManyDaughters_RT_Anal
+> ysisPackage\#ManyDaughters_RT_AnalysisPackage\data\raw\pgen.dta", nogen keep(
+> master match)
+> merge 1:1 pid syear using "D:\Ashish\Desktop\Daughters\#ManyDaughters_RT_Anal
+> ysisPackage\#ManyDaughters_RT_AnalysisPackage\data\raw\pl.dta", nogen keep(ma
+> ster match)
+> merge m:1 hid syear using "D:\Ashish\Desktop\Daughters\#ManyDaughters_RT_Anal
+> ysisPackage\#ManyDaughters_RT_AnalysisPackage\data\raw\hgen.dta", ///
+>     nogen keep(master match) keepusing(hid syear hghinc)
+> */
+. * Set label language
+. label language EN
+
+. 
+. //save "D:\Ashish\Desktop\Daughters\#ManyDaughters_RT_AnalysisPackage\#ManyDa
+> ughters_RT_AnalysisPackage\data\derived\h3_dataset.dta", replace
+. save "$DATA/h3_dataset.dta", replace
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h3_dataset.dta saved
+
+. 
+. * ============================
+. * Sample Restriction
+. * ============================
+. 
+. * Note: Initial restriction to parents only (pld0172 >= 1) is skipped here fo
+> r consistency.
+. *       Recommend reintroducing it in final analysis with full data access fo
+> r robustness.
+. 
+. * ============================
+. * Clean and Construct Variables
+. * ============================
+. 
+. * Clean household gender equality variables
+. foreach var in plj0623 plj0624 plj0625 {
+  2.     replace `var' = . if `var' < 0
+  3. }
+(507,711 real changes made, 507,711 to missing)
+(507,512 real changes made, 507,512 to missing)
+(507,443 real changes made, 507,443 to missing)
+
+. 
+. * Reverse code (higher = more egalitarian)
+. gen plj0623_r = (8 - plj0623) * (10/6)
+(656,344 missing values generated)
+
+. gen plj0624_r = (8 - plj0624) * (10/6)
+(656,145 missing values generated)
+
+. gen plj0625_r = (8 - plj0625) * (10/6)
+(656,076 missing values generated)
+
+. 
+. * Construct household gender equality index
+. gen hh_gender_eq_index = (plj0623_r + plj0624_r + plj0625_r) / 3
+(656,502 missing values generated)
+
+. 
+. * Generate daughter dummy
+. gen daughter = 0
+
+. foreach var of varlist kidsex01-kidsex19 {
+  2.     replace daughter = 1 if `var' == 2
+  3. }
+(216,749 real changes made)
+(80,924 real changes made)
+(15,976 real changes made)
+(3,113 real changes made)
+(677 real changes made)
+(111 real changes made)
+(51 real changes made)
+(16 real changes made)
+(17 real changes made)
+(5 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. 
+. * Clean sex variable
+. replace sex = . if sex < 0
+(13 real changes made, 13 to missing)
+
+. 
+. * ============================
+. * Hypothesis Test for H3
+. * ============================
+. 
+. * Model: GLM with Gaussian family and identity link
+. glm hh_gender_eq_index daughter sex, ///
+>     family(gaussian) link(identity)
+
+Iteration 0:  Log likelihood = -15580.969  
+
+Generalized linear models                         Number of obs   =      6,621
+Optimization     : ML                             Residual df     =      6,618
+                                                  Scale parameter =   6.482503
+Deviance         =  42901.20332                   (1/df) Deviance =   6.482503
+Pearson          =  42901.20332                   (1/df) Pearson  =   6.482503
+
+Variance function: V(u) = 1                       [Gaussian]
+Link function    : g(u) = u                       [Identity]
+
+                                                  AIC             =   4.707437
+Log likelihood   =  -15580.9693                   BIC             =  -15323.97
+
+------------------------------------------------------------------------------
+             |                 OIM
+hh_gender_~x | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+    daughter |   .0478786   .0641175     0.75   0.455    -.0777894    .1735466
+         sex |    .276834   .0649654     4.26   0.000     .1495042    .4041638
+       _cons |   8.690134   .0965348    90.02   0.000      8.50093    8.879339
+------------------------------------------------------------------------------
+
+. 
+. * ============================
+. * Extract and Interpret Results
+. * ============================
+. 
+. local coefficient = _b[daughter]
+
+. local se = _se[daughter]
+
+. local family = "z" // Adaptey by DA during consistency check
+
+. local z = abs(`coefficient' / `se')
+
+. local p_value = 2 * (1 - normal(`z'))
+
+. local pval_str = string(`p_value', "%9.4f")
+
+. 
+. * Interpret based on direction and significance
+. local interpretation = "positive coefficient is in line with hypothesis"
+
+. 
+. * ============================
+. * Export Results
+. * ============================
+. 
+. file open myfile using "$OUT/h3_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/95_re
+    > sults/h3_results.csv not found)
+
+. //file write myfile "Variable,Estimate,SE,familiy,p-value,Interpretation" _n
+. file write myfile "coefficient,se,family,residual_df,model_df,p_value,num_obs
+> ,num_participants,interpretation" _n //Adapted by DA to ensure consistent exp
+> ort of results.
+
+. file write myfile "`coefficient',`se',`family',,,`pval_str',,,`interpretation
+> '" _n
+
+. file close myfile
+
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

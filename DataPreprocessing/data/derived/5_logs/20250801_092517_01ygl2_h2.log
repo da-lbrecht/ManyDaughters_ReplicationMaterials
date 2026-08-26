@@ -1,0 +1,931 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmpec8yxbsi.do 
+
+. do "5%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. 
+. * the following code automatically sets paths based on the project location o
+> n your system *local curdir = c(pwd)
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/5%-sample" // folder, in which the ori
+> ginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/5%-sample
+
+. global DATA "$ROOT/data/derived_confidential/5%-sample" // folder for dataset
+> s
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/5%-sample
+
+. global OUT "$ROOT/data/derived/5_results" // folder for output (results, tabl
+> es)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/5_results
+
+. 
+end of do-file
+
+. do "20250801_092517_01ygl2_h2.do"
+
+. *****************************************************************************
+> ***
+. ********************** Testing H2: #ManyDaughters Project *******************
+> ***
+. *****************************************************************************
+> ***
+. 
+. * Authors: [REDACTED]; [REDACTED]  
+. 
+. *------------------------------------------------------------------------*
+. * H2: Having daughters leads to more left-leaning political preferences. *
+. *------------------------------------------------------------------------*
+. 
+. /*
+>          Assumptions
+>         *----------------------------
+>         
+>         Same as in H1:
+>             -- Child's gender is randomly assigned. 
+>                 -- Parents are a selected subsample (child of any gender can 
+> affect political preferences)
+>         
+>         From this assumptions we arrive to similar conclusions concerning the
+>  relevant 
+>         comparison and treatment groups. 
+>         
+>         
+>            Implementation
+>          *------------------------------ 
+>         
+>         We consider sympathy for a political party as an indicator of right/l
+> eft political 
+>         leaning. We create a binary variable that equals one if an individual
+>  shows support
+>         for a political party on the left of the spectrum. 
+>         
+>         The approach has two clear advantages. First, the question on politic
+> al preferences
+>         is available every year. This allows clean before-after comparisons. 
+> Second, studying a 
+>         binary variable is considerably simpler than using multinomial models
+>  that consider
+>         voting for each party. In the latter case, a difference in difference
+> s approach 
+>         such as the one we propose would be much more complex. 
+>         
+>         Our approach has two shortcomings. First, when mapping political part
+> ies into a single axes
+>         (left-right) we use the data from the Chapel Hill Expert Survey
+>         (https://www.chesdata.eu/ches-europe). The database contains expert a
+> ssessments
+>         of where partie are located along many dimensions. 
+>         Our approach might be an oversimplification for two reasons. First, p
+> arties can 
+>         vary in terms of economic orientation (traditional axis), but also in
+>  terms of 
+>         social orientation / preferences for environment. We priorized the fi
+> rst axis
+>         when deciding on their orientation. Second, we assume that political
+>         parties are persistent in their views. They are left or right throgho
+> ut the entire
+>         30 years of data. In this case, ches data show that the two-camps (le
+> ft and right)
+>         are relatively stable, even if within these groups the relative posit
+> ion of political
+>         parties changes. 
+>         
+>         We estimate the effects of parenting a daughter using a diff-in-diff 
+> approach. 
+>         Following the new litereature on the topic, we first estimate a regre
+> ssion that 
+>         includes many (many) interactions, to avoid forbidden comparisons. We
+>  obtain
+>         estimates for every cohort, and every time since the event. Finally, 
+> we average
+>         the results to obtain a single coefficient. 
+>         
+>         In our diff-in-diff, control units include never treated, and not yet
+>  treated. 
+>                         */
+.                         
+. * ============================
+. * Setup  
+. * ============================
+. 
+. * clear all
+. version 16 // indicate the version of stata you are using here
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. * INSTALL PACKAGES * (Please adapt according to your needs)
+. ssc install jwdid
+checking jwdid consistency and verifying not already installed...
+all files already exist and are up to date.
+
+. ssc install reghdfe
+checking reghdfe consistency and verifying not already installed...
+all files already exist and are up to date.
+
+. ssc install hdfe
+checking hdfe consistency and verifying not already installed...
+all files already exist and are up to date.
+
+. ssc install ftools
+checking ftools consistency and verifying not already installed...
+all files already exist and are up to date.
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. /*
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> */
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA *  
+. 
+.         use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+.  
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches)
+(variable pid was long, now double to accommodate using data's values)
+(variable cid was long, now double to accommodate using data's values)
+(variable gebjahr was int, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * pgen contains user-friendly data on the individual level that are c
+> onsolidated from different sources
+.          merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches)
+>  keepusing(pgnation)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * pl contains all variables from the individual questionnaire
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches) ke
+> epusing( plh0012_v6 )
+(label cid already defined)
+(label pid_EN already defined)
+(label cid_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * hgen contains generated variables on household level from the house
+> hold interview; use for household net income
+.         merge m:1 hid syear using "$IN/hgen.dta", nogen keep(master matches) 
+> keepusing(hid syear hghinc)
+(label iyear already defined)
+(label iyear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+. 
+.         label language EN // change language of the labels to English
+
+. 
+.         save "$DATA/h2_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/5%-sample/h2_dataset.dta saved
+
+. 
+. 
+. 
+. 
+. * ========================= *
+. *               New variables           * 
+. * ========================= *
+. 
+. use "$DATA/h2_dataset.dta", clear 
+
+. 
+. drop if pgnation!=1
+(11,469 observations deleted)
+
+. keep if inlist(pop,1,2)
+(148 observations deleted)
+
+. drop if  plh0012_v6<0 | mi(plh0012_v6) 
+(13,139 observations deleted)
+
+. 
+. //Disregard missing anwsers to our questions of interest
+. * Create new variable where 1 = left wing party
+. 
+. /*
+> left_wing_party
+> [1] [de] SPD
+> [5] [de] Buendnis90/Green
+> [6] [de] Die Linke
+> [9] [de] SPD/Buendnis90/Green
+> [16] [de] Buendnis90/Green
+> [17] [de] SPD/Die Linke
+> [26] [de] Piratenpart
+> */
+. 
+. gen left_wing_party =  inlist(plh0012_v6,1,5,6,9,16,17,26)
+
+. 
+. 
+. * There are no duplicates
+. duplicates report pid syear
+
+Duplicates in terms of pid syear
+
+--------------------------------------
+   Copies | Observations       Surplus
+----------+---------------------------
+        1 |        10472             0
+--------------------------------------
+
+. 
+. * Keep only those who will eventually become parents (then kidpnr01 is non-mi
+> ssing)
+. keep if kidpnr01 > 0 & !mi(kidpnr01)
+(5,363 observations deleted)
+
+. 
+. * Generate variable which == 1 when a person already has a daughter/boy
+. gen age = syear - gebjahr
+
+.  
+. gen has_daughter        = 0
+
+. gen has_boy                     = 0
+
+. gen n_of_kids           = 0
+
+. 
+. * Loop over kidsex01 to kidsex19
+. forvalues i = 1/19 {
+  2.     local kidsex = "kidsex" + string(`i', "%02.0f")
+  3.     local kidgeb = "kidgeb" + string(`i', "%02.0f")
+  4. 
+. * We recode the value to -100 if a child is not yet born
+.         replace `kidsex' = -100 if `kidgeb'>syear  
+  5.     replace has_daughter = 1 if `kidsex' == 2
+  6.         replace has_boy          = 1 if `kidsex' == 1
+  7. }
+(311 real changes made)
+(2,129 real changes made)
+(2,669 real changes made)
+(294 real changes made)
+(1,061 real changes made)
+(744 real changes made)
+(84 real changes made)
+(139 real changes made)
+(102 real changes made)
+(23 real changes made)
+(12 real changes made)
+(18 real changes made)
+(2 real changes made)
+(10 real changes made)
+(0 real changes made)
+(3 real changes made)
+(0 real changes made)
+(0 real changes made)
+(5 real changes made)
+(0 real changes made)
+(0 real changes made)
+(5 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. 
+. 
+. bys pid syear: egen initial_age = min(age)
+
+. 
+. * Drop those who already have a daughter when first encountered in our data
+. gen first_obs = 0
+
+. bysort pid (syear): replace first_obs = 1 if _n == 1
+(949 real changes made)
+
+. gen already_treated = (has_daughter == 1 | has_boy == 1 ) & first_obs==1
+
+. bysort pid (syear): egen m_already_treated = mean(already_treated)
+
+. drop if m_already_treated>0
+(4,499 observations deleted)
+
+. 
+. 
+. * Get the first year of treatment per household
+. gen treated_year = syear if has_daughter == 1
+(432 missing values generated)
+
+. bysort pid (syear): egen first_treated_year = min(treated_year)
+(265 missing values generated)
+
+. replace first_treated_year = 0 if mi(first_treated_year)
+(265 real changes made)
+
+. 
+. *******************  HYPOTHESIS TEST FOR H2 ***************************
+.  
+. xtset pid syear
+
+Panel variable: pid (unbalanced)
+ Time variable: syear, 2000 to 2020, but with gaps
+         Delta: 1 unit
+
+. jwdid left_wing_party , ivar(pid) tvar(syear) gvar(first_treated_year)   neve
+> r  
+WARNING: Singleton observations not dropped; statistical significance is biased
+>  (link)
+(MWFE estimator converged in 8 iterations)
+note: 2005.first_treated_year#2020.syear#c.__tr__ omitted because of collineari
+> ty
+note: 2008.first_treated_year#2008.syear#c.__tr__ omitted because of collineari
+> ty
+note: 2013.first_treated_year#2020.syear#c.__tr__ omitted because of collineari
+> ty
+note: 2015.first_treated_year#2015.syear#c.__tr__ omitted because of collineari
+> ty
+note: 2016.first_treated_year#2019.syear#c.__tr__ omitted because of collineari
+> ty
+warning: missing F statistic; dropped variables due to collinearity or too few 
+> clusters
+
+HDFE Linear regression                            Number of obs   =        610
+Absorbing 2 HDFE groups                           F( 192,     81) =          .
+Statistics robust to heteroskedasticity           Prob > F        =          .
+                                                  R-squared       =     0.8839
+                                                  Adj R-squared   =     0.7762
+                                                  Within R-sq.    =     0.3679
+Number of clusters (pid)     =         82         Root MSE        =     0.2280
+
+                                   (Std. err. adjusted for 82 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+left_wing_~y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+first_trea~r#|
+       syear#|
+    c.__tr__ |
+  2001 2001  |   -.114112   .1872035    -0.61   0.544    -.4865883    .2583642
+  2001 2002  |    .062879   .1660983     0.38   0.706    -.2676045    .3933625
+  2001 2003  |   .0563967   .2327748     0.24   0.809    -.4067522    .5195456
+  2001 2004  |   .0899351    .251764     0.36   0.722    -.4109963    .5908664
+  2001 2005  |  -.0553428   .2699148    -0.21   0.838    -.5923887     .481703
+  2001 2006  |   .0557207   .2602136     0.21   0.831    -.4620227    .5734642
+  2001 2007  |   .0233928   .2764508     0.08   0.933    -.5266576    .5734432
+  2001 2008  |   .1000752   .2610641     0.38   0.702    -.4193606    .6195109
+  2001 2009  |   .0819707   .2674882     0.31   0.760    -.4502469    .6141883
+  2001 2010  |   .0397444   .2809342     0.14   0.888    -.5192266    .5987153
+  2001 2012  |  -.0040388   .2903744    -0.01   0.989    -.5817928    .5737151
+  2001 2013  |   .0673116   .2929024     0.23   0.819    -.5154723    .6500955
+  2001 2015  |   .1965772   .3022722     0.65   0.517    -.4048497    .7980041
+  2002 2000  |   -.135888   .2890928    -0.47   0.640    -.7110919     .439316
+  2002 2002  |  -.3230089   .4545607    -0.71   0.479    -1.227442    .5814243
+  2002 2003  |  -.0794912   .2673928    -0.30   0.767     -.611519    .4525365
+  2002 2004  |  -.0459529   .2796688    -0.16   0.870     -.602406    .5105003
+  2002 2005  |  -.1912308   .2831296    -0.68   0.501      -.75457    .3721084
+  2002 2006  |  -.0801672   .2858011    -0.28   0.780    -.6488218    .4884874
+  2002 2007  |  -.1124952   .2965864    -0.38   0.705    -.7026091    .4776188
+  2002 2008  |  -.0358128   .2872327    -0.12   0.901    -.6073158    .5356902
+  2002 2009  |  -1.053917   .2903546    -3.63   0.000    -1.631632   -.4762026
+  2002 2010  |  -1.096144   .2914293    -3.76   0.000    -1.675996   -.5162907
+  2004 2000  |  -.3021594   .2972601    -1.02   0.312    -.8936138    .2892949
+  2004 2001  |  -.1705088   .1515566    -1.13   0.264    -.4720589    .1310414
+  2004 2002  |  -.0697889    .161281    -0.43   0.666    -.3906874    .2511096
+  2004 2004  |  -.0427328    .092854    -0.46   0.647    -.2274831    .1420174
+  2004 2005  |  -.3575023   .2057339    -1.74   0.086    -.7668482    .0518436
+  2004 2006  |   -.000676   .0613758    -0.01   0.991    -.1227946    .1214426
+  2004 2007  |  -.2957158   .2350335    -1.26   0.212    -.7633588    .1719272
+  2004 2008  |  -.2190334   .2251847    -0.97   0.334    -.6670803    .2290134
+  2004 2009  |  -.2201887   .1902059    -1.16   0.250    -.5986387    .1582613
+  2004 2010  |  -.5166523   .4452214    -1.16   0.249    -1.402503    .3691985
+  2004 2011  |  -.2415006   .2263534    -1.07   0.289    -.6918728    .2088716
+  2004 2012  |  -.3231474   .2369766    -1.36   0.176    -.7946565    .1483616
+  2004 2013  |   -.251797   .2397434    -1.05   0.297    -.7288112    .2252172
+  2004 2014  |  -.4262723   .4512807    -0.94   0.348    -1.324179    .4716346
+  2004 2015  |   .1401805   .8884496     0.16   0.875    -1.627555    1.907916
+  2004 2016  |  -.2112324   .1957977    -1.08   0.284    -.6008084    .1783437
+  2004 2018  |  -.3290982   .3967081    -0.83   0.409    -1.118423    .4602265
+  2004 2020  |  -.6974182   .2633199    -2.65   0.010    -1.221342   -.1734942
+  2005 2000  |  -.0962667   .2838707    -0.34   0.735    -.6610803     .468547
+  2005 2001  |  -.2103787   .2033779    -1.03   0.304    -.6150369    .1942794
+  2005 2002  |  -.0333877   .1963364    -0.17   0.865    -.4240355    .3572602
+  2005 2003  |  -.0398699   .1016309    -0.39   0.696    -.2420835    .1623436
+  2005 2005  |  -.1516095   .1163249    -1.30   0.196    -.3830596    .0798406
+  2005 2008  |   .0038085   .0976963     0.04   0.969    -.1905765    .1981935
+  2005 2010  |  -.0565223   .0823025    -0.69   0.494    -.2202784    .1072338
+  2005 2011  |  -.0186587   .0932687    -0.20   0.842    -.2042341    .1669167
+  2005 2012  |  -.1003055    .150287    -0.67   0.506    -.3993295    .1987185
+  2005 2013  |  -.0289551   .1601971    -0.18   0.857     -.347697    .2897869
+  2005 2014  |   .0338577   .1141971     0.30   0.768    -.1933587    .2610741
+  2005 2015  |   .1003105   .1269304     0.79   0.432    -.1522411    .3528621
+  2005 2016  |  -.0222887   .1769577    -0.13   0.900     -.374379    .3298015
+  2005 2018  |   .1140827   .1367132     0.83   0.406    -.1579336     .386099
+  2005 2019  |   .1142908   .1305698     0.88   0.384    -.1455021    .3740837
+  2005 2020  |          0  (omitted)
+  2006 2000  |    .527691   .4939083     1.07   0.289    -.4550315    1.510413
+  2006 2001  |   .4135789   .4502491     0.92   0.361    -.4822756    1.309433
+  2006 2002  |     .09057   .1869967     0.48   0.629    -.2814948    .4626348
+  2006 2003  |   .1400714   .0987588     1.42   0.160    -.0564276    .3365704
+  2006 2004  |   .4413644   .3859829     1.14   0.256    -.3266205    1.209349
+  2006 2006  |    .083185   .0992298     0.84   0.404    -.1142511    .2806212
+  2006 2007  |   .0414887   .0811098     0.51   0.610    -.1198943    .2028718
+  2006 2008  |   .1181711   .1138604     1.04   0.302    -.1083754    .3447176
+  2006 2009  |   .1000667   .0969934     1.03   0.305    -.0929198    .2930532
+  2006 2010  |   .0674354   .0985417     0.68   0.496    -.1286317    .2635025
+  2006 2011  |   .1329508   .0987607     1.35   0.182    -.0635519    .3294535
+  2006 2012  |   .3473904    .328337     1.06   0.293    -.3058973    1.000678
+  2006 2013  |   .0854075   .1460417     0.58   0.560    -.2051696    .3759847
+  2006 2014  |   .2419042    .158449     1.53   0.131    -.0733595    .5571679
+  2006 2015  |   .2146731   .1630551     1.32   0.192    -.1097553    .5391016
+  2006 2016  |   .1016689   .1687929     0.60   0.549     -.234176    .4375138
+  2006 2017  |   .2045751   .1575476     1.30   0.198    -.1088953    .5180455
+  2006 2018  |   .2284453   .1784381     1.28   0.204    -.1265906    .5834812
+  2006 2019  |   .2286534   .1761179     1.30   0.198     -.121766    .5790729
+  2006 2020  |   .1239576   .1285927     0.96   0.338    -.1319014    .3798167
+  2007 2004  |   .0342144    .058933     0.58   0.563    -.0830438    .1514725
+  2007 2005  |  -.1110636   .0916238    -1.21   0.229    -.2933663    .0712391
+  2007 2007  |  -.0323279   .0387998    -0.83   0.407    -.1095273    .0448715
+  2007 2008  |  -.9556456   .0436819   -21.88   0.000    -1.042559   -.8687323
+  2008 2003  |  -1.043678   .0465786   -22.41   0.000    -1.136355   -.9510017
+  2008 2006  |  -.0443544   .0436819    -1.02   0.313    -.1312677    .0425588
+  2008 2008  |          0  (omitted)
+  2009 2000  |  -.1000752   .2610641    -0.38   0.702    -.6195109    .4193606
+  2009 2002  |  -.0371961   .1655406    -0.22   0.823    -.3665701    .2921778
+  2009 2003  |  -.0436784   .0465786    -0.94   0.351    -.1363551    .0489983
+  2009 2004  |  -.0101401    .037754    -0.27   0.789    -.0852587    .0649786
+  2009 2005  |   -.155418   .1069316    -1.45   0.150    -.3681784    .0573424
+  2009 2006  |  -.0443544   .0436819    -1.02   0.313    -.1312677    .0425588
+  2009 2007  |  -.0766824   .0713933    -1.07   0.286    -.2187326    .0653679
+  2009 2009  |  -.0181044   .0302604    -0.60   0.551    -.0783131    .0421043
+  2009 2010  |  -.0603308   .0549912    -1.10   0.276    -.1697461    .0490845
+  2009 2011  |  -.0224672   .0436737    -0.51   0.608    -.1093641    .0644297
+  2009 2012  |   -.104114   .0788225    -1.32   0.190     -.260946     .052718
+  2009 2013  |  -.0327636   .0892828    -0.37   0.715    -.2104083    .1448812
+  2009 2014  |   .0300492   .0944333     0.32   0.751    -.1578434    .2179418
+  2009 2015  |    .096502   .1100037     0.88   0.383    -.1223708    .3153749
+  2009 2016  |  -.0260972    .108518    -0.24   0.811     -.242014    .1898196
+  2009 2018  |   .1102742   .1234439     0.89   0.374    -.1353405    .3558889
+  2009 2019  |   .1104823   .1220432     0.91   0.368    -.1323453      .35331
+  2011 2006  |   .0159763    .040598     0.39   0.695     -.064801    .0967537
+  2011 2007  |  -.0163516   .0411279    -0.40   0.692    -.0981832      .06548
+  2011 2008  |   .0603308   .0549912     1.10   0.276    -.0490845    .1697461
+  2011 2009  |   .0422263   .0455371     0.93   0.357    -.0483782    .1328308
+  2011 2011  |   .0378636    .044533     0.85   0.398    -.0507431    .1264703
+  2011 2012  |  -.0437832   .0846671    -0.52   0.606    -.2122442    .1246777
+  2011 2013  |   .0275672   .1083455     0.25   0.800    -.1880063    .2431407
+  2011 2014  |     .09038   .1112006     0.81   0.419    -.1308744    .3116344
+  2011 2015  |   .1568328   .1230913     1.27   0.206    -.0880802    .4017458
+  2011 2016  |   .0342335    .133698     0.26   0.799    -.2317835    .3002505
+  2011 2017  |   .1467348   .1227111     1.20   0.235    -.0974219    .3908915
+  2011 2018  |    .170605   .1471923     1.16   0.250    -.1222616    .4634715
+  2011 2019  |   .1708131   .1443122     1.18   0.240    -.1163229    .4579491
+  2011 2020  |   .0565223   .0823025     0.69   0.494    -.1072338    .2202784
+  2013 2002  |  -.0333877   .1963364    -0.17   0.865    -.4240355    .3572602
+  2013 2007  |  -.0728739   .0902803    -0.81   0.422    -.2525034    .1067556
+  2013 2008  |   .0038085   .0976963     0.04   0.969    -.1905765    .1981935
+  2013 2009  |  -1.014296   .0942976   -10.76   0.000    -1.201919   -.8266733
+  2013 2010  |  -1.056522   .0823025   -12.84   0.000    -1.220278   -.8927662
+  2013 2013  |  -1.028955   .1601971    -6.42   0.000    -1.347697   -.7102131
+  2013 2014  |  -.9661423   .1141971    -8.46   0.000    -1.193359   -.7389259
+  2013 2017  |   .0902125   .1201843     0.75   0.455    -.1489165    .3293415
+  2013 2019  |   .1142908   .1305698     0.88   0.384    -.1455021    .3740837
+  2013 2020  |          0  (omitted)
+  2014 2003  |  -.0109149   .0945427    -0.12   0.908    -.1990252    .1771955
+  2014 2004  |   .0226235   .0879199     0.26   0.798    -.1523096    .1975565
+  2014 2005  |  -.1226544   .1407066    -0.87   0.386    -.4026165    .1573076
+  2014 2006  |  -.0115909   .1210501    -0.10   0.924    -.2524425    .2292608
+  2014 2008  |   .0327636   .0892828     0.37   0.715    -.1448812    .2104083
+  2014 2009  |   .0146591   .0804463     0.18   0.856    -.1454038     .174722
+  2014 2010  |  -.0275672   .1083455    -0.25   0.800    -.2431407    .1880063
+  2014 2011  |   .0102964   .0734358     0.14   0.889    -.1358177    .1564105
+  2014 2012  |   .9286496   .0539996    17.20   0.000     .8212073    1.036092
+  2014 2014  |   .0628128   .0888727     0.71   0.482     -.114016    .2396415
+  2014 2016  |   .0066663   .0418651     0.16   0.874     -.076632    .0899647
+  2014 2018  |   .1430377   .1194439     1.20   0.235    -.0946181    .3806936
+  2015 2008  |   -.096502   .1100037    -0.88   0.383    -.3153749    .1223708
+  2015 2009  |  -.1146065   .1031549    -1.11   0.270    -.3198524    .0906394
+  2015 2012  |   -.200616   .1302596    -1.54   0.127    -.4597917    .0585596
+  2015 2013  |  -.1292656   .1013324    -1.28   0.206    -.3308853    .0723541
+  2015 2015  |          0  (omitted)
+  2016 2001  |  -.3246696   .2201511    -1.47   0.144    -.7627012    .1133621
+  2016 2002  |  -.1476785   .2049096    -0.72   0.473    -.5553844    .2600274
+  2016 2003  |  -.1541608   .1215738    -1.27   0.208    -.3960545    .0877329
+  2016 2008  |  -.1104823   .1220432    -0.91   0.368      -.35331    .1323453
+  2016 2014  |  -.0804331   .0595272    -1.35   0.180    -.1988737    .0380074
+  2016 2016  |  -.1365796   .1192814    -1.15   0.256    -.3739122    .1007531
+  2016 2017  |  -.0240783   .0375736    -0.64   0.523    -.0988381    .0506814
+  2016 2018  |  -.0002082   .0227863    -0.01   0.993    -.0455457    .0451294
+  2016 2019  |          0  (omitted)
+  2018 2000  |   -.241868   .2853877    -0.85   0.399       -.8097    .3259641
+  2018 2001  |    -.35598   .2110713    -1.69   0.096    -.7759457    .0639857
+  2018 2002  |  -.1789889   .1948287    -0.92   0.361    -.5666369     .208659
+  2018 2003  |  -.1926051   .1160133    -1.66   0.101    -.4234351    .0382249
+  2018 2004  |  -.1030241   .1053681    -0.98   0.331    -.3126735    .1066254
+  2018 2005  |  -.2533329    .158979    -1.59   0.115    -.5696512    .0629854
+  2018 2006  |  -.1422693   .1387955    -1.03   0.308    -.4184289    .1338902
+  2018 2007  |  -.5172606   .3775622    -1.37   0.174    -1.268491    .2339697
+  2018 2008  |  -.1424467   .1148058    -1.24   0.218    -.3708743    .0859809
+  2018 2009  |  -.1579552    .108975    -1.45   0.151    -.3747814    .0588709
+  2018 2010  |   -.192213   .1313799    -1.46   0.147    -.4536178    .0691917
+  2018 2011  |   -.129895   .0916665    -1.42   0.160    -.3122826    .0524925
+  2018 2012  |  -.1977089   .1278609    -1.55   0.126     -.452112    .0566942
+  2018 2013  |  -.0696049   .1095187    -0.64   0.527    -.2875126    .1483029
+  2018 2014  |  -.0653175   .0487951    -1.34   0.184    -.1624045    .0317695
+  2018 2015  |   .0053386   .0717818     0.07   0.941    -.1374847     .148162
+  2018 2016  |  -.1172606   .1002786    -1.17   0.246    -.3167836    .0822624
+  2018 2018  |  -.0005679   .0458666    -0.01   0.990    -.0918281    .0906923
+  2018 2019  |  -.0043929   .0439643    -0.10   0.921    -.0918681    .0830824
+  2018 2020  |  -.1257802   .1239325    -1.01   0.313    -.3723669    .1208065
+  2019 2000  |  -.1456998   .3070167    -0.47   0.636    -.7565667    .4651672
+  2019 2001  |   -.299636   .2232398    -1.34   0.183    -.7438131    .1445412
+  2019 2003  |  -.1092151   .1425949    -0.77   0.446    -.3929343    .1745041
+  2019 2004  |  -.0955888   .1211227    -0.79   0.432    -.3365851    .1454074
+  2019 2005  |   -.044332   .3079554    -0.14   0.886    -.6570667    .5684028
+  2019 2006  |  -.1298032   .1593062    -0.81   0.418    -.4467725    .1871661
+  2019 2007  |  -.1621311   .1752977    -0.92   0.358    -.5109185    .1866563
+  2019 2008  |  -.0854488   .1282581    -0.67   0.507    -.3406421    .1697446
+  2019 2009  |  -.1035532   .1238528    -0.84   0.406    -.3499814     .142875
+  2019 2010  |  -.1457795   .1512525    -0.96   0.338    -.4467245    .1551655
+  2019 2011  |  -.1079159   .1166685    -0.92   0.358    -.3400496    .1242178
+  2019 2012  |  -.2058544   .1483416    -1.39   0.169    -.5010077    .0892988
+  2019 2013  |   -.134504   .1203997    -1.12   0.267    -.3740615    .1050535
+  2019 2014  |  -.0716912   .0621309    -1.15   0.252    -.1953122    .0519298
+  2019 2015  |   .0110533   .0878185     0.13   0.900    -.1636779    .1857845
+  2019 2016  |   -.111546   .1203504    -0.93   0.357    -.3510056    .1279136
+  2019 2017  |  -.0199912   .0351631    -0.57   0.571    -.0899547    .0499723
+  2019 2019  |  -.0719408   .0806454    -0.89   0.375    -.2323998    .0885182
+  2019 2020  |  -.1140827   .1367132    -0.83   0.406     -.386099    .1579336
+  2020 2012  |  -.3479297   .1981637    -1.76   0.083    -.7422133     .046354
+  2020 2014  |  -.1470998   .1237855    -1.19   0.238    -.3933941    .0991946
+  2020 2015  |    .519353   .0948896     5.47   0.000     .3305526    .7081535
+  2020 2016  |   .1300871   .2849968     0.46   0.649    -.4369672    .6971414
+  2020 2017  |    .509255   .0660047     7.72   0.000     .3779264    .6405836
+  2020 2018  |  -.0002082   .0227863    -0.01   0.993    -.0455457    .0451294
+  2020 2020  |  -.3142908   .2139174    -1.47   0.146    -.7399194    .1113377
+             |
+       _cons |   .3993161   .0171645    23.26   0.000     .3651641    .4334682
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+         pid |        82          82           0    *|
+       syear |        21           1          20     |
+-----------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+
+. estat simple
+------------------------------------------------------------------------------
+             |            Delta-method
+             | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+      simple |  -.0430576   .0643073    -0.67   0.503    -.1690975    .0829824
+------------------------------------------------------------------------------
+
+. 
+. 
+. estat event , pretrend
+------------------------------------------------------------------------------
+             |            Delta-method
+             | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+   __event__ |
+        -19  |  -.1456998   .3070167    -0.47   0.635    -.7474414    .4560419
+        -18  |   -.261124   .2485441    -1.05   0.293    -.7482614    .2260134
+        -17  |    -.35598   .2110713    -1.69   0.092    -.7696722    .0577121
+        -16  |   -.144102   .1502247    -0.96   0.337     -.438537     .150333
+        -15  |  -.2042878   .1337232    -1.53   0.127    -.4663806    .0578049
+        -14  |  -.0811204   .1877299    -0.43   0.666    -.4490643    .2868235
+        -13  |  -.2087925    .141948    -1.47   0.141    -.4870055    .0694204
+        -12  |  -.1472348   .1446916    -1.02   0.309     -.430825    .1363555
+        -11  |  -.2802555    .202456    -1.38   0.166     -.677062    .1165509
+        -10  |  -.0914558   .0912687    -1.00   0.316    -.2703391    .0874275
+         -9  |  -.1403958   .0992773    -1.41   0.157    -.3349757    .0541841
+         -8  |  -.1683464   .1161076    -1.45   0.147    -.3959132    .0592204
+         -7  |  -.1224648   .0825603    -1.48   0.138      -.28428    .0393504
+         -6  |  -.0245019   .0898606    -0.27   0.785    -.2006254    .1516217
+         -5  |  -.0063232   .0884865    -0.07   0.943    -.1797535    .1671072
+         -4  |  -.1223905   .0707516    -1.73   0.084    -.2610611      .01628
+         -3  |  -.0530517   .0430108    -1.23   0.217    -.1373512    .0312478
+         -2  |   .0417183   .0629833     0.66   0.508    -.0817268    .1651633
+         -1  |          0  (omitted)
+          0  |  -.1118729   .0317552    -3.52   0.000     -.174112   -.0496339
+          1  |  -.1944197   .0324145    -6.00   0.000     -.257951   -.1308884
+          2  |   .0085802   .0421706     0.20   0.839    -.0740726     .091233
+          3  |   -.009267   .0558301    -0.17   0.868    -.1186921    .1001581
+          4  |    .029448   .0711695     0.41   0.679    -.1100417    .1689376
+          5  |  -.0144734   .0759217    -0.19   0.849    -.1632772    .1343305
+          6  |   .0401709   .1286505     0.31   0.755    -.2119795    .2923212
+          7  |  -.0658466   .0929168    -0.71   0.479    -.2479603     .116267
+          8  |  -.1118207   .1078456    -1.04   0.300    -.3231943    .0995529
+          9  |   .0765715   .0934339     0.82   0.412    -.1065556    .2596985
+         10  |   -.073069   .1812018    -0.40   0.687     -.428218      .28208
+         11  |   .1239655    .276968     0.45   0.654    -.4188818    .6668128
+         12  |    .108283   .1492575     0.73   0.468    -.1842562    .4008222
+         13  |   .2000107    .157673     1.27   0.205    -.1090227    .5090442
+         14  |  -.0165689   .1687703    -0.10   0.922    -.3473526    .3142149
+         15  |          0  (omitted)
+         16  |  -.6974182   .2633199    -2.65   0.008    -1.213516   -.1813207
+------------------------------------------------------------------------------
+Pre-treatment test
+
+ ( 1)  1bn.__event__ = 0
+ ( 2)  2.__event__ = 0
+ ( 3)  3.__event__ = 0
+ ( 4)  4.__event__ = 0
+ ( 5)  5.__event__ = 0
+ ( 6)  6.__event__ = 0
+ ( 7)  7.__event__ = 0
+ ( 8)  8.__event__ = 0
+ ( 9)  9.__event__ = 0
+ (10)  10.__event__ = 0
+ (11)  11.__event__ = 0
+ (12)  12.__event__ = 0
+ (13)  13.__event__ = 0
+ (14)  14.__event__ = 0
+ (15)  15.__event__ = 0
+ (16)  16.__event__ = 0
+ (17)  17.__event__ = 0
+ (18)  18.__event__ = 0
+
+           chi2( 18) =   28.93
+         Prob > chi2 =    0.0492
+
+. scalar p_test = `r(pre_p)'
+
+. estat plot
+
+. 
+. estat simple
+------------------------------------------------------------------------------
+             |            Delta-method
+             | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+      simple |  -.0430576   .0643073    -0.67   0.503    -.1690975    .0829824
+------------------------------------------------------------------------------
+
+. mat b = r(table)
+
+. scalar daughter= el(b ,1,1)
+
+. scalar se_daughter= el(b ,2,1)
+
+. scalar p_daughter= el(b ,4,1)
+
+.  
+. if p_test <0.1{
+.         di "WARNING: evidence of difference in pretrends" 
+WARNING: evidence of difference in pretrends
+. }
+
+.  
+. * if the first test passes, then for statistical power we should use all pre 
+> treatement as controls 
+. if p_test >  0.1{
+. if p_test == . {
+.         di "There are not enough observations to compute SD in the full model
+> " 
+.         di "We proceed to use later treated as control units" 
+.         }
+.         
+. jwdid left_wing_party   , ivar(pid) tvar(syear) gvar(first_treated_year)  
+. estat event
+. estat plot
+. mat b = r(table)
+. scalar daughter= el(b ,1,1)
+. scalar se_daughter= el(b ,2,1)
+. scalar p_daughter= el(b ,4,1)
+. }
+
+. 
+.  
+. ****************** EXTRACT AND EXPORT RESULTS *******************************
+> **
+. 
+.         * Extract the required statistics
+. 
+.                 * (i) coefficient estimate
+.                 local coefficient = b[1,1]
+
+. 
+.                 * (ii) standard error
+.                 local se = b[2,1]
+
+.                 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "z"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 *local df_residual = e(df_r)
+.                 *local df_model = e(df_m)
+. 
+.                 * (v) p-value
+.                 local p_value =b[4,1]
+
+.          
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+.         
+.                 
+.                 * (viii) interpretation of directionality
+.                 scalar coef_d_daughter = b[1,1]
+
+.                 local interpretation "positive coefficient is in line with hy
+> pothesis"
+
+. 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: -.0430575632236264
+
+.         di "Standard Error: `se'"
+Standard Error: .0643072907676657
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: z
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: 
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 
+
+.         di "p-value: " `p_value'
+p-value: .50313858
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 610
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 82
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h2_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/5_res
+    > ults/h2_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient',`se', `test_stat_family', `df_residu
+> al', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

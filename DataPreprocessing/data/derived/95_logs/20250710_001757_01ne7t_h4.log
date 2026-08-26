@@ -1,0 +1,428 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmpx_xdmffb.do 
+
+. do "95%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. * the following code automatically sets paths based on the project location o
+> n your system *
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/95%-sample" // folder, in which the or
+> iginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/95%-sample
+
+. global DATA "$ROOT/data/derived_confidential/95%-sample" // folder for datase
+> ts
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/95%-sample
+
+. global OUT "$ROOT/data/derived/95_results" // folder for output (results, tab
+> les)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/95_results
+
+. 
+end of do-file
+
+. do "20250710_001757_01ne7t_h4.do"
+
+. *****************************************************************************
+> ***
+. ****************** Do-File H4: #ManyDaughters Project ******************
+. *****************************************************************************
+> ***
+. 
+. * Authors: RT 01ne7t
+. 
+. * ============================
+. * Setup 
+. * ============================
+. 
+. * clear all
+. version 17 
+
+. set maxvar 10000 
+
+
+. 
+. * INSTALL PACKAGES * 
+. // no packages used
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. /*
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> */
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA *
+.         quietly use "$IN/ppathl.dta", clear
+
+.         quietly merge m:1 pid using "$IN/biobirth.dta", nogen keep(master mat
+> ches)
+
+.         quietly merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master m
+> atches)
+
+.         quietly merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master mat
+> ches)
+
+.         quietly merge m:1 hid syear using "$IN/hgen.dta", nogen keep(master m
+> atches) keepusing(hid syear hghinc)
+
+.         quietly label language EN 
+
+.         quietly save "$DATA/h4_dataset.dta", replace 
+
+. 
+. 
+. * ============================
+. * Analysis
+. * ============================
+. 
+. * Filters * 
+. 
+.         * this bit of code will set negative values to missing
+.         quietly ds, has(type numeric)
+
+.         foreach var in `r(varlist)' {
+  2.                 quietly replace `var' = . if `var' < 0
+  3.         }
+
+.         
+.         * drop people that have never had a kid
+.         quietly gen had_kid = 0
+
+.         local maxkids = 19
+
+.         forvalues i = 1/`maxkids' {
+  2.                 local idx = string(`i', "%02.0f")
+  3.                 quietly replace had_kid = 1 if !missing(kidsex`idx')
+  4.         }
+
+.         quietly egen ever_had_kid = max(had_kid), by(pid)
+
+.         quietly gen never_had_kid = (ever_had_kid == 0 | missing(ever_had_kid
+> ))
+
+.         quietly drop if never_had_kid == 1
+
+. 
+. * GENERATE VARIABLES * 
+. 
+.         * a daughter dummy variable that is 0 in the years before their first
+>  daughter and 1 afterwards
+.         quietly gen first_daughter_year = .
+
+.         quietly gen daughter = 0
+
+.         local maxkids = 19  
+
+.         forvalues i = 1/`maxkids' {
+  2.                 local sex = string(`i', "%02.0f")
+  3.                 quietly replace first_daughter_year = kidgeb`sex' ///
+>                 if missing(first_daughter_year) & (kidsex`sex' == 2)
+  4.                         quietly replace daughter = 1 if (kidsex`sex' == 2)
+>  & daughter == 0
+  5.         }
+
+.         
+.         * age and age-squared (for non-linear effect)
+.         quietly gen age = syear - gebjahr
+
+.         quietly gen age2 = age*age
+
+.         
+.         * interaction term for gender
+.         quietly gen male = 0
+
+.         quietly replace male = 1 if sex == 1
+
+.         quietly gen daughterXmale = daughter*male
+
+.         
+.         
+.         
+. 
+. * HYPOTHESIS TEST FOR H4 * 
+. 
+.         * For our identification strategy, we assume a child's gender is esse
+> ntially random
+.         * Actually having a child is much more endogenous, so we only include
+>  people that have had at least one child
+.         * The number of children is also endogenous, but for power considerat
+> ions we control for rather than selecting, for example, parents with only one
+>  child
+.         * we then control for other factors that may plausibly influence the 
+> dependent variable:
+.         * -age and age-squared (for non-linear effect of age)
+.         * -the respondent's gender
+.         * -the year of the survey
+.         * -whether the respondent was born in Germany or not
+.         * -whether the respondent lives in East/West Germany or not
+.         * For the dependent variable, we use 'plj0625: position of women: hus
+> band should have the final say'.  we find all the plj062X: position of women:
+>  variables suitable but selected this one as there appears to be slightly mor
+> e valid responses for this question
+.         * we would like to run a panel (xt) for this, but as the dependent va
+> riable was only elicited in one wave we do not have sufficient variation, so 
+> we use a standard approach instead
+.         * given the variable is 1 = strongly disagree and 7 = agree fully, st
+> ronger support for gender equality would be a negative coefficient on the dau
+> ghterXmale variable
+.         * also given the dependent variable is Likert, we use an ordered logi
+> t (see Liddell & Kruschke 2018 https://doi.org/10.1016/j.jesp.2018.08.009) 
+.         
+.         xtset pid syear
+
+Panel variable: pid (unbalanced)
+ Time variable: syear, 2000 to 2020, but with gaps
+         Delta: 1 unit
+
+.         
+.         ologit plj0625 daughter daughterXmale i.sumkids age age2 i.sex i.syea
+> r i.germborn i.sampreg, vce(cluster pid)
+
+note: 2.germborn omitted because of collinearity.
+Iteration 0:  Log pseudolikelihood = -7262.9094  
+Iteration 1:  Log pseudolikelihood = -7226.4764  
+Iteration 2:  Log pseudolikelihood = -7226.3586  
+Iteration 3:  Log pseudolikelihood = -7226.3545  
+Iteration 4:  Log pseudolikelihood = -7226.3538  
+Iteration 5:  Log pseudolikelihood = -7226.3537  
+Iteration 6:  Log pseudolikelihood = -7226.3536  
+
+Ordered logistic regression                             Number of obs =  4,810
+                                                        Wald chi2(22) =      .
+                                                        Prob > chi2   =      .
+Log pseudolikelihood = -7226.3536                       Pseudo R2     = 0.0050
+
+                                (Std. err. adjusted for 4,810 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+     plj0625 | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+    daughter |  -.1091621   .1016789    -1.07   0.283    -.3084491    .0901249
+daughterXm~e |  -.2069517   .1344031    -1.54   0.124     -.470377    .0564735
+             |
+     sumkids |
+          2  |   .1517288   .0965213     1.57   0.116    -.0374494     .340907
+          3  |    .331683    .099302     3.34   0.001     .1370546    .5263114
+          4  |   .4810069   .1156756     4.16   0.000     .2542869    .7077268
+          5  |   .5422169   .1248933     4.34   0.000     .2974305    .7870033
+          6  |   .8044359   .1582211     5.08   0.000     .4943283    1.114543
+          7  |   .6818972   .1815106     3.76   0.000     .3261428    1.037651
+          8  |   .3540528   .2798965     1.26   0.206    -.1945343    .9026399
+          9  |   .6664417   .3757312     1.77   0.076     -.069978    1.402861
+         10  |   .6522664   .4012198     1.63   0.104      -.13411    1.438643
+         11  |   1.105978   .4829556     2.29   0.022      .159402    2.052553
+         12  |   2.286866   .7887569     2.90   0.004     .7409311    3.832802
+         13  |    2.16078   1.116504     1.94   0.053    -.0275268    4.349087
+         15  |   1.064164   .1418774     7.50   0.000     .7860893    1.342239
+         16  |   .9732492   .1773743     5.49   0.000     .6256019    1.320897
+         19  |    13.6111    1.00745    13.51   0.000     11.63653    15.58566
+             |
+         age |  -.0533182   .0138689    -3.84   0.000    -.0805007   -.0261357
+        age2 |   .0005448   .0001595     3.41   0.001     .0002321    .0008575
+             |
+         sex |
+ [2] Female  |  -.3291392   .1208101    -2.72   0.006    -.5659227   -.0923558
+             |
+       syear |
+       2017  |  -.1079465   .0582128    -1.85   0.064    -.2220415    .0061486
+       2018  |  -.1453576   .1180909    -1.23   0.218    -.3768115    .0860962
+             |
+    germborn |
+[2] not b..  |          0  (omitted)
+             |
+     sampreg |
+[2] East-..  |  -.0860621   .0845606    -1.02   0.309    -.2517978    .0796736
+-------------+----------------------------------------------------------------
+       /cut1 |  -1.258418   .2971961                     -1.840911   -.6759239
+       /cut2 |  -1.047621   .2971144                     -1.629955   -.4652876
+       /cut3 |  -.8769941   .2970193                     -1.459141    -.294847
+       /cut4 |  -.2048307   .2965656                     -.7860886    .3764272
+       /cut5 |   .1525882    .296451                     -.4284451    .7336215
+       /cut6 |   .3901692   .2969274                     -.1917979    .9721362
+------------------------------------------------------------------------------
+
+.         
+. 
+. 
+. 
+. * EXTRACT AND EXPORT RESULTS * 
+. 
+.         * Extract the required statistics
+. 
+.                 * (i) coefficient estimate
+.                 local coefficient = _b[daughterXmale]
+
+. 
+.                 * (ii) standard error
+.                 local se = _se[daughterXmale]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "z"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 * not applicable for ologit
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 local z = _b[daughterXmale] / _se[daughterXmale]
+
+.                 local p_value = 2 * normal(-abs(`z'))
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation of directionality
+.                 scalar coef_daughter = _b[daughterXmale]
+
+.                 local interpretation "negative coefficient is in line with hy
+> pothesis"
+
+. 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: -.2069517382537613
+
+.         di "Standard Error: `se'"
+Standard Error: .1344031032600446
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: z
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: .
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 22
+
+.         di "p-value: " `p_value'
+p-value: .12361303
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 4810
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 4810
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: negative coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h4_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/95_re
+    > sults/h4_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

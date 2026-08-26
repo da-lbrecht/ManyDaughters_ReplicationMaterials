@@ -1,0 +1,865 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmp3t9j_rka.do 
+
+. do "95%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. * the following code automatically sets paths based on the project location o
+> n your system *
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/95%-sample" // folder, in which the or
+> iginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/95%-sample
+
+. global DATA "$ROOT/data/derived_confidential/95%-sample" // folder for datase
+> ts
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/95%-sample
+
+. global OUT "$ROOT/data/derived/95_results" // folder for output (results, tab
+> les)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/95_results
+
+. 
+end of do-file
+
+. do "20250709_121935_0139pp_h3.do"
+
+. *****************************************************************************
+> ***
+. ****************** Do-File H3: #ManyDaughters Project - RT 0139pp ***********
+> ***
+. *****************************************************************************
+> ***
+. 
+. * Authors: [REDACTED], [REDACTED]
+. 
+. /* Summary
+> 
+> We followed the pre-analysis plan (PAP) as initially registered. 
+> 
+> We list here the deviations from the PAP:
+> 1. we restricted the sample to respondents living in private households (keep
+>  if inlist(pop, 1, 2)), based on the pop variable in ppathl. At the time of w
+> riting the PAP, this classification was not identified due to lack of data ac
+> cess. 
+> 2. We restricted the sample to couples with realistic conjoint domestic work 
+> and remove those for which the sum of hours spent on housework and childcare 
+> over the two parents is larger than 48 hours a day.
+> 
+> In addition, following Footnote 1 of the PAP, we included a dummy for East Ge
+> rmany using the sampreg variable from ppathl. Although we were initially unsu
+> re whether sampreg would be available for all individuals—since this was not 
+> clearly documented—we confirmed its availability and proceeded accordingly.  
+>         
+> 
+> */
+. * ============================
+. * Setup * (Please adapt according to your needs)
+. * ============================
+. 
+. * clear all
+. version 18 // indicate the version of stata you are using here
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. * INSTALL PACKAGES * (Please adapt according to your needs)
+. * install all packages you need here, for example:
+. * ssc install reghdfe, replace
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. /*
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> */
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA * (Please adapt according to your needs)
+. 
+.         use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. 
+.         * Merge ppathl with all datasets, that you deem relevant for your ana
+> lysis. (Tip: use keepusing() to specify which variables to keep from the usin
+> g dataset; the default is all.)
+. 
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches)  k
+> eepusing(kidsex01 kidgeb01-kidgeb19 kidmon01-kidmon19 kidpnr01-kidpnr19)
+(variable pid was long, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * pgen contains user-friendly data on the individual level that are c
+> onsolidated from different sources
+.         merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches) 
+> keepusing(pgcasmin pgfamstd pgemplst pgpartnr pgmonth)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * pl contains all variables from the individual questionnaire
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches) ke
+> epusing( plh0308_v2 pli0043_h pli0044_h ple0040)
+(label cid_EN already defined)
+(label pid_EN already defined)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * hl contains all variables from the household questionnaire
+.         merge m:1 hid syear using "$IN/hl.dta", nogen keep(master matches) ke
+> epusing(hlc0043)
+(label cid already defined)
+(label instrument already defined)
+(label iyear already defined)
+(label intid already defined)
+(label hid_EN already defined)
+(label cid_EN already defined)
+(label syear_EN already defined)
+(label instrument_EN already defined)
+(label iyear_EN already defined)
+(label intid_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * hgen contains generated variables on household level from the house
+> hold interview; use for household net income
+.         merge m:1 hid syear using "$IN/hgen.dta", nogen keep(master matches) 
+> keepusing(hid syear hghinc)
+(label iyear already defined)
+(label iyear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. 
+.         label language EN // change language of the labels to English
+
+.         
+. 
+.         save "$DATA/h3_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h3_dataset.dta saved
+
+. 
+. 
+. * ============================
+. * Analysis
+. * ============================
+. 
+. use "$DATA/h3_dataset.dta", clear
+
+. * FILTERS * 
+.  
+.         * only keep participants from private households
+.         keep if inlist(pop,1,2)
+(89,279 observations deleted)
+
+.         
+.         * remove disabled 
+.         drop if ple0040==1
+(55,999 observations deleted)
+
+.         
+.         ***** We include respondent who are biological parents at the time of
+>  the interview (biolparenti,2018 = 1, as described in Table 1) Biological par
+> ent. Dummy variable equal to 1 if the respondent has at       least one child
+>  at time t: kidgeb01 ≤ t.
+.         gen biolparent = 0
+
+.         replace biolparent = 1 if kidgeb01 < syear & kidgeb01 > 0
+(326,439 real changes made)
+
+.         replace biolparent = 1 if kidgeb01 == syear & kidmon01 <= pgmonth & k
+> idmon01 > 0
+(2,086 real changes made)
+
+.         keep if biolparent == 1
+(189,320 observations deleted)
+
+.         
+.         * keep cohabiting couples
+.         keep if pgpartnr>0 & !missing(pgpartnr)
+(67,725 observations deleted)
+
+.         
+.         * keep couples who are the only couple in the household: as we focus 
+> on couples with at least one child and how the distribution of domestic time,
+>  we restrict our sample to household with strict couples
+.         bysort syear hid (pid): gen n = _N
+
+.         keep if n==2
+(54,098 observations deleted)
+
+.         drop n
+
+.         
+.         * exclude same sex couples (sex1 + sex2 = 3)
+.         bys syear hid: egen temp = sum(sex)
+
+.         keep if temp==3
+(88 observations deleted)
+
+.         drop temp
+
+.         
+.         * generate id within the couple (1=male/father; 2=female/mother)
+.         bysort syear hid (sex): gen couple_id = _n
+
+. 
+.         
+.         * keep couples who share the same first kid
+.         forval i = 1/19 {
+  2.                 local var = string(`i', "%02.0f") 
+  3.                 bysort syear hid (pid): gen same_kid`var' = (kidpnr`var' =
+> = kidpnr`var'[_n-1]) & kidpnr`var'>0 & kidpnr`var'[_n-1]>0
+  4.                 bysort syear hid: egen temp = max(same_kid`var')
+  5.                 replace same_kid`var' = temp
+  6.                 drop temp
+  7.         }
+(72,371 real changes made)
+(57,707 real changes made)
+(22,243 real changes made)
+(7,005 real changes made)
+(2,326 real changes made)
+(886 real changes made)
+(367 real changes made)
+(156 real changes made)
+(99 real changes made)
+(66 real changes made)
+(40 real changes made)
+(21 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+.          
+. keep if same_kid01==1
+(61,872 observations deleted)
+
+.         
+.         * Remove couples who had twins or more as a first child_10to14
+.         g twins = 0
+
+.         replace twins = 1 if kidmon01 == kidmon02 & kidgeb01 == kidgeb02 & sa
+> me_kid01==1 & same_kid02==1
+(912 real changes made)
+
+.         
+.         drop if twins==1
+(912 observations deleted)
+
+.         
+.         * count number of (shared) children by age group
+. gen child_1to4 = 0
+
+. gen child_5to9 = 0
+
+. gen child_10to14 = 0
+
+. 
+. forval i = 1/19 {
+  2.     local var = string(`i', "%02.0f") 
+  3.     
+.         g age_`var' = syear - kidgeb`var'
+  4.     replace child_1to4 = child_1to4 + 1 if age_`var'  <= 4 & same_kid`var'
+>  == 1
+  5.     replace child_5to9 = child_5to9 + 1 if inrange(age_`var' , 5, 9) & sam
+> e_kid`var' == 1
+  6.     replace child_10to14 = child_10to14 + 1 if inrange(age_`var' , 10, 14)
+>  & same_kid`var' == 1
+  7.         drop age_`var'
+  8. }
+(19,402 real changes made)
+(26,180 real changes made)
+(26,414 real changes made)
+(25,744 real changes made)
+(21,676 real changes made)
+(20,104 real changes made)
+(12,068 real changes made)
+(9,244 real changes made)
+(7,890 real changes made)
+(4,466 real changes made)
+(2,812 real changes made)
+(2,100 real changes made)
+(1,622 real changes made)
+(844 real changes made)
+(540 real changes made)
+(634 real changes made)
+(356 real changes made)
+(172 real changes made)
+(264 real changes made)
+(92 real changes made)
+(78 real changes made)
+(82 real changes made)
+(60 real changes made)
+(56 real changes made)
+(54 real changes made)
+(32 real changes made)
+(38 real changes made)
+(48 real changes made)
+(18 real changes made)
+(12 real changes made)
+(48 real changes made)
+(14 real changes made)
+(14 real changes made)
+(28 real changes made)
+(10 real changes made)
+(4 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+.         *bysort syear (hid): gen same_kid01 = (kidpnr01 == kidpnr01[_n-1])
+.         *bysort hid: egen temp = max(same_kid01)
+.         *replace same_kid01 = temp
+.         *drop temp
+.         
+.         keep if same_kid01==1
+(0 observations deleted)
+
+.         * drop if missing controls
+.         gen sample=1
+
+.         local x   pgcasmin pgfamstd pgemplst germborn pli0043_h pli0044_h hgh
+> inc germborn
+
+.         foreach var in `x'{
+  2.         replace sample=0 if `var'<0
+  3.         }
+(1,525 real changes made)
+(70 real changes made)
+(0 real changes made)
+(0 real changes made)
+(6,197 real changes made)
+(2,417 real changes made)
+(5,909 real changes made)
+(0 real changes made)
+
+.         keep if sample==1
+(16,118 observations deleted)
+
+.         
+.         * drop if marital status is 7 or 8
+.         drop if inlist(pgfamstd, 7, 8)
+(70 observations deleted)
+
+.         
+. * GENERATE VARIABLES (individual level) * 
+. 
+.         * age at the time of the interview
+.         g age = syear - gebjahr
+
+.         g age_sqrt = age*age
+
+.         
+.         * dummies for education
+.         g edu_high = inlist(pgcasmin, 6, 7)
+
+.         g edu_tertiary = inlist(pgcasmin, 8, 9)
+
+.         
+.         * dummies for employment
+.         g employed = .
+(127,642 missing values generated)
+
+.         replace employed = 1 if inlist(pgemplst, 1, 2)
+(87,307 real changes made)
+
+.         replace employed = 0 if inlist(pgemplst, 3, 4, 5, 6, 7)
+(40,335 real changes made)
+
+.         
+.         * Generate dummy: 1 if born in Germany or immigrated before 1950
+.         gen germanborn = (germborn == 1)
+
+. 
+.         
+.         * Genenrate dummy east/west (see footnote 1 in the PAP)
+.         * Drop missing or invalid sampreg values
+.         drop if missing(sampreg) | sampreg < 0
+(4 observations deleted)
+
+. 
+.         * Generate East Germany dummy
+.         gen east = (sampreg == 2)
+
+.         label var east "Respondent in East Germany (sampreg == 2)"
+
+.         
+.         * domestic work
+.         g dw = pli0043_h + pli0044_h
+(2 missing values generated)
+
+.         * drop if sum of domestic work is > 48 hours
+.         bys syear hid: egen dw_couple = sum(dw)
+
+.         drop if dw_couple > 30  /* ADD WHY WE REMOVE TOP 1% */
+(2,214 observations deleted)
+
+.         
+.         * Generate dummy variable for whether participant has a daugther as a
+>  first child (1) or a son (0)
+.         gen d_daughter = (kidsex01 == 2 & kidgeb01 <= syear & kidgeb01 > 0)
+
+. 
+. 
+. * RESHAPE DATA so that each observation is a partner dyad
+.         keep syear hid pid d_daughter dw dw_couple employed  pgfamstd hghinc 
+> couple_id age age_sqrt pgcasmin edu_high edu_tertiary hlc0043 germborn east c
+> hild_1to4 child_5to9 child_10to14
+
+.         reshape wide pid dw d_daughter employed pgcasmin pgfamstd  age age_sq
+> rt edu_high edu_tertiary hlc0043 germborn east, i(hid syear hghinc child_1to4
+>  child_5to9 child_10to14) j(couple_id)
+(j = 1 2)
+
+Data                               Long   ->   Wide
+-----------------------------------------------------------------------------
+Number of observations          125,424   ->   64,720      
+Number of variables                  21   ->   33          
+j variable (2 values)         couple_id   ->   (dropped)
+xij variables:
+                                    pid   ->   pid1 pid2
+                                     dw   ->   dw1 dw2
+                             d_daughter   ->   d_daughter1 d_daughter2
+                               employed   ->   employed1 employed2
+                               pgcasmin   ->   pgcasmin1 pgcasmin2
+                               pgfamstd   ->   pgfamstd1 pgfamstd2
+                                    age   ->   age1 age2
+                               age_sqrt   ->   age_sqrt1 age_sqrt2
+                               edu_high   ->   edu_high1 edu_high2
+                           edu_tertiary   ->   edu_tertiary1 edu_tertiary2
+                                hlc0043   ->   hlc00431 hlc00432
+                               germborn   ->   germborn1 germborn2
+                                   east   ->   east1 east2
+-----------------------------------------------------------------------------
+
+. 
+.         drop if missing(pid1) | missing(pid2)
+(4,016 observations deleted)
+
+. 
+.         
+. * GENERATE VARIABLES (household level) * 
+. 
+.         * Generate dummy variable for whether a couple has a daugther as a fi
+> rst child (1) or a son (0)
+.         g d_daughter = d_daughter1 ==1 
+
+.         replace  d_daughter = . if d_daughter1 != d_daughter2 /* This is just
+>  to check for consistency and make sure both mother and father share the same
+>  treatment variable */
+(0 real changes made)
+
+.         
+.         * Generate dummy variable for the marital status of the couple  
+.         g married = pgfamstd1==1 
+
+.         replace married =0 if pgfamstd1!=pgfamstd2  /* We assign the value 0 
+> (unmarried) when mother and father are not stating the same marital status. *
+> /
+(257 real changes made)
+
+.         
+.         * Generate dummy variable for whether the couple is with the same lev
+> el of education
+.         g sameeduc = pgcasmin1 == pgcasmin2
+
+.         replace sameeduc = . if missing(pgcasmin1) | missing(pgcasmin2)
+(0 real changes made)
+
+.         
+.         * Generate dummy for highest education
+.         g edu_high_couple = max(edu_high1, edu_high2)
+
+.         g edu_tertiary_couple = max(edu_tertiary1, edu_tertiary2)
+
+.         
+.         * Generate dummy for both born in Germany
+.         g both_germborn = germborn1==1 & germborn2 ==1
+
+.         g none_germborn = germborn1==0 & germborn2 ==0
+
+.         
+.         * Generate dummy for both living in East
+.         g both_east = east1==1 & east2 ==1
+
+.         g none_east = east1==0 & east2 ==0
+
+.         
+.         * Generate dummy for both employed, male breadwinner, female breadwin
+> ner
+.         g both_employed = employed1==1 & employed2==1 
+
+.         g male_bw = employed1==1 & employed2==0 
+
+.         g female_bw = employed1==0 & employed2==1 
+
+.         
+.         * Log household income
+.         g log_hinc = log(hghinc+1)
+
+.         
+.         * Generate number of children in the households
+.         g num_children = hlc00431 if hlc00431 == hlc00432
+
+.         replace num_children = . if hlc00431<0
+(11,094 real changes made, 11,094 to missing)
+
+.         
+.         * Generate the gender equality index DW_equal = min(DW_wife, DW_husba
+> nd)/max(DW_wide, DW_husband)
+.         g min_DW = min(dw1, dw2)
+
+.         g max_DW = max(dw1, dw2)
+
+.         g DW_equal = min_DW/max_DW
+(95 missing values generated)
+
+. 
+. rename age1 age_m
+
+. rename age2 age_f
+
+. rename age_sqrt1 age_sqrt_m
+
+. rename age_sqrt2 age_sqrt_f
+
+. 
+. drop if age_m>65 | age_f>65
+(3,537 observations deleted)
+
+. drop if age_m<18 | age_f<18
+(2 observations deleted)
+
+. 
+. 
+. *****************************************************************************
+> ********
+. * HYPOTHESIS TEST FOR H3 * 
+. 
+. /*
+> We estimate a pooled Ordinary Least Squares (OLS) regression model to examine
+>  whether having a daughter as the first child is associated with greater gend
+> er equality within the household. The dependent variable is a ratio measuring
+>  the distribution of unpaid domestic work (housework and childcare) within co
+> habiting couples. This index is defined as the ratio of the smaller to the la
+> rger number of hours reported by each partner on these tasks and ranges from 
+> 0 (complete inequality) to 1 (perfect equality). Higher values reflect a more
+>  balanced division of responsibilities.
+> 
+> The analysis is restricted to cohabiting couples observed between 2000 and 20
+> 20 who are jointly listed as the biological parents of the same first child, 
+> live in private households, are between 18 and 65 years old, and do not repor
+> t same-sex partnerships or registered disabilities. We exclude couples whose 
+> first birth resulted in twins or higher-order multiples. These restrictions e
+> nsure that the transition to parenthood was experienced jointly and that obse
+> rved differences in household labor division are not confounded by disability
+>  status or unrelated prior family structures. We further exclude cases with m
+> issing or invalid values for hours of domestic work.
+> 
+> The key independent variable is d_daughter, a binary indicator equal to 1 if 
+> the couple’s first biological child is a daughter born on or before the inter
+> view date, and 0 if the first child is a son. The model includes a rich set o
+> f controls: the mother’s and father’s age and age squared; indicators for whe
+> ther both partners have the same level of education and the highest level of 
+> education within the couple; a dummy for being married; a dummy for both part
+> ners being employed; a dummy for whether the mother is the primary earner; th
+> e logarithm of net household income; dummies for whether both partners were b
+> orn in Germany or not; and indicators for the number of children in the house
+> hold within the age brackets 0–4, 5–9, and 10–14.
+> 
+> The model controls for year fixed effects, and standard errors are clustered 
+> at the household level. A positive and statistically significant coefficient 
+> on d_daughter (β₁ > 0, p < 0.05) will be interpreted as evidence supporting t
+> he hypothesis that having a daughter is associated with greater gender equali
+> ty in the division of unpaid domestic work. We report the coefficient estimat
+> e, its t-statistic, the corresponding p-value, and the 95% confidence interva
+> l.
+> */
+.         
+.         
+.         
+. global controls "age_m age_sqrt_m age_f age_sqrt_f i.married i.sameeduc edu_h
+> igh_couple edu_tertiary_couple log_hinc both_germborn none_germborn both_east
+>  none_east both_employed male_bw female_bw child_1to4 child_5to9 child_10to14
+> "
+
+. 
+. reghdfe DW_equal d_daughter $controls, a(i.syear) vce(cluster hid)
+(MWFE estimator converged in 1 iterations)
+note: none_germborn omitted because of collinearity
+note: none_east omitted because of collinearity
+
+HDFE Linear regression                            Number of obs   =     57,074
+Absorbing 1 HDFE group                            F(  18,  11125) =     222.02
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.1424
+                                                  Adj R-squared   =     0.1418
+                                                  Within R-sq.    =     0.1223
+Number of clusters (hid)     =     11,126         Root MSE        =     0.2707
+
+                               (Std. err. adjusted for 11,126 clusters in hid)
+------------------------------------------------------------------------------
+             |               Robust
+    DW_equal | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  d_daughter |  -.0065679   .0044366    -1.48   0.139    -.0152643    .0021286
+       age_m |  -.0055832   .0028022    -1.99   0.046     -.011076   -.0000904
+  age_sqrt_m |   .0000535   .0000333     1.61   0.108    -.0000117    .0001187
+       age_f |  -.0026827   .0027131    -0.99   0.323     -.008001    .0026355
+  age_sqrt_f |   4.60e-06   .0000339     0.14   0.892    -.0000618     .000071
+   1.married |  -.0155482   .0073596    -2.11   0.035    -.0299742   -.0011222
+  1.sameeduc |    .017886   .0048598     3.68   0.000     .0083599    .0274122
+edu_high_c~e |   .0267599   .0052543     5.09   0.000     .0164605    .0370593
+edu_tertia~e |   .0394077   .0051421     7.66   0.000     .0293283    .0494871
+    log_hinc |  -.0263251   .0055539    -4.74   0.000    -.0372117   -.0154384
+both_germb~n |   .0003393   .0049453     0.07   0.945    -.0093543    .0100329
+none_germb~n |          0  (omitted)
+   both_east |    .061769   .0067186     9.19   0.000     .0485993    .0749387
+   none_east |          0  (omitted)
+both_emplo~d |  -.0124061   .0078465    -1.58   0.114    -.0277867    .0029744
+     male_bw |  -.1784855   .0069074   -25.84   0.000    -.1920252   -.1649458
+   female_bw |   .1469295   .0108507    13.54   0.000     .1256602    .1681988
+  child_1to4 |  -.0102116   .0027634    -3.70   0.000    -.0156284   -.0047948
+  child_5to9 |   -.001721   .0024281    -0.71   0.478    -.0064805    .0030385
+child_10to14 |  -.0000971   .0024796    -0.04   0.969    -.0049575    .0047633
+       _cons |   .8095004   .0509271    15.90   0.000     .7096743    .9093266
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+       syear |        21           0          21     |
+-----------------------------------------------------+
+
+. 
+. 
+. * EXTRACT AND EXPORT RESULTS * (Please check whether the suggested code autom
+> atically picks up the correct statistics for your chosen regression analysis 
+> and adapt if needed)
+. 
+.         * Extract the required statistics
+. 
+.                 * (i) coefficient estimate
+.                 local coefficient = _b[d_daughter]
+
+. 
+.                 * (ii) standard error
+.                 local se = _se[d_daughter]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "t"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 local p_value = _b[d_daughter] / _se[d_daughter]
+
+.                 local p_value = 2 * ttail(e(df_r), abs(`p_value'))
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof hid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation of directionality
+.                 scalar coef_d_daughter = _b[d_daughter]
+
+.                 local interpretation "positive coefficient is in line with hy
+> pothesis"
+
+. 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: -.0065678518099926
+
+.         di "Standard Error: `se'"
+Standard Error: .0044365669405166
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: t
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: 11125
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 18
+
+.         di "p-value: " `p_value'
+p-value: .13879737
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 57074
+
+.         di      "Number of couples: " `num_participants'
+Number of couples: 11126
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h3_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/95_re
+    > sults/h3_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

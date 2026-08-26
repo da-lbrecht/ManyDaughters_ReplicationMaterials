@@ -1,0 +1,695 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmp1bxckxf5.do 
+
+. do "5%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. 
+. * the following code automatically sets paths based on the project location o
+> n your system *local curdir = c(pwd)
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/5%-sample" // folder, in which the ori
+> ginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/5%-sample
+
+. global DATA "$ROOT/data/derived_confidential/5%-sample" // folder for dataset
+> s
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/5%-sample
+
+. global OUT "$ROOT/data/derived/5_results" // folder for output (results, tabl
+> es)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/5_results
+
+. 
+end of do-file
+
+. do "20250727_175500_01rwfx_h3.do"
+
+. *****************************************************************************
+> ***
+. ****************** Example Do-File H1: #ManyDaughters Project ***************
+> ***
+. *****************************************************************************
+> ***
+. 
+. * Authors: [REDACTED] and [REDACTED]. Adapted from the dofile authored by Tina Wang, David Albrecht.
+. 
+. * ============================
+. * Setup *  
+. * ============================
+. 
+. * clear all
+. version 16 // indicate the version of stata you are using here
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. * INSTALL PACKAGES * (Please adapt according to your needs)
+. * install all packages you need here, for example:
+. *ssc install outreg2
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. /*
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> 
+> */
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA * (Please adapt according to your needs)
+. 
+.         use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. 
+.         * Merge ppathl with all datasets, that you deem relevant for your ana
+> lysis. (Tip: use keepusing() to specify which variables to keep from the usin
+> g dataset; the default is all.)
+. 
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches)
+(variable pid was long, now double to accommodate using data's values)
+(variable cid was long, now double to accommodate using data's values)
+(variable gebjahr was int, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * pgen contains user-friendly data on the individual level that are c
+> onsolidated from different sources
+.         merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * pl contains all variables from the individual questionnaire
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches)
+(variable inputdataset was str6, now str9 to accommodate using data's values)
+(label cid already defined)
+(label pid_EN already defined)
+(label cid_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * hgen contains generated variables on household level from the house
+> hold interview; use for household net income
+.         merge m:1 hid syear using "$IN/hgen.dta", nogen keep(master matches) 
+> keepusing(hid syear hghinc)
+(label iyear already defined)
+(label iyear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+. 
+.         label language EN // change language of the labels to English
+
+. 
+.         save "$DATA/h3_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/5%-sample/h3_dataset.dta saved
+
+. 
+.         
+.         clear 
+
+.         use "$DATA/h3_dataset.dta" 
+
+. 
+. * ============================
+. * Analysis
+. * ============================
+. 
+. * FILTERS * (Please adapt according to your needs)
+.  
+.         * We only keep participants from private households
+.         keep if inlist(pop,1,2)
+(4,698 observations deleted)
+
+. 
+. 
+.         *We take as our main dependent variable for H3   gender gaps in house
+> work, childare and repairs.  This question was asked in several years. For th
+> e sake of consistency with our strategy for testing H1, we consider only surv
+> ey year 2019 (closest year to the one used for H1 among the ones available). 
+> As we did for H1, we only consider  participants having children before that 
+> year (2019 is not included because we don't know if birth took place before o
+> r after taking the survey).
+.         keep if kidgeb01<2019 & kidgeb01>0 
+(9,167 observations deleted)
+
+.         
+.     keep if syear==2019
+(20,187 observations deleted)
+
+.         
+. 
+. * GENERATE VARIABLES *  
+. 
+. 
+. 
+. *Dependent variable: To measure gender gaps in housework, childare and repair
+> s; we first compute total hours spent on these activities for each participan
+> t. 
+. 
+. /*We use: 
+> pli0016_h (Hours Sunday On Housework)
+> pli0043_h (Hours Weekday Housework)
+> Child Care
+> pli0019_h (Hours Saturday Child Care)
+> pli0022_h (Hours Sunday Child Care)
+> pli0044_h (Hours Weekday Child Care)
+> Repairs
+> pli0049_h (Hours Weekday Repairs)
+> pli0031_h (Hours Saturday Repairs)
+> pli0177 (Hours Sunday Repairs)
+> */
+. 
+. 
+. 
+. *We recode as missing the non-valid values of the dependent variable: 
+. 
+. local HOURS pli0012_h pli0016_h pli0043_h pli0019_h pli0022_h pli0044_h pli00
+> 49_h pli0031_h pli0177
+
+. foreach var of local HOURS{
+  2. replace `var'=. if `var'<0   
+  3. }
+(144 real changes made, 144 to missing)
+(153 real changes made, 153 to missing)
+(12 real changes made, 12 to missing)
+(162 real changes made, 162 to missing)
+(163 real changes made, 163 to missing)
+(31 real changes made, 31 to missing)
+(26 real changes made, 26 to missing)
+(148 real changes made, 148 to missing)
+(1,102 real changes made, 1,102 to missing)
+
+. *We add the variables above excluding  pli0177 which is missing for syear==20
+> 19
+. 
+. gen house_workload =  pli0012_h+pli0016_h+pli0043_h+pli0019_h+pli0022_h+pli00
+> 44_h+pli0049_h+pli0031_h   
+(243 missing values generated)
+
+. 
+. *We create a dummy taking value 1 if the participants have a daughter born be
+> fore 2019. 
+. **First, we code the year when the first daughter was born (FDY). 
+. 
+. gen FDY=. 
+(1,176 missing values generated)
+
+. 
+. forval i= 1 (1) 9{
+  2. replace FDY=kidgeb0`i'  if kidsex0`i'==2 &FDY==.
+  3. }
+(547 real changes made)
+(255 real changes made)
+(51 real changes made)
+(10 real changes made)
+(1 real change made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. replace FDY=kidgeb10    if kidsex10==2 &FDY==.
+(0 real changes made)
+
+. forval i= 1 (1) 9{
+  2. replace FDY=kidgeb1`i'  if kidsex1`i'==2 & FDY==.
+  3. }
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. 
+. **Second, we generate a dummy variable that takes value 1 if the daughter was
+>  already born at the survey year. 
+. gen having_daughter=0 
+
+. replace having_daughter=1 if FDY< syear 
+(852 real changes made)
+
+. 
+. * We want to have a female dummy for computing gender gaps in house_workload:
+. gen female =0
+
+. replace female =1 if sex==2
+(628 real changes made)
+
+. *We interact the female dummy with having_daughter. We aim to study whether h
+> aving daughters reduces the gender gap in house_workload. This will be our va
+> riable of interest for testing H3. 
+. gen gender_gap_change= female*having_daughter
+
+. 
+. 
+. ** Third, we relabel our main variable of interest for H3 according to the ex
+> ample provided (convinient for storing the results)
+. rename gender_gap_change d_daughter
+
+. 
+.         
+. *We want to retrive the number of kids born before 2018 (the provided variabl
+> e sumkids aggregates all births up to 2020)
+. gen sumkids_dyanamic = .
+(1,176 missing values generated)
+
+. 
+. replace  sumkids_dyanamic=0 if syear < kidgeb01  |  kidgeb01<0
+(0 real changes made)
+
+. replace  sumkids_dyanamic=1 if syear >= kidgeb01 & kidgeb01>0 & (syear<kidgeb
+> 02 | kidgeb02<0  )
+(254 real changes made)
+
+. replace  sumkids_dyanamic=2 if syear >= kidgeb02 & kidgeb02>0 & ( syear<kidge
+> b03 | kidgeb03<0 ) 
+(557 real changes made)
+
+. replace  sumkids_dyanamic=3 if syear >= kidgeb03 & kidgeb03>0 &  ( syear<kidg
+> eb04  | kidgeb04<0 )  
+(241 real changes made)
+
+. replace  sumkids_dyanamic=4 if syear >= kidgeb04 & kidgeb04>0 & ( syear<kidge
+> b05  | kidgeb05<0 )  
+(79 real changes made)
+
+. replace  sumkids_dyanamic=5 if syear >= kidgeb05 & kidgeb05>0 & ( syear<kidge
+> b06  | kidgeb06<0  ) 
+(24 real changes made)
+
+. replace  sumkids_dyanamic=6 if syear >= kidgeb06 & kidgeb06>0 & ( syear<kidge
+> b07  | kidgeb07<0 )   
+(8 real changes made)
+
+. replace  sumkids_dyanamic=7 if syear >= kidgeb07 & kidgeb07>0 & ( syear<kidge
+> b08  | kidgeb08<0 )  
+(4 real changes made)
+
+. replace  sumkids_dyanamic=8 if syear >= kidgeb08 & kidgeb08>0 & ( syear<kidge
+> b09    | kidgeb09<0)   
+(5 real changes made)
+
+. replace  sumkids_dyanamic=9 if syear >= kidgeb09 & kidgeb09>0 & ( syear<kidge
+> b10    | kidgeb10<0 )  
+(4 real changes made)
+
+. replace  sumkids_dyanamic=10 if syear >= kidgeb10 & kidgeb10>0 & ( syear<kidg
+> eb11    | kidgeb11<0 )  
+(0 real changes made)
+
+. replace  sumkids_dyanamic=11 if syear >= kidgeb11 & kidgeb11>0 & ( syear<kidg
+> eb12    | kidgeb12<0 )  
+(0 real changes made)
+
+. replace  sumkids_dyanamic=12 if syear >= kidgeb12 & kidgeb12>0 & ( syear<kidg
+> eb13   | kidgeb13<0 )  
+(0 real changes made)
+
+. replace  sumkids_dyanamic=13 if syear >= kidgeb13 & kidgeb13>0 & ( syear<kidg
+> eb14   | kidgeb14<0 )  
+(0 real changes made)
+
+. replace  sumkids_dyanamic=14 if syear >= kidgeb14 & kidgeb14>0 & ( syear<kidg
+> eb15    | kidgeb15<0 )  
+(0 real changes made)
+
+. replace  sumkids_dyanamic=15 if syear >= kidgeb15 & kidgeb15>0 & ( syear<kidg
+> eb16    | kidgeb16<0 )  
+(0 real changes made)
+
+. replace  sumkids_dyanamic=16 if syear >= kidgeb16 & kidgeb16>0 & ( syear<kidg
+> eb17    | kidgeb17<0 )  
+(0 real changes made)
+
+. replace  sumkids_dyanamic=17 if syear >= kidgeb17 & kidgeb17>0 &  (syear<kidg
+> eb18    | kidgeb17<0 )  
+(0 real changes made)
+
+. replace  sumkids_dyanamic=18 if syear >= kidgeb18 & kidgeb18>0 & ( syear<kidg
+> eb19    | kidgeb18<0 )  
+(0 real changes made)
+
+. replace  sumkids_dyanamic=19 if syear >= kidgeb19  & kidgeb19!=. & kidgeb19>0
+(0 real changes made)
+
+. 
+. *Clean missing values for income variable: 
+. replace hghinc=. if hghinc<0   
+(60 real changes made, 60 to missing)
+
+.         
+.         
+. 
+. * HYPOTHESIS TEST FOR H3 *  
+. 
+. /*      * A verbal description of the model here: 
+> 
+> Our measure of gender equality in the household is based on gender gaps in ti
+> me devoted in housework, childcare and repairs. We created a variable house_w
+> orkload aggregating all time devoted to these activities. We estimate a linea
+> r OLS regression where the dependent variable is house_workload, and the key 
+> independent variable is the interaction between the gender of the participant
+>  (female) and having_daughters (which takes the value 1 if the respondent had
+>  at least one daughter at the time of responding, i.e. year 2019). The coeffi
+> cient of the uninteracted "female" variable captures gender gaps in house_wor
+> kload, while the coefficient of the interaction captures how the gender gap i
+> n house_workload is affected by having daughters.  
+> 
+> Our objective is to estimate the causal effect of having a daughter on gender
+>  equality attitudes. While the gender of a child is generally considered to b
+> e randomly assigned, fertility decisions are not. Therefore, we restrict our 
+> sample to respondents who were already parents at the time of the survey.
+> 
+> However, it is important to acknowledge that subsequent fertility decisions m
+> ay be influenced by the gender of previously born children, i.e. "gender stop
+> ping rules" (Angrist and Evans, 1998). If such decisions are driven by gender
+>  preferences, this could threaten the causal interpretation of our estimates.
+>  We tested the possibility of gender stopping rules by regressing the number 
+> of children on the gender of the first born. By doing so, we found no evidenc
+> e of correlation (coef 0.008833, p-value=0.848), indicating that gender stopp
+> ing rules are not extended among the participants. Additionally, to mitigate 
+> this concern, we control for the number of children the respondent had at the
+>  time of completing the questionnaire. 
+> 
+> We include the following controls: participant gender, net monthly income of 
+> the household, a dummy for german born participants, and birth year of the pa
+> rticipant fixed effects. 
+> 
+> */
+.         
+.  
+. 
+. 
+. 
+. reg house_workload d_daughter having_daughter  female  i.germborn hghinc  i.g
+> ebjahr sumkids_dyanamic         , vce(robust)
+
+Linear regression                               Number of obs     =        890
+                                                F(67, 812)        =          .
+                                                Prob > F          =          .
+                                                R-squared         =     0.4790
+                                                Root MSE          =     10.621
+
+------------------------------------------------------------------------------
+             |               Robust
+house_work~d | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  d_daughter |  -.4750907   1.599078    -0.30   0.766    -3.613905    2.663723
+having_dau~r |  -.4560299   1.073085    -0.42   0.671    -2.562377    1.650318
+      female |   5.227329   1.364068     3.83   0.000     2.549813    7.904845
+             |
+    germborn |
+[2] not b..  |  -2.388862   1.164931    -2.05   0.041    -4.675493   -.1022305
+      hghinc |   .0000192    .000082     0.23   0.815    -.0001417    .0001801
+             |
+     gebjahr |
+       1925  |  -5.227329   1.364068    -3.83   0.000    -7.904845   -2.549813
+       1926  |   4.994746   1.749184     2.86   0.004     1.561292    8.428201
+       1928  |   6.950493   1.544679     4.50   0.000     3.918459    9.982528
+       1929  |   3.289469   .4965417     6.62   0.000     2.314813    4.264126
+       1930  |    6.01054   1.255828     4.79   0.000     3.545489    8.475592
+       1931  |   7.488354   2.711664     2.76   0.006     2.165655    12.81105
+       1932  |   14.97157   1.242679    12.05   0.000     12.53232    17.41081
+       1933  |   .4993457   1.877209     0.27   0.790    -3.185408    4.184099
+       1934  |   5.164461   1.478684     3.49   0.001     2.261966    8.066955
+       1935  |   3.584872   2.249998     1.59   0.111    -.8316256    8.001369
+       1936  |   5.755844   2.152197     2.67   0.008     1.531319     9.98037
+       1937  |   6.022932   1.974254     3.05   0.002     2.147689    9.898174
+       1938  |   1.360102   1.465909     0.93   0.354    -1.517315    4.237519
+       1939  |   6.158232   1.770489     3.48   0.001     2.682958    9.633506
+       1940  |   5.583449   1.387468     4.02   0.000     2.860002    8.306897
+       1941  |    2.62839   1.555079     1.69   0.091    -.4240584    5.680839
+       1942  |   5.901334   2.141076     2.76   0.006     1.698637    10.10403
+       1943  |   6.079241   1.580071     3.85   0.000     2.977735    9.180746
+       1944  |   6.730195   1.917636     3.51   0.000     2.966086     10.4943
+       1945  |   8.476474   2.567813     3.30   0.001     3.436141    13.51681
+       1946  |   7.233103   1.384629     5.22   0.000     4.515229    9.950977
+       1947  |   3.833817   2.098973     1.83   0.068    -.2862358    7.953871
+       1948  |   6.867088   2.552939     2.69   0.007      1.85595    11.87823
+       1949  |   6.593663   1.473364     4.48   0.000     3.701612    9.485714
+       1950  |   7.031975   1.759118     4.00   0.000      3.57902    10.48493
+       1951  |   7.288339   1.365062     5.34   0.000     4.608872    9.967806
+       1952  |   7.111395    1.47596     4.82   0.000     4.214248    10.00854
+       1953  |   4.714765   1.366555     3.45   0.001     2.032367    7.397163
+       1954  |   8.031099   2.297178     3.50   0.000     3.521992    12.54021
+       1955  |   6.102576    1.86148     3.28   0.001     2.448696    9.756456
+       1956  |   5.035312   1.912706     2.63   0.009      1.28088    8.789744
+       1957  |   8.657314   2.181145     3.97   0.000     4.375966    12.93866
+       1958  |   5.554869   1.552961     3.58   0.000     2.506578    8.603161
+       1959  |   6.005933   1.457841     4.12   0.000     3.144353    8.867514
+       1960  |   6.492544   1.314614     4.94   0.000     3.912102    9.072986
+       1961  |   5.141465   1.355952     3.79   0.000     2.479881    7.803049
+       1962  |   7.526313   1.784563     4.22   0.000     4.023412    11.02921
+       1963  |   7.751083   1.922088     4.03   0.000     3.978236    11.52393
+       1964  |   6.556667   1.743446     3.76   0.000     3.134473     9.97886
+       1965  |   9.148469    1.92449     4.75   0.000     5.370907    12.92603
+       1966  |   8.150026   1.776947     4.59   0.000     4.662075    11.63798
+       1967  |   5.006325   1.452732     3.45   0.001     2.154772    7.857879
+       1968  |   9.480969   2.791182     3.40   0.001     4.002186    14.95975
+       1969  |   12.98898   2.563509     5.07   0.000     7.957092    18.02086
+       1970  |   9.160422   1.838754     4.98   0.000     5.551151    12.76969
+       1971  |   16.45231   3.101092     5.31   0.000      10.3652    22.53941
+       1972  |   17.58986   3.581728     4.91   0.000     10.55932     24.6204
+       1973  |   17.81192   3.260403     5.46   0.000     11.41211    24.21173
+       1974  |   23.71434   3.315475     7.15   0.000     17.20643    30.22225
+       1975  |     16.761   2.501162     6.70   0.000      11.8515    21.67051
+       1976  |   18.24439   3.186278     5.73   0.000     11.99008     24.4987
+       1977  |   22.19005    3.71479     5.97   0.000     14.89833    29.48178
+       1978  |   23.46658   4.071135     5.76   0.000      15.4754    31.45777
+       1979  |   24.68624   2.729135     9.05   0.000     19.32925    30.04323
+       1980  |   26.56596   3.159454     8.41   0.000      20.3643    32.76762
+       1981  |   30.55818   3.624591     8.43   0.000      23.4435    37.67285
+       1982  |   31.05818   5.444748     5.70   0.000     20.37074    41.74562
+       1983  |   22.39591   2.786547     8.04   0.000     16.92623     27.8656
+       1984  |   28.20603   3.785523     7.45   0.000     20.77546    35.63659
+       1985  |   42.74763    6.88558     6.21   0.000     29.23199    56.26326
+       1986  |   29.69674   5.093691     5.83   0.000     19.69838    39.69509
+       1987  |   27.34873   5.700583     4.80   0.000     16.15912    38.53835
+       1988  |    30.9532   2.683425    11.53   0.000     25.68593    36.22047
+       1989  |   39.82681   6.483146     6.14   0.000      27.1011    52.55251
+       1990  |    41.6744   8.644804     4.82   0.000      24.7056     58.6432
+       1991  |   35.97371   7.791441     4.62   0.000     20.67997    51.26745
+       1992  |   17.13212   3.152617     5.43   0.000     10.94388    23.32036
+       1993  |   27.13808   4.439611     6.11   0.000     18.42362    35.85255
+       1994  |   34.23857    1.50468    22.75   0.000     31.28505    37.19209
+       1998  |   36.99902   1.249652    29.61   0.000     34.54609    39.45195
+       2000  |   47.31074    1.59338    29.69   0.000     44.18311    50.43836
+             |
+sumkids_dy~c |   1.231873   .4466018     2.76   0.006     .3552423    2.108503
+       _cons |  -3.791612   1.377031    -2.75   0.006    -6.494572   -1.088653
+------------------------------------------------------------------------------
+
+. 
+. 
+. 
+.   
+. 
+.  
+. 
+. * EXTRACT AND EXPORT RESULTS * (Please check whether the suggested code autom
+> atically picks up the correct statistics for your chosen regression analysis 
+> and adapt if needed)
+. 
+.         * Extract the required statistics
+.         
+.                 * (i) coefficient estimate
+.                 local coefficient = _b[d_daughter]
+
+. 
+.                 * (ii) standard error
+.                 local se = _se[d_daughter]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "t"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 local p_value = _b[d_daughter] / _se[d_daughter]
+
+.                 local p_value = 2 * ttail(e(df_r), abs(`p_value'))
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation of directionality
+.                 scalar coef_d_daughter = _b[d_daughter]
+
+.                 local interpretation "negative coefficient is in line with hy
+> pothesis"
+
+. 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: -.4750907443260778
+
+.         di "Standard Error: `se'"
+Standard Error: 1.599078136468928
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: t
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: 812
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 67
+
+.         di "p-value: " `p_value'
+p-value: .76646394
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 890
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 890
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: negative coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h3_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/5_res
+    > ults/h3_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

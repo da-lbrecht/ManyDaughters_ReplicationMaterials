@@ -1,0 +1,1597 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmp82z5vpgq.do 
+
+. do "95%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. * the following code automatically sets paths based on the project location o
+> n your system *
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/95%-sample" // folder, in which the or
+> iginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/95%-sample
+
+. global DATA "$ROOT/data/derived_confidential/95%-sample" // folder for datase
+> ts
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/95%-sample
+
+. global OUT "$ROOT/data/derived/95_results" // folder for output (results, tab
+> les)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/95_results
+
+. 
+end of do-file
+
+. do "20250808_105920_013u29_h1.do"
+
+. *****************************************************************************
+> ***
+. ****************** Do-File H1: Gender-Related Attitudes ******************
+. *****************************************************************************
+> ***
+. * Authors: [REDACTED], [REDACTED]
+. 
+. * ============================================
+. * STEP 1: Setup
+. * ============================================
+. 
+. *clear all
+. version 15 // indicate the version of stata you are using here
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. * INSTALL PACKAGES* 
+. *ssc install outreg2
+. /*
+> * CONFIGURE FILE PATHS *
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> */
+. * ============================================
+. * STEP 2: Load and Merge Data
+. * ============================================
+. 
+. use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. 
+. merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches)
+(variable pid was long, now double to accommodate using data's values)
+(variable cid was long, now double to accommodate using data's values)
+(variable gebjahr was int, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches)
+(variable inputdataset was str6, now str9 to accommodate using data's values)
+(label cid_EN already defined)
+(label pid_EN already defined)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. merge m:1 hid syear using "$IN/hgen.dta", nogen keep(master matches) keepusin
+> g(hid syear hghinc)
+(label iyear already defined)
+(label iyear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. 
+. label language EN // change language of the labels to English
+
+. 
+. save "$DATA/h1_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h1_dataset.dta saved
+
+. 
+. 
+. use "$DATA/h1_dataset.dta", clear
+
+. 
+. * ============================================
+. * STEP 3: Sample Restrictions and Treatment Definition
+. * ============================================
+. 
+. drop if missing(kidsex01) | !inlist(kidsex01, 1, 2)
+(216,893 observations deleted)
+
+. 
+. * Treatment indicator
+. gen first_child_female = (kidsex01 == 2)
+
+. label var first_child_female "1 if first child is female"
+
+. 
+. * Treatment timing
+. drop if kidgeb01 < 0
+(546 observations deleted)
+
+. gen treat_year = kidgeb01
+
+. gen in_sample_birth = inrange(treat_year, 2000, 2020)
+
+. 
+. gen rel_year = syear - treat_year
+
+. gen post = .01
+
+. replace post = 0 if syear < treat_year & in_sample_birth == 1
+(17,345 real changes made)
+
+. replace post = 1 if syear >= treat_year & in_sample_birth == 1
+(117,192 real changes made)
+
+. 
+. * ============================================
+. * STEP 4: Construct Dependent Variables
+. * ============================================
+. 
+. foreach var in plj0620 plj0621 plj0622 plj0623 plj0625 {
+  2.     replace `var' = . if `var' < 0
+  3. }
+(374,163 real changes made, 374,163 to missing)
+(374,062 real changes made, 374,062 to missing)
+(374,048 real changes made, 374,048 to missing)
+(374,147 real changes made, 374,147 to missing)
+(373,982 real changes made, 373,982 to missing)
+
+. 
+. egen h1_valid_items = rownonmiss(plj0620 plj0621 plj0622 plj0623 plj0625)
+
+. egen h1_index = rowmean(plj0620 plj0621 plj0622 plj0623 plj0625)
+(440,856 missing values generated)
+
+. replace h1_index = . if h1_valid_items < 3
+(112 real changes made, 112 to missing)
+
+. label var h1_index "Gender attitudes index (0-4)"
+
+. 
+. replace plh0308_v1 = . if plh0308_v1 < 0
+(372,560 real changes made, 372,560 to missing)
+
+. replace plh0308_v2 = . if plh0308_v2 < 0
+(361,259 real changes made, 361,259 to missing)
+
+. replace plh0308_v1 = 5 - plh0308_v1 
+(6,168 real changes made)
+
+. 
+. gen gender_sharing_norm = (plh0308_v1 - 1)/3 if syear == 2012
+(439,516 missing values generated)
+
+. replace gender_sharing_norm = (plh0308_v2 - 1)/6 if syear == 2018
+(17,469 real changes made)
+
+. label var gender_sharing_norm "Egalitarian norm on income sharing (0-1)"
+
+. 
+. 
+. * ============================================
+. * STEP 5: Control Variables
+. * ============================================
+. 
+. * Birthregion
+. gen birthregion_clean = birthregion
+
+. * Assign "Outside of Germany" = 17 to -1 (No answer) and -2 (Does not apply)
+. replace birthregion_clean = 17 if inlist(birthregion, -1, -2)
+(240,167 real changes made)
+
+. * Treat -5 as missing
+. replace birthregion_clean = . if birthregion == -5
+(20,236 real changes made, 20,236 to missing)
+
+. replace birthregion_cl = 0 if birthregion_clean ==.
+(20,236 real changes made)
+
+. 
+. * Label the new version
+. label define birthregion_lbl ///
+>     0  "Missing" ///
+>     1  "Schleswig-Holstein" ///
+>     2  "Hamburg" ///
+>     3  "Lower Saxony" ///
+>     4  "Bremen" ///
+>     5  "North Rhine-Westphalia" ///
+>     6  "Hesse" ///
+>     7  "Rhineland-Palatinate" ///
+>     8  "Baden-Wuerttemberg" ///
+>     9  "Bavaria" ///
+>     10 "Saarland" ///
+>     11 "Berlin" ///
+>     12 "Brandenburg" ///
+>     13 "Mecklenburg-West Pomerania" ///
+>     14 "Saxony" ///
+>     15 "Saxony-Anhalt" ///
+>     16 "Thuringia" ///
+>     17 "Outside of Germany"
+
+. label values birthregion_clean birthregion_lbl
+
+. 
+. * Income
+. gen log_income = log(plc0014_h) if plc0014_h > 0
+(241,537 missing values generated)
+
+. gen log_income_hid = log(hghinc) if hghinc > 0
+(71,680 missing values generated)
+
+. replace log_income_hid  = log_income if log_income_hid ==.
+(4,424 real changes made)
+
+. 
+. * Age
+. gen age = syear - gebjahr
+
+. 
+. * Gender: 0 is male, 1 is female
+. gen gender = 0 if pla0009_v2 ==1
+(295,410 missing values generated)
+
+. replace gender = 1 if pla0009_v2 ==2
+(191,296 real changes made)
+
+. replace gender = 0 if pla0009_v3 ==1
+(9,091 real changes made)
+
+. replace gender = 1 if pla0009_v3 ==2
+(10,562 real changes made)
+
+. 
+. egen tag = tag(pid gender)
+
+. bysort pid (gender): gen n_unique_status = .
+(445,684 missing values generated)
+
+. bysort pid (gender): replace n_unique_status = sum(tag)
+(445684 real changes made)
+
+. bysort pid (gender): replace n_unique_status = n_unique_status[_N]
+(154272 real changes made)
+
+. tab n_unique_st
+
+n_unique_st |
+       atus |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |      2,984        0.67        0.67
+          1 |    442,578       99.30       99.97
+          2 |        122        0.03      100.00
+------------+-----------------------------------
+      Total |    445,684      100.00
+
+. sort pid gender
+
+. list pid gender if n_unique_st ==2
+
+        +-------------------+
+        |      pid   gender |
+        |-------------------|
+ 72923. |  1020702        0 |
+ 72924. |  1020702        0 |
+ 72925. |  1020702        0 |
+ 72926. |  1020702        0 |
+ 72927. |  1020702        0 |
+        |-------------------|
+ 72928. |  1020702        0 |
+ 72929. |  1020702        0 |
+ 72930. |  1020702        0 |
+ 72931. |  1020702        1 |
+ 72932. |  1020702        . |
+        |-------------------|
+ 72933. |  1020702        . |
+109208. |  2617201        0 |
+109209. |  2617201        0 |
+109210. |  2617201        0 |
+109211. |  2617201        0 |
+        |-------------------|
+109212. |  2617201        0 |
+109213. |  2617201        0 |
+109214. |  2617201        0 |
+109215. |  2617201        0 |
+109216. |  2617201        0 |
+        |-------------------|
+109217. |  2617201        0 |
+109218. |  2617201        0 |
+109219. |  2617201        0 |
+109220. |  2617201        0 |
+109221. |  2617201        0 |
+        |-------------------|
+109222. |  2617201        0 |
+109223. |  2617201        0 |
+109224. |  2617201        0 |
+109225. |  2617201        0 |
+109226. |  2617201        0 |
+        |-------------------|
+109227. |  2617201        0 |
+109228. |  2617201        1 |
+124155. |  2715301        0 |
+124156. |  2715301        1 |
+124157. |  2715301        . |
+        |-------------------|
+185393. |  3137001        0 |
+185394. |  3137001        1 |
+185395. |  3137001        1 |
+185396. |  3137001        . |
+306292. | 20359102        0 |
+        |-------------------|
+306293. | 20359102        0 |
+306294. | 20359102        0 |
+306295. | 20359102        0 |
+306296. | 20359102        0 |
+306297. | 20359102        0 |
+        |-------------------|
+306298. | 20359102        1 |
+306299. | 20359102        . |
+306300. | 20359102        . |
+306301. | 20359102        . |
+315008. | 21022602        0 |
+        |-------------------|
+315009. | 21022602        1 |
+315010. | 21022602        1 |
+315011. | 21022602        1 |
+315012. | 21022602        1 |
+315013. | 21022602        1 |
+        |-------------------|
+315014. | 21022602        1 |
+315015. | 21022602        1 |
+315016. | 21022602        . |
+315017. | 21022602        . |
+315018. | 21022602        . |
+        |-------------------|
+323638. | 21195302        0 |
+323639. | 21195302        1 |
+323640. | 21195302        1 |
+323641. | 21195302        1 |
+323642. | 21195302        1 |
+        |-------------------|
+323643. | 21195302        1 |
+323644. | 21195302        1 |
+323645. | 21195302        1 |
+323646. | 21195302        . |
+323647. | 21195302        . |
+        |-------------------|
+323648. | 21195302        . |
+332941. | 21386202        0 |
+332942. | 21386202        1 |
+332943. | 21386202        1 |
+332944. | 21386202        1 |
+        |-------------------|
+332945. | 21386202        1 |
+332946. | 21386202        1 |
+332947. | 21386202        1 |
+332948. | 21386202        1 |
+332949. | 21386202        . |
+        |-------------------|
+332950. | 21386202        . |
+332951. | 21386202        . |
+387614. | 31025402        0 |
+387615. | 31025402        0 |
+387616. | 31025402        0 |
+        |-------------------|
+387617. | 31025402        0 |
+387618. | 31025402        0 |
+387619. | 31025402        0 |
+387620. | 31025402        1 |
+387621. | 31025402        1 |
+        |-------------------|
+387622. | 31025402        1 |
+399957. | 31613502        0 |
+399958. | 31613502        1 |
+399959. | 31613502        1 |
+399960. | 31613502        1 |
+        |-------------------|
+399961. | 31613502        1 |
+399962. | 31613502        1 |
+399963. | 31613502        1 |
+399964. | 31613502        1 |
+400137. | 31626403        0 |
+        |-------------------|
+400138. | 31626403        1 |
+400139. | 31626403        1 |
+400140. | 31626403        1 |
+400141. | 31626403        1 |
+400142. | 31626403        1 |
+        |-------------------|
+400143. | 31626403        1 |
+400144. | 31626403        . |
+401093. | 31735702        0 |
+401094. | 31735702        1 |
+401095. | 31735702        . |
+        |-------------------|
+417390. | 34071202        0 |
+417391. | 34071202        0 |
+417392. | 34071202        0 |
+417393. | 34071202        0 |
+417394. | 34071202        1 |
+        |-------------------|
+417395. | 34071202        1 |
+417396. | 34071203        0 |
+417397. | 34071203        0 |
+417398. | 34071203        1 |
+417399. | 34071203        1 |
+        |-------------------|
+417400. | 34071203        1 |
+417401. | 34071203        1 |
+        +-------------------+
+
+. egen max_value = max(n_unique_st), by(pid)
+
+. * drop individuals that change gender
+. drop if  max_value ==2
+(122 observations deleted)
+
+. * sometimes individuals have missing values, replace by the values we know
+. egen newgender = max(gender), by(pid)
+(2,984 missing values generated)
+
+. replace gender = newgender
+(81,459 real changes made)
+
+. drop newgender
+
+. 
+. * Education
+. gen years_schooling = pgbilzeit
+(66,803 missing values generated)
+
+. replace years_schooling = . if pgbilzeit<0
+(6,453 real changes made, 6,453 to missing)
+
+. 
+. * Number of children
+. foreach x in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 {
+  2. gen num_girls_`x' = 1 if  kidsex`x' == 2
+  3. replace num_girls_`x' = 0 if num_girls_`x' !=1
+  4. gen num_boys_`x' = 1 if  kidsex`x' == 1
+  5. replace num_boys_`x' = 0 if num_boys_`x' !=1
+  6. tab num_boys_`x', missing
+  7. tab num_girls_`x', missing
+  8. }
+(229,113 missing values generated)
+(229,113 real changes made)
+(216,449 missing values generated)
+(216,449 real changes made)
+
+num_boys_01 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    216,449       48.58       48.58
+          1 |    229,113       51.42      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+
+num_girls_0 |
+          1 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    229,113       51.42       51.42
+          1 |    216,449       48.58      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+(287,043 missing values generated)
+(287,043 real changes made)
+(282,130 missing values generated)
+(282,130 real changes made)
+
+num_boys_02 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    282,130       63.32       63.32
+          1 |    163,432       36.68      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+
+num_girls_0 |
+          2 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    287,043       64.42       64.42
+          1 |    158,519       35.58      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+(384,507 missing values generated)
+(384,507 real changes made)
+(377,472 missing values generated)
+(377,472 real changes made)
+
+num_boys_03 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    377,472       84.72       84.72
+          1 |     68,090       15.28      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+
+num_girls_0 |
+          3 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    384,507       86.30       86.30
+          1 |     61,055       13.70      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+(423,628 missing values generated)
+(423,628 real changes made)
+(422,693 missing values generated)
+(422,693 real changes made)
+
+num_boys_04 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    422,693       94.87       94.87
+          1 |     22,869        5.13      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+
+num_girls_0 |
+          4 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    423,628       95.08       95.08
+          1 |     21,934        4.92      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+(437,623 missing values generated)
+(437,623 real changes made)
+(437,020 missing values generated)
+(437,020 real changes made)
+
+num_boys_05 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    437,020       98.08       98.08
+          1 |      8,542        1.92      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+
+num_girls_0 |
+          5 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    437,623       98.22       98.22
+          1 |      7,939        1.78      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+(442,318 missing values generated)
+(442,318 real changes made)
+(442,064 missing values generated)
+(442,064 real changes made)
+
+num_boys_06 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    442,064       99.21       99.21
+          1 |      3,498        0.79      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+
+num_girls_0 |
+          6 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    442,318       99.27       99.27
+          1 |      3,244        0.73      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+(444,147 missing values generated)
+(444,147 real changes made)
+(444,008 missing values generated)
+(444,008 real changes made)
+
+num_boys_07 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    444,008       99.65       99.65
+          1 |      1,554        0.35      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+
+num_girls_0 |
+          7 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    444,147       99.68       99.68
+          1 |      1,415        0.32      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+(444,949 missing values generated)
+(444,949 real changes made)
+(444,948 missing values generated)
+(444,948 real changes made)
+
+num_boys_08 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    444,948       99.86       99.86
+          1 |        614        0.14      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+
+num_girls_0 |
+          8 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    444,949       99.86       99.86
+          1 |        613        0.14      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+(445,308 missing values generated)
+(445,308 real changes made)
+(445,239 missing values generated)
+(445,239 real changes made)
+
+num_boys_09 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    445,239       99.93       99.93
+          1 |        323        0.07      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+
+num_girls_0 |
+          9 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    445,308       99.94       99.94
+          1 |        254        0.06      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+(445,398 missing values generated)
+(445,398 real changes made)
+(445,398 missing values generated)
+(445,398 real changes made)
+
+num_boys_10 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    445,398       99.96       99.96
+          1 |        164        0.04      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+
+num_girls_1 |
+          0 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    445,398       99.96       99.96
+          1 |        164        0.04      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+(445,458 missing values generated)
+(445,458 real changes made)
+(445,462 missing values generated)
+(445,462 real changes made)
+
+num_boys_11 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    445,462       99.98       99.98
+          1 |        100        0.02      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+
+num_girls_1 |
+          1 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    445,458       99.98       99.98
+          1 |        104        0.02      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+(445,508 missing values generated)
+(445,508 real changes made)
+(445,547 missing values generated)
+(445,547 real changes made)
+
+num_boys_12 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    445,547      100.00      100.00
+          1 |         15        0.00      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+
+num_girls_1 |
+          2 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    445,508       99.99       99.99
+          1 |         54        0.01      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+(445,561 missing values generated)
+(445,561 real changes made)
+(445,562 missing values generated)
+(445,562 real changes made)
+
+num_boys_13 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    445,562      100.00      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+
+num_girls_1 |
+          3 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    445,561      100.00      100.00
+          1 |          1        0.00      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+(445,561 missing values generated)
+(445,561 real changes made)
+(445,562 missing values generated)
+(445,562 real changes made)
+
+num_boys_14 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    445,562      100.00      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+
+num_girls_1 |
+          4 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    445,561      100.00      100.00
+          1 |          1        0.00      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+(445,562 missing values generated)
+(445,562 real changes made)
+(445,562 missing values generated)
+(445,562 real changes made)
+
+num_boys_15 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    445,562      100.00      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+
+num_girls_1 |
+          5 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    445,562      100.00      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+(445,562 missing values generated)
+(445,562 real changes made)
+(445,562 missing values generated)
+(445,562 real changes made)
+
+num_boys_16 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    445,562      100.00      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+
+num_girls_1 |
+          6 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    445,562      100.00      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+(445,562 missing values generated)
+(445,562 real changes made)
+(445,562 missing values generated)
+(445,562 real changes made)
+
+num_boys_17 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    445,562      100.00      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+
+num_girls_1 |
+          7 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    445,562      100.00      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+(445,562 missing values generated)
+(445,562 real changes made)
+(445,562 missing values generated)
+(445,562 real changes made)
+
+num_boys_18 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    445,562      100.00      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+
+num_girls_1 |
+          8 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    445,562      100.00      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+(445,562 missing values generated)
+(445,562 real changes made)
+(445,562 missing values generated)
+(445,562 real changes made)
+
+num_boys_19 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    445,562      100.00      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+
+num_girls_1 |
+          9 |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    445,562      100.00      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+
+. 
+. order num_*, alphabetic
+
+. egen totalboys = rowtotal(num_boys_01 - num_boys_19)
+
+. egen totalgirls = rowtotal(num_girls_01 - num_girls_19)
+
+. tab totalboys
+
+  totalboys |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    117,141       26.29       26.29
+          1 |    201,216       45.16       71.45
+          2 |     94,580       21.23       92.68
+          3 |     25,109        5.64       98.31
+          4 |      5,793        1.30       99.61
+          5 |      1,195        0.27       99.88
+          6 |        316        0.07       99.95
+          7 |        130        0.03       99.98
+          8 |         80        0.02      100.00
+          9 |          2        0.00      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+
+. tab totalgirls
+
+ totalgirls |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    128,689       28.88       28.88
+          1 |    199,376       44.75       73.63
+          2 |     89,560       20.10       93.73
+          3 |     21,265        4.77       98.50
+          4 |      4,760        1.07       99.57
+          5 |      1,299        0.29       99.86
+          6 |        441        0.10       99.96
+          7 |        110        0.02       99.99
+          8 |         54        0.01      100.00
+          9 |          8        0.00      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+
+. gen num_children = totalboys + totalgirls
+
+. 
+. replace biokids = 0 if biokids ==2
+(131,287 real changes made)
+
+. gen test = 1 if biokids == num_children
+(285,919 missing values generated)
+
+. tab test, missing
+
+       test |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          1 |    159,643       35.83       35.83
+          . |    285,919       64.17      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+
+. 
+. * Proportion daughters
+. gen perc_girls = totalgirls/num_children if num_children !=0
+
+. tab perc_girls, missing
+
+ perc_girls |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    128,689       28.88       28.88
+   .1111111 |         25        0.01       28.89
+       .125 |         18        0.00       28.89
+   .1428571 |        117        0.03       28.92
+   .1666667 |        330        0.07       28.99
+         .2 |      1,846        0.41       29.41
+   .2222222 |         22        0.00       29.41
+        .25 |      7,319        1.64       31.05
+   .2727273 |         21        0.00       31.06
+   .2857143 |        230        0.05       31.11
+         .3 |         10        0.00       31.11
+   .3333333 |     32,233        7.23       38.35
+   .3636364 |         15        0.00       38.35
+       .375 |         86        0.02       38.37
+         .4 |      3,172        0.71       39.08
+   .4166667 |         52        0.01       39.09
+   .4285714 |        422        0.09       39.19
+   .4444444 |         58        0.01       39.20
+   .4545455 |         11        0.00       39.20
+         .5 |    110,039       24.70       63.90
+   .5454546 |         11        0.00       63.90
+   .5555556 |         68        0.02       63.92
+   .5714286 |        430        0.10       64.01
+         .6 |      2,631        0.59       64.60
+       .625 |        172        0.04       64.64
+   .6363636 |         28        0.01       64.65
+   .6666667 |     30,820        6.92       71.57
+         .7 |         17        0.00       71.57
+   .7142857 |        341        0.08       71.65
+   .7272727 |         45        0.01       71.66
+        .75 |      7,014        1.57       73.23
+   .7777778 |         22        0.00       73.24
+         .8 |      1,497        0.34       73.57
+   .8181818 |          4        0.00       73.57
+   .8333333 |        429        0.10       73.67
+   .8571429 |        162        0.04       73.71
+       .875 |         11        0.00       73.71
+         .9 |          4        0.00       73.71
+          1 |    117,141       26.29      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+
+. replace perc_girls = 0 if num_children == 0 
+(0 real changes made)
+
+. tab perc_girls
+
+ perc_girls |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    128,689       28.88       28.88
+   .1111111 |         25        0.01       28.89
+       .125 |         18        0.00       28.89
+   .1428571 |        117        0.03       28.92
+   .1666667 |        330        0.07       28.99
+         .2 |      1,846        0.41       29.41
+   .2222222 |         22        0.00       29.41
+        .25 |      7,319        1.64       31.05
+   .2727273 |         21        0.00       31.06
+   .2857143 |        230        0.05       31.11
+         .3 |         10        0.00       31.11
+   .3333333 |     32,233        7.23       38.35
+   .3636364 |         15        0.00       38.35
+       .375 |         86        0.02       38.37
+         .4 |      3,172        0.71       39.08
+   .4166667 |         52        0.01       39.09
+   .4285714 |        422        0.09       39.19
+   .4444444 |         58        0.01       39.20
+   .4545455 |         11        0.00       39.20
+         .5 |    110,039       24.70       63.90
+   .5454546 |         11        0.00       63.90
+   .5555556 |         68        0.02       63.92
+   .5714286 |        430        0.10       64.01
+         .6 |      2,631        0.59       64.60
+       .625 |        172        0.04       64.64
+   .6363636 |         28        0.01       64.65
+   .6666667 |     30,820        6.92       71.57
+         .7 |         17        0.00       71.57
+   .7142857 |        341        0.08       71.65
+   .7272727 |         45        0.01       71.66
+        .75 |      7,014        1.57       73.23
+   .7777778 |         22        0.00       73.24
+         .8 |      1,497        0.34       73.57
+   .8181818 |          4        0.00       73.57
+   .8333333 |        429        0.10       73.67
+   .8571429 |        162        0.04       73.71
+       .875 |         11        0.00       73.71
+         .9 |          4        0.00       73.71
+          1 |    117,141       26.29      100.00
+------------+-----------------------------------
+      Total |    445,562      100.00
+
+. 
+. global control_variables "age gender log_income_hid num_children perc_girls y
+> ears_schooling" /* xxx */
+
+. 
+. * ============================================
+. * STEP 6: Prepare for Cross-Section
+. * ============================================
+. 
+. gen pre = (rel_year < 0)
+
+. gen post1 = (rel_year > 0)
+
+. egen ever_pre = max(pre), by(pid)
+
+. egen ever_post = max(post1), by(pid)
+
+. gen include_in_did = (ever_pre == 1 & ever_post == 1)
+
+. 
+. * For h1_index
+. gen relevant_post_h1 = rel_year if rel_year > 0 & !missing(h1_index)
+(441,172 missing values generated)
+
+. egen latest_post_h1 = max(relevant_post_h1), by(pid)
+(427,634 missing values generated)
+
+. gen relevant_for_cs_h1 = (latest_post_h1 == rel_year)
+
+. 
+. * For gender_sharing_norm
+. gen relevant_post_norm = rel_year if rel_year > 0 & !missing(gender_sharing_n
+> orm)
+(422,335 missing values generated)
+
+. egen latest_post_norm = max(relevant_post_norm), by(pid)
+(220,838 missing values generated)
+
+. gen relevant_for_cs_norm = (latest_post_norm == rel_year)
+
+. 
+. * ============================================
+. * STEP 7: Prepare for Difference-in-Differences Estimation
+. * ============================================
+. * A) DiD flags for h1_index
+. 
+. gen rel_pre_h1 = rel_year if rel_year < 0 & include_in_did == 1 & !missing(h1
+> _index)
+(445,431 missing values generated)
+
+. gen rel_post_h1 = rel_year if rel_year > 0 & include_in_did == 1 & !missing(h
+> 1_index)
+(445,560 missing values generated)
+
+. egen closest_pre_h1 = max(rel_pre_h1), by(pid)
+(444,974 missing values generated)
+
+. 
+. gen keep_pre_h1 = (rel_year == closest_pre_h1 & rel_year < 0 & include_in_did
+>  == 1)
+
+. gen keep_post_h1 = (rel_year == latest_post_h1 & rel_year > 0 & include_in_di
+> d == 1)
+
+. gen observations_for_dif_h1 = inlist(1, keep_pre_h1, keep_post_h1)
+
+. sum observations_for_dif_h1 if observations_for_dif_h1 == 1
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+observatio~1 |        133           1           0          1          1
+
+. scalar num_two_obs_A = r(N)
+
+. display "num_two_obs_A = " num_two_obs_A
+num_two_obs_A = 133
+
+. 
+. 
+. * B) DiD flags for gender_sharing_norm
+. 
+. gen rel_pre_norm = rel_year if rel_year < 0 & include_in_did == 1 & !missing(
+> gender_sharing_norm)
+(445,395 missing values generated)
+
+. gen rel_post_norm = rel_year if rel_year > 0 & include_in_did == 1 & !missing
+> (gender_sharing_norm)
+(444,184 missing values generated)
+
+. egen closest_pre_norm = max(rel_pre_norm), by(pid)
+(444,064 missing values generated)
+
+. 
+. gen keep_pre_norm = (rel_year == closest_pre_norm & rel_year < 0 & include_in
+> _did == 1)
+
+. gen keep_post_norm = (rel_year == latest_post_norm & rel_year > 0 & include_i
+> n_did == 1)
+
+. gen observations_for_dif_norm = inlist(1, keep_pre_norm, keep_post_norm)
+
+. sum observations_for_dif_norm if observations_for_dif_norm == 1
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+observatio~m |      1,542           1           0          1          1
+
+. scalar num_two_obs_B = r(N)
+
+. display "num_two_obs_B = " num_two_obs_B
+num_two_obs_B = 1542
+
+. 
+. 
+. * ============================================
+. * STEP 8: Interaction term
+. * ============================================
+. gen interaction = post * first_child_female
+
+. 
+. * ============================================
+. * STEP 9: Analysis - First Measure (h1_index)
+. * ============================================
+. 
+. gen check_did = 0
+
+. gen check_cs  = 0
+
+. 
+. if num_two_obs_A >= 550 {
+.     display "Attempting fixed effects DiD for h1_index"
+.     rename interaction treatment
+.     xtset pid syear
+.     xtreg h1_index post treatment ///
+>         age years_schooling log_income_hid ///
+>         if observations_for_dif_h1 == 1, fe cluster(pid)
+.     replace check_did = (e(N) >= 550)
+.     rename treatment interaction
+. }
+
+. 
+. if check_did == 0 {
+.     display "Fallback: Running cross-sectional regression for h1_index"
+Fallback: Running cross-sectional regression for h1_index
+.     rename first_child_female treatment
+.     reg h1_index treatment ///
+>         gender age years_schooling num_children perc_girls log_income_hid ///
+>         if relevant_for_cs_h1 == 1
+
+      Source |       SS           df       MS      Number of obs   =     3,874
+-------------+----------------------------------   F(7, 3866)      =      7.47
+       Model |  46.9512118         7  6.70731597   Prob > F        =    0.0000
+    Residual |  3471.36701     3,866  .897922144   R-squared       =    0.0133
+-------------+----------------------------------   Adj R-squared   =    0.0116
+       Total |  3518.31822     3,873  .908421952   Root MSE        =    .94759
+
+------------------------------------------------------------------------------
+    h1_index | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+   treatment |   .0563239   .0389771     1.45   0.149    -.0200938    .1327416
+      gender |    .098577   .0311438     3.17   0.002     .0375172    .1596368
+         age |   .0070077   .0017156     4.08   0.000     .0036442    .0103713
+years_scho~g |  -.0023078   .0083937    -0.27   0.783    -.0187642    .0141486
+num_children |   .0273177   .0106995     2.55   0.011     .0063404    .0482949
+  perc_girls |  -.0129969   .0638183    -0.20   0.839    -.1381176    .1121238
+log_income~d |  -.1458251     .03437    -4.24   0.000    -.2132101   -.0784401
+       _cons |   5.988051   .2513444    23.82   0.000     5.495271    6.480831
+------------------------------------------------------------------------------
+.     replace check_cs = (e(N) >= 550)
+(445,562 real changes made)
+.     rename treatment first_child_female
+. }
+
+. 
+. * ============================================
+. * STEP 10: Results Extraction - First Measure
+. * ============================================
+. 
+. local coefficient_a       = _b[treatment]
+
+. local se_a                = _se[treatment]
+
+. local test_stat_family_a  = "t"
+
+. local df_residual_a       = e(df_r)
+
+. local df_model_a          = e(df_m)
+
+. local t_stat_a            = `coefficient_a' / `se_a'
+
+. local p_value_a           = 2 * ttail(`df_residual_a', abs(`t_stat_a'))
+
+. local num_obs_a           = e(N)
+
+. quietly levelsof pid if e(sample), local(participants_a)
+
+. local num_participants_a  : word count `participants_a'
+
+. 
+. 
+. local interpretation1_a "positive coefficient is in line with hypothesis"
+
+. 
+. 
+. summarize check_cs
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+    check_cs |    445,562           1           0          1          1
+
+. scalar sum_check_cs = r(sum)
+
+. 
+. summarize check_did
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+   check_did |    445,562           0           0          0          0
+
+. scalar sum_check_did = r(sum)
+
+. 
+. scalar a = sum_check_cs + sum_check_did
+
+. 
+. if sum_check_did >= 1 {
+.     local modeltype_a "Model: DiD Estimation"
+. }
+
+. else if sum_check_cs >= 1 {
+.     local modeltype_a "Model: Cross-Sectional Estimation"
+. }
+
+. else {
+.     local modeltype_a "Model: Not estimated"
+. }
+
+. 
+. if a >= 1 {
+.     local interpretation2_a "We have enough observations. Results for the fir
+> st measure (h1_index) are reported below:"
+. }
+
+. else {
+.     local interpretation2_a "We do not have enough observations. Results for 
+> the first measure (h1_index) are not reported."
+. }
+
+. 
+. di "--------------------------------------------------------"
+--------------------------------------------------------
+
+. di "`modeltype_a'"
+Model: Cross-Sectional Estimation
+
+. di "`interpretation2_a'"
+We have enough observations. Results for the first measure (h1_index) are repor
+> ted below:
+
+. di "Coefficient:             `coefficient_a'"
+Coefficient:             .0563238862159635
+
+. di "Standard Error:          `se_a'"
+Standard Error:          .0389771312406063
+
+. di "Test Statistic Family:   `test_stat_family_a'"
+Test Statistic Family:   t
+
+. di "Residual DF:             `df_residual_a'"
+Residual DF:             3866
+
+. di "Model DF:                `df_model_a'"
+Model DF:                7
+
+. di "p-value:                 `p_value_a'"
+p-value:                 .1485250133068051
+
+. di "Number of observations:  `num_obs_a'"
+Number of observations:  3874
+
+. di "Number of participants:  `num_participants_a'"
+Number of participants:  3874
+
+. di "Interpretation:          `interpretation1_a'"
+Interpretation:          positive coefficient is in line with hypothesis
+
+. di "--------------------------------------------------------"
+--------------------------------------------------------
+
+. 
+. * ============================================
+. * STEP 11: Analysis - Second Measure (gender_sharing_norm)
+. * ============================================
+. 
+. gen check_did_b = 0
+
+. gen check_cs_b  = 0
+
+. 
+. if num_two_obs_B >= 550 {
+.     display "Attempting fixed effects DiD for gender_sharing_norm"
+Attempting fixed effects DiD for gender_sharing_norm
+.     rename interaction treatment
+.     xtset pid syear
+
+Panel variable: pid (unbalanced)
+ Time variable: syear, 2000 to 2020, but with gaps
+         Delta: 1 unit
+.     xtreg gender_sharing_norm post treatment ///
+>         age years_schooling log_income_hid ///
+>         if observations_for_dif_norm == 1, fe cluster(pid)
+note: age omitted because of collinearity.
+
+Fixed-effects (within) regression               Number of obs     =      1,412
+Group variable: pid                             Number of groups  =      1,398
+
+R-squared:                                      Obs per group:
+     Within  = 0.0565                                         min =          1
+     Between = 0.0008                                         avg =        1.0
+     Overall = 0.0010                                         max =          2
+
+                                                F(4, 1397)        =       0.75
+corr(u_i, Xb) = -0.1957                         Prob > F          =     0.5596
+
+                                (Std. err. adjusted for 1,398 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+gender_sha~m | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+        post |   .1751388   .1115311     1.57   0.117    -.0436477    .3939252
+   treatment |  -.1284581   .2048332    -0.63   0.531     -.530272    .2733558
+         age |          0  (omitted)
+years_scho~g |   .0000879   .0471013     0.00   0.999    -.0923089    .0924847
+log_income~d |  -.0391507   .2307759    -0.17   0.865    -.4918553    .4135539
+       _cons |   .8926021   1.454066     0.61   0.539    -1.959786    3.744991
+-------------+----------------------------------------------------------------
+     sigma_u |   .3103024
+     sigma_e |  .33765066
+         rho |   .4578679   (fraction of variance due to u_i)
+------------------------------------------------------------------------------
+.     replace check_did_b = (e(N) >= 550)
+(445,562 real changes made)
+.     rename treatment interaction
+. }
+
+. 
+. if check_did_b == 0 {
+.     display "Fallback: Running cross-sectional regression for gender_sharing_
+> norm"
+.     rename first_child_female treatment
+.     reg gender_sharing_norm treatment ///
+>         gender age years_schooling num_children perc_girls log_income_hid ///
+>         if relevant_for_cs_norm == 1
+.     replace check_cs_b = (e(N) >= 550)
+.     rename treatment first_child_female
+. }
+
+. 
+. * ============================================
+. * STEP 12: Results Extraction - Second Measure
+. * ============================================
+. 
+. local coefficient_b       = _b[treatment]
+
+. local se_b                = _se[treatment]
+
+. local test_stat_family_b  = "t"
+
+. local df_residual_b       = e(df_r)
+
+. local df_model_b          = e(df_m)
+
+. local t_stat_b            = `coefficient_b' / `se_b'
+
+. local p_value_b           = 2 * ttail(`df_residual_b', abs(`t_stat_b'))
+
+. local num_obs_b           = e(N)
+
+. quietly levelsof pid if e(sample), local(participants_b)
+
+. local num_participants_b  : word count `participants_b'
+
+. 
+. local interpretation1_b "positive coefficient is in line with hypothesis"
+
+. 
+. 
+. summarize check_cs_b
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+  check_cs_b |    445,562           0           0          0          0
+
+. scalar sum_check_cs_b = r(sum)
+
+. 
+. summarize check_did_b
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+ check_did_b |    445,562           1           0          1          1
+
+. scalar sum_check_did_b = r(sum)
+
+. 
+. scalar b = sum_check_cs_b + sum_check_did_b
+
+. 
+. if sum_check_did_b >= 1 {
+.     local modeltype_b "Model: DiD Estimation"
+. }
+
+. else if sum_check_cs_b >= 1 {
+.     local modeltype_b "Model: Cross-Sectional Estimation"
+. }
+
+. else {
+.     local modeltype_b "Model: Not estimated"
+. }
+
+. 
+. if b >= 1 {
+.     local interpretation2_b "We have enough observations. Results for the sec
+> ond measure (gender_sharing_norm) are reported below:"
+. }
+
+. else {
+.     local interpretation2_b "We do not have enough observations. Results for 
+> the second measure (gender_sharing_norm) are not reported."
+. }
+
+. 
+. di "--------------------------------------------------------"
+--------------------------------------------------------
+
+. di "`modeltype_b1'"
+
+
+. di "`interpretation2_b'"
+We have enough observations. Results for the second measure (gender_sharing_nor
+> m) are reported below:
+
+. di "Coefficient:             `coefficient_b'"
+Coefficient:             -.1284581186176124
+
+. di "Standard Error:          `se_b'"
+Standard Error:          .2048332459863625
+
+. di "Test Statistic Family:   `test_stat_family_b'"
+Test Statistic Family:   t
+
+. di "Residual DF:             `df_residual_b'"
+Residual DF:             1397
+
+. di "Model DF:                `df_model_b'"
+Model DF:                3
+
+. di "p-value:                 `p_value_b'"
+p-value:                 .530673157449281
+
+. di "Number of observations:  `num_obs_b'"
+Number of observations:  1412
+
+. di "Number of participants:  `num_participants_b'"
+Number of participants:  1398
+
+. di "Interpretation:          `interpretation1_b'"
+Interpretation:          positive coefficient is in line with hypothesis
+
+. di "--------------------------------------------------------"
+--------------------------------------------------------
+
+. 
+. 
+. * ============================================
+. * STEP 13a: take only one of the two measures
+. * ============================================
+. 
+. if a >= 1{
+. local modeltype         = "`modeltype_a'"
+. local coefficient       = "`coefficient_a'"    
+. local se                = "`se_a'"              
+. local test_stat_family  = "`test_stat_family_a'"
+. local df_residual       = "`df_residual_a'"     
+. local df_model          = "`df_model_a'"        
+. local t_stat            = "`t_stat_a'"          
+. local p_value           = "`p_value_a'"         
+. local num_obs           = "`num_obs_a'"         
+. local num_participants  = "`num_participants_a'"
+. local interpretation1   = "`interpretation1_a'"
+. }
+
+. else {
+. local modeltype         = "`modeltype_b'"
+. local coefficient       = "`coefficient_b'"     
+. local se                = "`se_b'"              
+. local test_stat_family  = "`test_stat_family_b'"
+. local df_residual       = "`df_residual_b'"     
+. local df_model          = "`df_model_b'"        
+. local t_stat            = "`t_stat_b'"         
+. local p_value           = "`p_value_b'"         
+. local num_obs           = "`num_obs_b'"         
+. local num_participants  = "`num_participants_b'"
+. local interpretation1   = "`interpretation1_b'" 
+. }
+
+. 
+. * ============================================
+. * STEP 13b: Export Results to CSV
+. * ============================================
+. 
+. file open myfile using "$OUT/h1_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/95_re
+    > sults/h1_results.csv not found)
+
+. *file write myfile "First output measure (h1_index)" _n
+. *file write myfile "`interpretation2_a'" _n
+. file write myfile "coefficient,se,family,residual_df,model_df,p_value,num_obs
+> ,num_participants,interpretation" _n
+
+. file write myfile "`coefficient', `se', `test_stat_family', `df_residual', `d
+> f_model',`p_value',`num_obs',`num_participants',`interpretation1'" _n
+
+. *file write myfile "Second output measure (gender_sharing_norm)" _n
+. *file write myfile "`interpretation2_b'" _n
+. *file write myfile "coefficient,se,family,residual_df,model_df,p_value,num_ob
+> s,num_participants,interpretation" _n
+. *file write myfile "`coefficient_b', `se_b', `test_stat_family_b', `df_residu
+> al_b', `df_model_b',`p_value_b',`num_obs_b',`num_participants_b',`interpretat
+> ion1_b'" _n
+. file close myfile
+
+. 
+end of do-file
+
+. 
+end of do-file

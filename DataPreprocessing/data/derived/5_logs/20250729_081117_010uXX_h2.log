@@ -1,0 +1,520 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmpnathj__5.do 
+
+. do "5%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. 
+. * the following code automatically sets paths based on the project location o
+> n your system *local curdir = c(pwd)
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/5%-sample" // folder, in which the ori
+> ginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/5%-sample
+
+. global DATA "$ROOT/data/derived_confidential/5%-sample" // folder for dataset
+> s
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/5%-sample
+
+. global OUT "$ROOT/data/derived/5_results" // folder for output (results, tabl
+> es)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/5_results
+
+. 
+end of do-file
+
+. do "20250729_081117_010uXX_h2.do"
+
+. *****************************************************************************
+> ***
+. ****************** Example Do-File H2: #ManyDaughters Project ***************
+> ***
+. *****************************************************************************
+> ***
+. 
+. * Authors: Tina Wang, David Albrecht
+. 
+. * ============================
+. * Setup * (Please adapt according to your needs)
+. * ============================
+. 
+. *clear all
+. version 17 // indicate the version of stata you are using here
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. /*
+> * INSTALL PACKAGES * (Please adapt according to your needs)
+> * install all packages you need here, for example:
+> ssc install outreg2
+> 
+> * CONFIGURE FILE PATHS * (Please do not change)
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> *Add my cd as it does not pick it up
+> *global ROOT "/Users/andreuarenasjal/Dropbox/many_daughters/#ManyDaughters_RT
+> _AnalysisPackage/"
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> */
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA * (Please adapt according to your needs)
+. 
+.         use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. 
+.         * Merge ppathl with all datasets, that you deem relevant for your ana
+> lysis. (Tip: use keepusing() to specify which variables to keep from the usin
+> g dataset; the default is all.)
+. 
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches)
+(variable pid was long, now double to accommodate using data's values)
+(variable cid was long, now double to accommodate using data's values)
+(variable gebjahr was int, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * pgen contains user-friendly data on the individual level that are c
+> onsolidated from different sources
+.         merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * pl contains all variables from the individual questionnaire
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches)
+(variable inputdataset was str6, now str9 to accommodate using data's values)
+(label cid already defined)
+(label pid_EN already defined)
+(label cid_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * hgen contains generated variables on household level from the house
+> hold interview; use for household net income
+.         merge m:1 hid syear using "$IN/hgen.dta", nogen keep(master matches) 
+> keepusing(hid syear hghinc)
+(label iyear already defined)
+(label iyear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+. 
+.         label language EN // change language of the labels to English
+
+. 
+.         save "$DATA/h2_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/5%-sample/h2_dataset.dta saved
+
+. 
+. 
+. * ============================
+. * Analysis
+. * ============================
+. 
+. * FILTERS * (Please adapt according to your needs)
+.  
+.         * Example: only keep participants from private households
+.         keep if inlist(pop,1,2)
+(4,698 observations deleted)
+
+. 
+. 
+. * GENERATE VARIABLES * (Please adapt according to your needs)
+. 
+.         * Gnerate dummy variable for whether participant has at least one dau
+> ghter (1) or not (0)
+. 
+.         gen d_daughter_aux=kidsex01==2
+
+.         *make sure it appears also before birth
+.         egen d_daughter=max(d_daughter_aux), by(pid)
+
+.         
+.                 *drop missing values
+.         foreach var in plh0395i01 plh0395i02 plh0395i03 plh0395i04 plh0395i05
+>  plh0395i06 plh0004{
+  2.                 gen clean_`var'=`var' if `var'>0
+  3.         }
+(29,279 missing values generated)
+(29,270 missing values generated)
+(29,283 missing values generated)
+(29,306 missing values generated)
+(29,269 missing values generated)
+(29,256 missing values generated)
+(26,079 missing values generated)
+
+.         
+.         *pca of gender attitudes
+.         pca clean_plh*
+
+Principal components/correlation                 Number of obs    =      1,113
+                                                 Number of comp.  =          7
+                                                 Trace            =          7
+    Rotation: (unrotated = principal)            Rho              =     1.0000
+
+    --------------------------------------------------------------------------
+       Component |   Eigenvalue   Difference         Proportion   Cumulative
+    -------------+------------------------------------------------------------
+           Comp1 |      3.31656      2.38353             0.4738       0.4738
+           Comp2 |      .933031     .0538413             0.1333       0.6071
+           Comp3 |       .87919      .227709             0.1256       0.7327
+           Comp4 |      .651481      .160772             0.0931       0.8258
+           Comp5 |      .490708     .0299004             0.0701       0.8959
+           Comp6 |      .460808      .192583             0.0658       0.9617
+           Comp7 |      .268225            .             0.0383       1.0000
+    --------------------------------------------------------------------------
+
+Principal components (eigenvectors) 
+
+    --------------------------------------------------------------------------
+        Variable |    Comp1     Comp2     Comp3     Comp4     Comp5     Comp6 
+    -------------+------------------------------------------------------------
+    clean_plh~01 |   0.4512   -0.0630    0.1284   -0.1111   -0.4353    0.5176 
+    clean_plh~02 |   0.4638   -0.1305    0.2818   -0.0741   -0.1955    0.1686 
+    clean_plh~03 |   0.4130    0.0049    0.3103   -0.3364   -0.0053   -0.7543 
+    clean_pl~i04 |   0.2287    0.7863   -0.4253   -0.3573    0.0480    0.0818 
+    clean_plh~05 |   0.3595    0.2155   -0.1838    0.8359   -0.1815   -0.2414 
+    clean_plh~06 |   0.4230   -0.1117    0.0447    0.1053    0.8547    0.2295 
+    clean_p~0004 |  -0.2242    0.5493    0.7689    0.1776    0.0800    0.1303 
+    --------------------------------------------------------------------------
+
+    --------------------------------------
+        Variable |    Comp7 | Unexplained 
+    -------------+----------+-------------
+    clean_plh~01 |   0.5533 |           0 
+    clean_plh~02 |  -0.7850 |           0 
+    clean_plh~03 |   0.2257 |           0 
+    clean_pl~i04 |  -0.1088 |           0 
+    clean_plh~05 |   0.0250 |           0 
+    clean_plh~06 |   0.1110 |           0 
+    clean_p~0004 |   0.0435 |           0 
+    --------------------------------------
+
+.         predict pc1
+(score assumed)
+(6 components skipped)
+
+Scoring coefficients 
+    sum of squares(column-loading) = 1
+
+    --------------------------------------------------------------------------
+        Variable |    Comp1     Comp2     Comp3     Comp4     Comp5     Comp6 
+    -------------+------------------------------------------------------------
+    clean_plh~01 |   0.4512   -0.0630    0.1284   -0.1111   -0.4353    0.5176 
+    clean_plh~02 |   0.4638   -0.1305    0.2818   -0.0741   -0.1955    0.1686 
+    clean_plh~03 |   0.4130    0.0049    0.3103   -0.3364   -0.0053   -0.7543 
+    clean_pl~i04 |   0.2287    0.7863   -0.4253   -0.3573    0.0480    0.0818 
+    clean_plh~05 |   0.3595    0.2155   -0.1838    0.8359   -0.1815   -0.2414 
+    clean_plh~06 |   0.4230   -0.1117    0.0447    0.1053    0.8547    0.2295 
+    clean_p~0004 |  -0.2242    0.5493    0.7689    0.1776    0.0800    0.1303 
+    --------------------------------------------------------------------------
+
+    ------------------------
+        Variable |    Comp7 
+    -------------+----------
+    clean_plh~01 |   0.5533 
+    clean_plh~02 |  -0.7850 
+    clean_plh~03 |   0.2257 
+    clean_pl~i04 |  -0.1088 
+    clean_plh~05 |   0.0250 
+    clean_plh~06 |   0.1110 
+    clean_p~0004 |   0.0435 
+    ------------------------
+
+.         
+.         
+.         *drop more missing values
+.                 foreach var in kidmon01 kidgeb01 syear pmonin{
+  2.                 gen clean_`var'=`var' if `var'>0
+  3.         }
+(17,214 missing values generated)
+(9,033 missing values generated)
+(3,854 missing values generated)
+
+. 
+.         
+.         gen male=sex==1
+
+. // Construct month counts since year 0
+. 
+. gen birth_month_num  = clean_kidgeb01 * 12 + clean_kidmon01
+(17,214 missing values generated)
+
+. 
+. 
+. egen maxbirth_month_num=max(birth_month_num), by(pid)
+(17,214 missing values generated)
+
+. 
+. 
+. gen survey_month_num = clean_syear * 12 + clean_pmonin
+(3,854 missing values generated)
+
+. 
+. // Compute distance in months (event time)
+. gen distance_in_months = survey_month_num - maxbirth_month_num
+(17,881 missing values generated)
+
+. gen post=distance_in_months>=0 & distance_in_months!=.
+
+. gen distance_in_years = clean_syear-clean_kidgeb01
+(9,033 missing values generated)
+
+. 
+. *adjust naming so that d_daughter is treatment
+. gen d_daughter_pre=d_daughter
+
+. replace d_daughter=d_daughter*post
+(4,714 real changes made)
+
+. 
+. *outcome varible
+. gen left=10-clean_plh0004
+(26,079 missing values generated)
+
+. 
+. 
+. * HYPOTHESIS TEST FOR H2 * (Please adapt according to your needs)
+. 
+.         * Please add a verbal description of your model here
+.         
+.         * I wanted to estimate a panel model with individual FE
+.         * For H1 I could not run the PAP model because there are very few obs
+> ervations and the model involve lots of FE. 
+.         * But here it works. (distance in years FE, no distance_in_months FE,
+>  but linear control)
+.  
+.  
+. reghdfe left   d_daughter  , absorb(pid distance_in_months) vce(cluster pid)
+(dropped 636 singleton observations)
+(MWFE estimator converged in 60 iterations)
+
+HDFE Linear regression                            Number of obs   =      1,423
+Absorbing 2 HDFE groups                           F(   1,    563) =       5.13
+Statistics robust to heteroskedasticity           Prob > F        =     0.0238
+                                                  R-squared       =     0.8633
+                                                  Adj R-squared   =     0.5890
+                                                  Within R-sq.    =     0.0080
+Number of clusters (pid)     =        564         Root MSE        =     0.9823
+
+                                  (Std. err. adjusted for 564 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+        left | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  d_daughter |  -1.353215   .5972168    -2.27   0.024     -2.52626   -.1801694
+       _cons |   5.668946   .2232743    25.39   0.000     5.230394    6.107498
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+------------------------------------------------------------+
+        Absorbed FE | Categories  - Redundant  = Num. Coefs |
+--------------------+---------------------------------------|
+                pid |       564         564           0    *|
+ distance_in_months |       386           1         385     |
+------------------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+
+. 
+. 
+. * EXTRACT AND EXPORT RESULTS * (Please check whether the suggested code autom
+> atically picks up the correct statistics for your chosen regression analysis 
+> and adapt if needed)
+. 
+.         * Extract the required statistics
+. 
+.                 * (i) coefficient estimate
+.                 local coefficient = _b[d_daughter]
+
+. 
+.                 * (ii) standard error
+.                 local se = _se[d_daughter]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "t"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 local p_value = _b[d_daughter] / _se[d_daughter]
+
+.                 local p_value = 2 * ttail(e(df_r), abs(`p_value'))
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation of directionality
+. 
+.                 local interpretation "positive coefficient is in line with hy
+> pothesis"
+
+. 
+. 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: -1.353214703140252
+
+.         di "Standard Error: `se'"
+Standard Error: .597216835403282
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: t
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: 563
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 1
+
+.         di "p-value: " `p_value'
+p-value: .02383832
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 1423
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 564
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h2_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/5_res
+    > ults/h2_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

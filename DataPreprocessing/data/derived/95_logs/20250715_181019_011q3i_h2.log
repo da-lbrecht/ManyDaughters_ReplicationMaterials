@@ -1,0 +1,1197 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmp68_6augp.do 
+
+. do "95%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. * the following code automatically sets paths based on the project location o
+> n your system *
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/95%-sample" // folder, in which the or
+> iginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/95%-sample
+
+. global DATA "$ROOT/data/derived_confidential/95%-sample" // folder for datase
+> ts
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/95%-sample
+
+. global OUT "$ROOT/data/derived/95_results" // folder for output (results, tab
+> les)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/95_results
+
+. 
+end of do-file
+
+. do "20250715_181019_011q3i_h2.do"
+
+. *****************************************************************************
+> ***
+. ****************** Example Do-File H2: #ManyDaughters Project ***************
+> ***
+. *****************************************************************************
+> ***
+. 
+. * Authors: Isabel M. [REDACTED] & [REDACTED]
+. 
+. * ============================
+. * Setup * (Please adapt according to your needs)
+. * ============================
+. 
+. * clear all
+. version 16 // indicate the version of stata you are using here
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. * INSTALL PACKAGES * (Please adapt according to your needs)
+. * install all packages you need here, for example:
+. *ssc install outreg2
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. /*
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT\data\raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT\data\derived" // folder for datasets
+> global OUT "$ROOT\out" // folder for output (results, tables)
+> */
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA * (Please adapt according to your needs)
+. 
+.         use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+.         keep pid syear sex partner sexor sampreg
+
+. 
+.         * Merge ppathl with all datasets, that you deem relevant for your ana
+> lysis. (Tip: use keepusing() to specify which variables to keep from the usin
+> g dataset; the default is all.)
+.         * pl contains all variables from the individual questionnaire
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches) ke
+> epusing(plh0004)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches) ke
+> epusing(kidsex* gebjahr)
+(variable pid was long, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+(label pid_EN already defined)
+(label cid_EN already defined)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * pgen contains user-friendly data on the individual level that are c
+> onsolidated from different sources
+.         merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches) 
+> keepusing(pgisei08)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * bioparen
+.         merge m:1 pid using "$IN/bioparen.dta", nogen keep(master matches) ke
+> epusing(freli mreli fisei08 misei08)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * biol
+.         merge 1:1 pid syear using "$IN/biol.dta", nogen keep(master matches) 
+> keepusing(lr3193 lb0285 lb0287_h lb0290_h lb0293_h lb0296_h lb0299_h lb0302_h
+>  lb0305_h lb0308_h)
+(label p_buh11_EN already defined)
+(label p_buh10_EN already defined)
+(label p_buh9_EN already defined)
+(label p_buh8_EN already defined)
+(label p_buh7_EN already defined)
+(label p_buh6_EN already defined)
+(label p_buh5_EN already defined)
+(label p_buh4_EN already defined)
+(label p_buh3_EN already defined)
+(label p_buh2_EN already defined)
+(label p_buh1_EN already defined)
+(label intid_EN already defined)
+(label iyear_EN already defined)
+(label instrument_EN already defined)
+(label p_anker_EN already defined)
+(label syear_EN already defined)
+(label pnr_EN already defined)
+(label cid_EN already defined)
+(label hid_EN already defined)
+(label pid_EN already defined)
+(label p_buh11 already defined)
+(label p_buh10 already defined)
+(label p_buh9 already defined)
+(label p_buh8 already defined)
+(label p_buh7 already defined)
+(label p_buh6 already defined)
+(label p_buh5 already defined)
+(label p_buh4 already defined)
+(label p_buh3 already defined)
+(label p_buh2 already defined)
+(label p_buh1 already defined)
+(label intid already defined)
+(label iyear already defined)
+(label instrument already defined)
+(label p_anker already defined)
+(label pnr already defined)
+(label cid already defined)
+(label hid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. 
+.         
+.         label language EN // change language of the labels to English
+
+. 
+.         save "$DATA/h2_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h2_dataset.dta saved
+
+. 
+. 
+. * ============================
+. * Analysis
+. * ============================
+. * n (person)=4,508; n(person-years)=35,228
+.         sort pid syear
+
+.         egen person_max=tag(pid)        
+
+.         sum person_max if person_max==1
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+  person_max |     85,849           1           0          1          1
+
+.         
+. * GENERATE VARIABLES * (Please adapt according to your needs)
+. 
+.         *--------------------------------------------------------------------
+> ----------*
+.         * 1.1 CONSTRUCT DEPENDENT VARIABLES
+.         *--------------------------------------------------------------------
+> ----------*
+. 
+.         * H2: Political Attitude (reverse so higher = more left)
+.         recode plh0004 (-8 -5 -1 =.)
+(428,081 changes made to plh0004)
+
+.         gen PoliticalAttitude = 10 - plh0004
+(576,714 missing values generated)
+
+. 
+.         *--------------------------------------------------------------------
+> ----------*
+.         * 1.2 CONSTRUCT INDEPENDENT VARIABLE: DaughterHH
+.         *--------------------------------------------------------------------
+> ----------*
+.         gen n_sons = 0
+
+.         gen n_daughters = 0
+
+. 
+.         forvalues i = 1/19 {
+  2.                 local varname = "kidsex" + string(`i', "%02.0f")
+  3.                 replace `varname' = . if `varname' == -1
+  4.                 quietly replace n_sons = n_sons + 1 if `varname' == 1
+  5.                 quietly replace n_daughters = n_daughters + 1 if `varname'
+>  == 2
+  6.         }
+(777 real changes made, 777 to missing)
+(470 real changes made, 470 to missing)
+(290 real changes made, 290 to missing)
+(191 real changes made, 191 to missing)
+(117 real changes made, 117 to missing)
+(52 real changes made, 52 to missing)
+(42 real changes made, 42 to missing)
+(13 real changes made, 13 to missing)
+(7 real changes made, 7 to missing)
+(4 real changes made, 4 to missing)
+(3 real changes made, 3 to missing)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. 
+.         gen n_children = n_sons + n_daughters
+
+. 
+.         gen DaughterHH = .
+(663,123 missing values generated)
+
+.         replace DaughterHH = 0 if n_children == 0
+(216,541 real changes made)
+
+.         replace DaughterHH = 1 if n_sons > n_daughters | (n_sons > 0 & n_daug
+> hters == 0)
+(175,178 real changes made)
+
+.         replace DaughterHH = 2 if n_sons == n_daughters & n_children > 0
+(110,246 real changes made)
+
+.         replace DaughterHH = 3 if n_daughters > n_sons | (n_daughters > 0 & n
+> _sons == 0)
+(161,158 real changes made)
+
+. 
+.         label define daughter_lbl 0 "No children" 1 "More sons" 2 "Equal shar
+> e" 3 "More daughters"
+
+.         label values DaughterHH daughter_lbl
+
+. 
+.         *--------------------------------------------------------------------
+> ----------*
+.         * 1.3 CONSTRUCT CONTROL VARIABLES
+.         *--------------------------------------------------------------------
+> ----------*
+. 
+.         * Gender
+.         recode sex (1=0) (2=1), gen(Woman)
+(663,110 differences between sex and Woman)
+
+.         
+.         * Number of children == n_children
+.         
+.         * Child in same household
+.         recode lr3193 (-8 -5 -2 = .) (1 = 1 "In HH") (2 3 4 5 6 = 0 "Elsewher
+> e"), gen(ChildInHH)
+(92,496 differences between lr3193 and ChildInHH)
+
+. 
+.         * Age groups of children
+.         recode lb0287_h lb0290_h lb0293_h lb0296_h lb0299_h lb0302_h lb0305_h
+>  lb0308_h (-5 -3 -2 -1 = .) 
+(55,576 changes made to lb0287_h)
+(67,284 changes made to lb0290_h)
+(83,761 changes made to lb0293_h)
+(91,764 changes made to lb0296_h)
+(94,642 changes made to lb0299_h)
+(95,741 changes made to lb0302_h)
+(96,153 changes made to lb0305_h)
+(96,397 changes made to lb0308_h)
+
+. 
+.         * Define value label for age groups
+.         label define agegroup_lbl ///
+>                 0 "Infant (0–<1)" ///
+>                 1 "Toddler (1–<4)" ///
+>                 2 "Preschooler (4–<6)" ///
+>                 3 "School age (6–<13)" ///
+>                 4 "Teenager (13–17)" ///
+>                 5 "Adult (18+)", replace
+
+. 
+.         * Loop through 8 child birthyear variables
+.         forvalues i = 1/8 {
+  2.                 * Get the correct variable name (e.g. lb0287_h, lb0290_h, 
+> ...)
+.                 local varnum = 287 + 3 * (`i' - 1)
+  3.                 local byear = "lb0" + string(`varnum') + "_h"
+  4. 
+.                 * Generate age and category only if birth year is not missing
+.                 gen age_child`i' = syear - `byear' if `byear' != .
+  5. 
+.                 gen childagegroup`i' = .
+  6.                 replace childagegroup`i' = 0 if age_child`i' < 1 & age_chi
+> ld`i'!=. // Infant
+  7.                 replace childagegroup`i' = 1 if age_child`i' >= 1 & age_ch
+> ild`i' < 4 // Toddler
+  8.                 replace childagegroup`i' = 2 if age_child`i' >= 4 & age_ch
+> ild`i' < 6 // Preschooler
+  9.                 replace childagegroup`i' = 3 if age_child`i' >= 6 & age_ch
+> ild`i' < 13 // School age
+ 10.                 replace childagegroup`i' = 4 if age_child`i' >= 13 & age_c
+> hild`i' <= 17  // Teenager
+ 11.                 replace childagegroup`i' = 5 if age_child`i' >= 18 & age_c
+> hild`i'!=. // Adult
+ 12.                 
+.                 * Apply value label
+.                 label values childagegroup`i' agegroup_lbl
+ 13.         }
+(622,086 missing values generated)
+(663,123 missing values generated)
+(899 real changes made)
+(4,133 real changes made)
+(2,436 real changes made)
+(8,383 real changes made)
+(5,692 real changes made)
+(19,494 real changes made)
+(633,794 missing values generated)
+(663,123 missing values generated)
+(806 real changes made)
+(3,665 real changes made)
+(1,716 real changes made)
+(6,545 real changes made)
+(3,875 real changes made)
+(12,722 real changes made)
+(650,271 missing values generated)
+(663,123 missing values generated)
+(371 real changes made)
+(1,883 real changes made)
+(1,045 real changes made)
+(3,311 real changes made)
+(1,658 real changes made)
+(4,584 real changes made)
+(658,274 missing values generated)
+(663,123 missing values generated)
+(178 real changes made)
+(790 real changes made)
+(395 real changes made)
+(1,331 real changes made)
+(559 real changes made)
+(1,596 real changes made)
+(661,152 missing values generated)
+(663,123 missing values generated)
+(77 real changes made)
+(362 real changes made)
+(168 real changes made)
+(511 real changes made)
+(228 real changes made)
+(625 real changes made)
+(662,251 missing values generated)
+(663,123 missing values generated)
+(44 real changes made)
+(123 real changes made)
+(75 real changes made)
+(222 real changes made)
+(131 real changes made)
+(277 real changes made)
+(662,663 missing values generated)
+(663,123 missing values generated)
+(21 real changes made)
+(63 real changes made)
+(19 real changes made)
+(133 real changes made)
+(70 real changes made)
+(154 real changes made)
+(662,907 missing values generated)
+(663,123 missing values generated)
+(5 real changes made)
+(17 real changes made)
+(24 real changes made)
+(54 real changes made)
+(42 real changes made)
+(74 real changes made)
+
+. 
+. 
+.         * SES (use maximum of father's or mother's ISEI if respondent's is mi
+> ssing)
+.         recode pgisei08 (-8 -2 -1 =.)
+(378,106 changes made to pgisei08)
+
+.         gen SES = pgisei08
+(521,416 missing values generated)
+
+. 
+.         * Partnership status
+.         recode partner (-2=.) (0=0) (1 2 3 4 5=1), gen(Partner)
+(60,718 differences between partner and Partner)
+
+. 
+.         * Sexual orientation
+.         gen SexualOrientation = .
+(663,123 missing values generated)
+
+.         replace SexualOrientation = 0 if sexor == 0  // Probably heterosexual
+(536,239 real changes made)
+
+.         replace SexualOrientation = 1 if sexor==1  // Probably bi/homosexual
+(9,518 real changes made)
+
+. 
+.         * Religion // Proxy Parents
+.         * Father's religion
+.         gen Religion_Father = .
+(663,123 missing values generated)
+
+.         replace Religion_Father = 1 if inlist(freli, 1, 2, 3, 7)    // Christ
+> ian
+(297,975 real changes made)
+
+.         replace Religion_Father = 2 if freli == 4                   // Muslim
+(14,257 real changes made)
+
+.         replace Religion_Father = 3 if freli == 5                   // Other
+(11,693 real changes made)
+
+.         replace Religion_Father = 4 if inlist(freli, 6, -2)         // Non-re
+> ligious
+(195,858 real changes made)
+
+. 
+.         * Mother's religion
+.         gen Religion_Mother = .
+(663,123 missing values generated)
+
+.         replace Religion_Mother = 1 if inlist(mreli, 1, 2, 3, 7)    // Christ
+> ian
+(321,043 real changes made)
+
+.         replace Religion_Mother = 2 if mreli == 4                   // Muslim
+(14,545 real changes made)
+
+.         replace Religion_Mother = 3 if mreli == 5                   // Other
+(11,961 real changes made)
+
+.         replace Religion_Mother = 4 if inlist(mreli, 6, -2)         // Non-re
+> ligious
+(181,274 real changes made)
+
+. 
+.         * Optional: assign value labels
+.         label define relig_lbl 1 "Christian" 2 "Muslim" 3 "Other" 4 "Non-reli
+> gious"
+
+.         label values Religion_Father relig_lbl
+
+.         label values Religion_Mother relig_lbl
+
+. 
+. 
+.         * Age (continuous)
+.         gen Age = syear - gebjahr
+
+. 
+.         * Region
+.         recode sampreg (-2 = .) (1 = 0) (2 = 1), gen(Region)
+(663,123 differences between sampreg and Region)
+
+. 
+.         label define region_lbl 0 "West Germany" 1 "East Germany"
+
+.         label values Region region_lbl
+
+.         
+. 
+. * FILTERS * (Please adapt according to your needs)
+. 
+.         /* SIGNIFICANT DEVIATIONS FROM THE PAP:
+>            We deviated from several restrictions specified in the pre-analysi
+> s plan (PAP) due to data limitations:
+>            - We did not restrict the sample to children living in the same ho
+> usehold, as this would have resulted in zero valid cases.
+>            - We excluded certain control variables, such as children's age an
+> d socio-economic status (SES), because including them would have substantiall
+> y reduced the sample size.
+>            - Instead of using the respondent’s own religion, we used the reli
+> gion of their parents as a proxy, since this was the only information availab
+> le.
+>         */
+. 
+. 
+.         keep if PoliticalAttitude!=.
+(576,714 observations deleted)
+
+.         tab syear, mis
+
+                            Survey Year |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+                                   2005 |     19,247       22.27       22.27
+                                   2009 |     18,995       21.98       44.26
+                                   2014 |     24,607       28.48       72.73
+                                   2019 |     23,560       27.27      100.00
+----------------------------------------+-----------------------------------
+                                  Total |     86,409      100.00
+
+.         xtset pid syear
+
+Panel variable: pid (unbalanced)
+ Time variable: syear, 2005 to 2019, but with gaps
+         Delta: 1 unit
+
+.         xtdescribe
+
+     pid:  201, 203, ..., 39235602                           n =      48560
+   syear:  2005, 2009, ..., 2019                             T =          4
+           Delta(syear) = 1 unit
+           Span(syear)  = 15 periods
+           (pid*syear uniquely identifies each observation)
+
+Distribution of T_i:   min      5%     25%       50%       75%     95%     max
+                         1       1       1         1         2       4       4
+
+     Freq.  Percent    Cum. |  Pattern*
+ ---------------------------+----------
+     9652     19.88   19.88 |  ...1
+     7464     15.37   35.25 |  ..11
+     6753     13.91   49.15 |  ..1.
+     5483     11.29   60.44 |  1...
+     5115     10.53   70.98 |  11..
+     5099     10.50   81.48 |  1111
+     3527      7.26   88.74 |  .1..
+     3224      6.64   95.38 |  111.
+     1071      2.21   97.59 |  .111
+     1172      2.41  100.00 | (other patterns)
+ ---------------------------+----------
+    48560    100.00         |  XXXX
+ --------------------------------------
+ *Each column represents 4 periods.
+
+
+.         bysort pid: gen n_obs = _N
+
+.         * Keep only individuals with at least 2 observations
+.         keep if n_obs >= 2
+(25,415 observations deleted)
+
+.         * Keep only women and men: not neccesary since their are no other gen
+> ders represented in the data
+.         
+.         * Check missing values before listwise deletion
+.         foreach var in PoliticalAttitude DaughterHH ///
+>                 Woman Partner SexualOrientation Religion_Mother Religion_Fath
+> er SES Age Region n_children {
+  2.                 gen miss_`var' = missing(`var')
+  3.         }
+
+. 
+.         egen total_miss = rowtotal(miss_*)
+
+.         gen pct_miss = total_miss / 10 * 100
+
+. 
+.         * Apply listwise deletion if missing < 10%
+.         tab pct_miss
+
+   pct_miss |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |     15,661       25.68       25.68
+         10 |     34,970       57.33       83.01
+         20 |      8,760       14.36       97.37
+         30 |      1,545        2.53       99.90
+         40 |         58        0.10      100.00
+------------+-----------------------------------
+      Total |     60,994      100.00
+
+.         drop if pct_miss > 10
+(10,363 observations deleted)
+
+. 
+. * HYPOTHESIS TEST FOR H2 * (Please adapt according to your needs)
+. * Control variables: Woman n_children i.childagegroup1-i.childagegroup8 SES P
+> artner SexualOrientation i.Religion_Father i.Religion_Mother Age Region
+.  
+.         * Estimate random effects model with panel-robust standard errors
+.         ** Paneldataanalysis with RE models not possible bc we need at least 
+> 2 observations (we dont have)
+.         xtset pid syear
+
+Panel variable: pid (unbalanced)
+ Time variable: syear, 2005 to 2019, but with gaps
+         Delta: 1 unit
+
+.         xtdescribe
+
+     pid:  602, 901, ..., 35033202                           n =      18639
+   syear:  2005, 2009, ..., 2019                             T =          4
+           Delta(syear) = 1 unit
+           Span(syear)  = 15 periods
+           (pid*syear uniquely identifies each observation)
+
+Distribution of T_i:   min      5%     25%       50%       75%     95%     max
+                         1       2       2         2         4       4       4
+
+     Freq.  Percent    Cum. |  Pattern*
+ ---------------------------+----------
+     4858     26.06   26.06 |  ..11
+     4819     25.85   51.92 |  1111
+     3826     20.53   72.44 |  11..
+     2850     15.29   87.74 |  111.
+      991      5.32   93.05 |  .111
+      642      3.44   96.50 |  .11.
+      250      1.34   97.84 |  ..1.
+      104      0.56   98.40 |  11.1
+       90      0.48   98.88 |  1.11
+      209      1.12  100.00 | (other patterns)
+ ---------------------------+----------
+    18639    100.00         |  XXXX
+ --------------------------------------
+ *Each column represents 4 periods.
+
+
+.         xtreg PoliticalAttitude i.DaughterHH, re vce(robust)
+
+Random-effects GLS regression                   Number of obs     =     50,631
+Group variable: pid                             Number of groups  =     18,639
+
+R-squared:                                      Obs per group:
+     Within  =      .                                         min =          1
+     Between = 0.0007                                         avg =        2.7
+     Overall = 0.0004                                         max =          4
+
+                                                Wald chi2(3)      =      12.49
+corr(u_i, X) = 0 (assumed)                      Prob > chi2       =     0.0059
+
+                               (Std. err. adjusted for 18,639 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+PoliticalA~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  DaughterHH |
+  More sons  |  -.0864438   .0284295    -3.04   0.002    -.1421647    -.030723
+Equal share  |  -.0821563   .0308691    -2.66   0.008    -.1426586    -.021654
+More daug..  |  -.0888124   .0289123    -3.07   0.002    -.1454795   -.0321454
+             |
+       _cons |   5.336323   .0215995   247.06   0.000     5.293989    5.378657
+-------------+----------------------------------------------------------------
+     sigma_u |  1.1636497
+     sigma_e |  1.1555124
+         rho |  .50350871   (fraction of variance due to u_i)
+------------------------------------------------------------------------------
+
+.         xtreg PoliticalAttitude i.DaughterHH Woman, re vce(robust)
+
+Random-effects GLS regression                   Number of obs     =     50,631
+Group variable: pid                             Number of groups  =     18,639
+
+R-squared:                                      Obs per group:
+     Within  =      .                                         min =          1
+     Between = 0.0081                                         avg =        2.7
+     Overall = 0.0057                                         max =          4
+
+                                                Wald chi2(4)      =     148.69
+corr(u_i, X) = 0 (assumed)                      Prob > chi2       =     0.0000
+
+                               (Std. err. adjusted for 18,639 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+PoliticalA~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  DaughterHH |
+  More sons  |  -.1158619   .0284294    -4.08   0.000    -.1715826   -.0601413
+Equal share  |  -.1117482   .0308585    -3.62   0.000    -.1722298   -.0512666
+More daug..  |  -.1194029   .0289373    -4.13   0.000     -.176119   -.0626868
+             |
+       Woman |   .2388738   .0203902    11.72   0.000     .1989097    .2788379
+       _cons |   5.234625   .0235621   222.16   0.000     5.188444    5.280806
+-------------+----------------------------------------------------------------
+     sigma_u |  1.1576452
+     sigma_e |  1.1555124
+         rho |  .50092205   (fraction of variance due to u_i)
+------------------------------------------------------------------------------
+
+.         xtreg PoliticalAttitude i.DaughterHH Woman n_children, re vce(robust)
+
+Random-effects GLS regression                   Number of obs     =     50,631
+Group variable: pid                             Number of groups  =     18,639
+
+R-squared:                                      Obs per group:
+     Within  =      .                                         min =          1
+     Between = 0.0086                                         avg =        2.7
+     Overall = 0.0060                                         max =          4
+
+                                                Wald chi2(5)      =     159.62
+corr(u_i, X) = 0 (assumed)                      Prob > chi2       =     0.0000
+
+                               (Std. err. adjusted for 18,639 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+PoliticalA~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  DaughterHH |
+  More sons  |  -.0431395   .0359954    -1.20   0.231    -.1136892    .0274103
+Equal share  |  -.0336031   .0389689    -0.86   0.389    -.1099807    .0427745
+More daug..  |  -.0475611   .0365077    -1.30   0.193    -.1191148    .0239926
+             |
+       Woman |    .240361   .0203924    11.79   0.000     .2003927    .2803293
+  n_children |  -.0361195   .0109489    -3.30   0.001    -.0575789   -.0146601
+       _cons |   5.233992   .0235626   222.13   0.000      5.18781    5.280174
+-------------+----------------------------------------------------------------
+     sigma_u |  1.1572711
+     sigma_e |  1.1555124
+         rho |  .50076045   (fraction of variance due to u_i)
+------------------------------------------------------------------------------
+
+.         xtreg PoliticalAttitude i.DaughterHH Woman n_children Partner, re vce
+> (robust)
+
+Random-effects GLS regression                   Number of obs     =     50,631
+Group variable: pid                             Number of groups  =     18,639
+
+R-squared:                                      Obs per group:
+     Within  = 0.0000                                         min =          1
+     Between = 0.0090                                         avg =        2.7
+     Overall = 0.0063                                         max =          4
+
+                                                Wald chi2(6)      =     166.03
+corr(u_i, X) = 0 (assumed)                      Prob > chi2       =     0.0000
+
+                               (Std. err. adjusted for 18,639 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+PoliticalA~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  DaughterHH |
+  More sons  |  -.0285422   .0365171    -0.78   0.434    -.1001144      .04303
+Equal share  |   -.017385   .0395162    -0.44   0.660    -.0948354    .0600653
+More daug..  |  -.0326278    .037021    -0.88   0.378    -.1051876    .0399321
+             |
+       Woman |   .2365198   .0204553    11.56   0.000     .1964282    .2766115
+  n_children |  -.0356577   .0109528    -3.26   0.001    -.0571249   -.0141906
+     Partner |  -.0468617   .0190396    -2.46   0.014    -.0841785   -.0095448
+       _cons |   5.258569   .0255468   205.84   0.000     5.208499     5.30864
+-------------+----------------------------------------------------------------
+     sigma_u |  1.1568875
+     sigma_e |  1.1555299
+         rho |  .50058708   (fraction of variance due to u_i)
+------------------------------------------------------------------------------
+
+.         xtreg PoliticalAttitude i.DaughterHH Woman n_children Partner SexualO
+> rientation, re vce(robust) 
+
+Random-effects GLS regression                   Number of obs     =     50,372
+Group variable: pid                             Number of groups  =     18,405
+
+R-squared:                                      Obs per group:
+     Within  = 0.0000                                         min =          1
+     Between = 0.0111                                         avg =        2.7
+     Overall = 0.0077                                         max =          4
+
+                                                Wald chi2(7)      =     194.62
+corr(u_i, X) = 0 (assumed)                      Prob > chi2       =     0.0000
+
+                               (Std. err. adjusted for 18,405 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+PoliticalA~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  DaughterHH |
+  More sons  |  -.0208564   .0367709    -0.57   0.571    -.0929259    .0512132
+Equal share  |   -.008342   .0397464    -0.21   0.834    -.0862435    .0695596
+More daug..  |  -.0258333   .0372607    -0.69   0.488    -.0988629    .0471963
+             |
+       Woman |   .2311268   .0205171    11.27   0.000     .1909141    .2713395
+  n_children |   -.034742   .0109547    -3.17   0.002    -.0562128   -.0132712
+     Partner |   -.050383   .0191159    -2.64   0.008    -.0878495   -.0129166
+SexualOrie~n |   .4637716    .087604     5.29   0.000      .292071    .6354723
+       _cons |   5.252618   .0262345   200.22   0.000     5.201199    5.304037
+-------------+----------------------------------------------------------------
+     sigma_u |  1.1529959
+     sigma_e |  1.1555148
+         rho |  .49890886   (fraction of variance due to u_i)
+------------------------------------------------------------------------------
+
+.         xtreg PoliticalAttitude i.DaughterHH Woman n_children Partner SexualO
+> rientation i.Religion_Father i.Religion_Mother, re vce(robust)
+
+Random-effects GLS regression                   Number of obs     =     49,801
+Group variable: pid                             Number of groups  =     18,064
+
+R-squared:                                      Obs per group:
+     Within  = 0.0000                                         min =          2
+     Between = 0.0171                                         avg =        2.8
+     Overall = 0.0115                                         max =          4
+
+                                                Wald chi2(13)     =     294.28
+corr(u_i, X) = 0 (assumed)                      Prob > chi2       =     0.0000
+
+                               (Std. err. adjusted for 18,064 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+PoliticalA~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  DaughterHH |
+  More sons  |  -.0129683   .0372616    -0.35   0.728    -.0859997    .0600631
+Equal share  |   .0026739   .0402004     0.07   0.947    -.0761175    .0814653
+More daug..  |  -.0177431   .0377466    -0.47   0.638    -.0917251    .0562389
+             |
+       Woman |    .227693    .020642    11.03   0.000     .1872355    .2681505
+  n_children |  -.0366814   .0110461    -3.32   0.001    -.0583314   -.0150314
+     Partner |  -.0522228   .0192356    -2.71   0.007    -.0899239   -.0145217
+SexualOrie~n |   .5104154   .0899542     5.67   0.000     .3341085    .6867224
+             |
+Religion_F~r |
+     Muslim  |   .0655935   .2245159     0.29   0.770    -.3744497    .5056366
+      Other  |   .1628146   .1562523     1.04   0.297    -.1434344    .4690636
+Non-relig~s  |   .2029893   .0442506     4.59   0.000     .1162597    .2897189
+             |
+Religion_M~r |
+     Muslim  |   .4595003   .2324531     1.98   0.048     .0039006    .9151001
+      Other  |   .0762979   .1616438     0.47   0.637     -.240518    .3931138
+Non-relig~s  |  -.0226949   .0450306    -0.50   0.614    -.1109532    .0655634
+             |
+       _cons |   5.166205   .0277559   186.13   0.000     5.111804    5.220605
+-------------+----------------------------------------------------------------
+     sigma_u |  1.1509889
+     sigma_e |  1.1547662
+         rho |  .49836177   (fraction of variance due to u_i)
+------------------------------------------------------------------------------
+
+.         xtreg PoliticalAttitude i.DaughterHH Woman n_children Partner SexualO
+> rientation i.Religion_Father i.Religion_Mother Age, re vce(robust)
+
+Random-effects GLS regression                   Number of obs     =     49,801
+Group variable: pid                             Number of groups  =     18,064
+
+R-squared:                                      Obs per group:
+     Within  = 0.0000                                         min =          2
+     Between = 0.0239                                         avg =        2.8
+     Overall = 0.0160                                         max =          4
+
+                                                Wald chi2(14)     =     389.95
+corr(u_i, X) = 0 (assumed)                      Prob > chi2       =     0.0000
+
+                               (Std. err. adjusted for 18,064 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+PoliticalA~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  DaughterHH |
+  More sons  |   .0248323   .0374329     0.66   0.507    -.0485348    .0981995
+Equal share  |   .0375987   .0402327     0.93   0.350     -.041256    .1164534
+More daug..  |   .0165215   .0377562     0.44   0.662    -.0574792    .0905223
+             |
+       Woman |    .216992   .0205992    10.53   0.000     .1766184    .2573657
+  n_children |  -.0277123   .0110461    -2.51   0.012    -.0493623   -.0060624
+     Partner |  -.0443011   .0191973    -2.31   0.021    -.0819271   -.0066752
+SexualOrie~n |   .4781368   .0898759     5.32   0.000     .3019833    .6542903
+             |
+Religion_F~r |
+     Muslim  |   .0116465   .2213457     0.05   0.958    -.4221831    .4454761
+      Other  |   .1207893   .1572746     0.77   0.442    -.1874633    .4290418
+Non-relig~s  |   .1864663   .0444247     4.20   0.000     .0993955    .2735372
+             |
+Religion_M~r |
+     Muslim  |   .4208266    .229424     1.83   0.067    -.0288361    .8704893
+      Other  |   .0486462   .1622999     0.30   0.764    -.2694558    .3667482
+Non-relig~s  |  -.0002596   .0452116    -0.01   0.995    -.0888727    .0883534
+             |
+         Age |   -.005737   .0005807    -9.88   0.000    -.0068751   -.0045989
+       _cons |   5.422595   .0380937   142.35   0.000     5.347933    5.497257
+-------------+----------------------------------------------------------------
+     sigma_u |   1.145272
+     sigma_e |  1.1547739
+         rho |  .49586889   (fraction of variance due to u_i)
+------------------------------------------------------------------------------
+
+.         * Full model
+.         xtreg PoliticalAttitude i.DaughterHH Woman n_children Partner SexualO
+> rientation i.Religion_Father i.Religion_Mother Age Region, re vce(robust)
+
+Random-effects GLS regression                   Number of obs     =     49,801
+Group variable: pid                             Number of groups  =     18,064
+
+R-squared:                                      Obs per group:
+     Within  = 0.0000                                         min =          2
+     Between = 0.0439                                         avg =        2.8
+     Overall = 0.0302                                         max =          4
+
+                                                Wald chi2(15)     =     741.60
+corr(u_i, X) = 0 (assumed)                      Prob > chi2       =     0.0000
+
+                               (Std. err. adjusted for 18,064 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+PoliticalA~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  DaughterHH |
+  More sons  |  -.0144408   .0372019    -0.39   0.698    -.0873552    .0584736
+Equal share  |   .0024776   .0399152     0.06   0.951    -.0757548      .08071
+More daug..  |  -.0219198   .0375437    -0.58   0.559     -.095504    .0516645
+             |
+       Woman |   .2191363   .0203984    10.74   0.000     .1791561    .2591164
+  n_children |  -.0197342   .0109728    -1.80   0.072    -.0412406    .0017721
+     Partner |  -.0384216   .0191375    -2.01   0.045    -.0759304   -.0009129
+SexualOrie~n |   .4840953   .0898594     5.39   0.000      .307974    .6602166
+             |
+Religion_F~r |
+     Muslim  |   .0536731   .2262831     0.24   0.813    -.3898336    .4971798
+      Other  |   .1428906   .1565156     0.91   0.361    -.1638744    .4496556
+Non-relig~s  |   .1214009   .0444814     2.73   0.006      .034219    .2085828
+             |
+Religion_M~r |
+     Muslim  |   .4204834   .2348813     1.79   0.073    -.0398756    .8808423
+      Other  |   .0615184   .1614903     0.38   0.703    -.2549968    .3780336
+Non-relig~s  |  -.0714904   .0452434    -1.58   0.114    -.1601659    .0171851
+             |
+         Age |  -.0058198   .0005748   -10.13   0.000    -.0069463   -.0046933
+      Region |   .4448557   .0246887    18.02   0.000     .3964668    .4932447
+       _cons |   5.382154   .0380194   141.56   0.000     5.307637    5.456671
+-------------+----------------------------------------------------------------
+     sigma_u |  1.1287169
+     sigma_e |  1.1547839
+         rho |  .48858609   (fraction of variance due to u_i)
+------------------------------------------------------------------------------
+
+.         
+. 
+.         * Please add a verbal description of your model here    
+.         xtreg PoliticalAttitude i.DaughterHH Woman n_children Partner SexualO
+> rientation i.Religion_Father i.Religion_Mother Age Region, re vce(robust)
+
+Random-effects GLS regression                   Number of obs     =     49,801
+Group variable: pid                             Number of groups  =     18,064
+
+R-squared:                                      Obs per group:
+     Within  = 0.0000                                         min =          2
+     Between = 0.0439                                         avg =        2.8
+     Overall = 0.0302                                         max =          4
+
+                                                Wald chi2(15)     =     741.60
+corr(u_i, X) = 0 (assumed)                      Prob > chi2       =     0.0000
+
+                               (Std. err. adjusted for 18,064 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+PoliticalA~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  DaughterHH |
+  More sons  |  -.0144408   .0372019    -0.39   0.698    -.0873552    .0584736
+Equal share  |   .0024776   .0399152     0.06   0.951    -.0757548      .08071
+More daug..  |  -.0219198   .0375437    -0.58   0.559     -.095504    .0516645
+             |
+       Woman |   .2191363   .0203984    10.74   0.000     .1791561    .2591164
+  n_children |  -.0197342   .0109728    -1.80   0.072    -.0412406    .0017721
+     Partner |  -.0384216   .0191375    -2.01   0.045    -.0759304   -.0009129
+SexualOrie~n |   .4840953   .0898594     5.39   0.000      .307974    .6602166
+             |
+Religion_F~r |
+     Muslim  |   .0536731   .2262831     0.24   0.813    -.3898336    .4971798
+      Other  |   .1428906   .1565156     0.91   0.361    -.1638744    .4496556
+Non-relig~s  |   .1214009   .0444814     2.73   0.006      .034219    .2085828
+             |
+Religion_M~r |
+     Muslim  |   .4204834   .2348813     1.79   0.073    -.0398756    .8808423
+      Other  |   .0615184   .1614903     0.38   0.703    -.2549968    .3780336
+Non-relig~s  |  -.0714904   .0452434    -1.58   0.114    -.1601659    .0171851
+             |
+         Age |  -.0058198   .0005748   -10.13   0.000    -.0069463   -.0046933
+      Region |   .4448557   .0246887    18.02   0.000     .3964668    .4932447
+       _cons |   5.382154   .0380194   141.56   0.000     5.307637    5.456671
+-------------+----------------------------------------------------------------
+     sigma_u |  1.1287169
+     sigma_e |  1.1547839
+         rho |  .48858609   (fraction of variance due to u_i)
+------------------------------------------------------------------------------
+
+.         /* We assume that PoliticalAttitude, a continuous measure reverse-cod
+> ed such that higher values indicate stronger left-wing political attitudes, r
+> eflects support for gender equality (Hypothesis 2). 
+>    Accordingly, we run a random-effects linear panel regression with Politica
+> lAttitude as the dependent variable and DaughterHH (categorical: child gender
+>  composition) as the key independent variable. 
+>    Control variables include gender (Woman), number of children, partnership 
+> status, sexual orientation, parental religion (mother/father), age, and regio
+> n. 
+>    We use panel-robust standard errors and cluster at the individual level (p
+> id).
+>         */
+. 
+. 
+. 
+. * EXTRACT AND EXPORT RESULTS * (Please check whether the suggested code autom
+> atically picks up the correct statistics for your chosen regression analysis 
+> and adapt if needed)
+. 
+.                 * Extract the required statistics
+. 
+.                 * (i) coefficient estimate
+.                 local coefficient = _b[3.DaughterHH]
+
+. 
+.                 * (ii) standard error
+.                 local se = _se[3.DaughterHH]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "z" // Adapted by DA during consiste
+> ncy check
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 // local p_value = _b[3.DaughterHH] / _se[3.DaughterHH]
+.                 // local p_value = 2 * ttail(e(df_r), abs(`p_value'))
+.                 // Calculate z-statistic
+.                 local zstat = abs(_b[3.DaughterHH] / _se[3.DaughterHH])
+
+.                 // Two-sided p-value
+.                 local p_value = 2 * (1 - normal(`zstat'))
+
+.                 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation of directionality
+.                 scalar coef_d_daughter = _b[3.DaughterHH]
+
+.                 local interpretation "positive coefficient is in line with hy
+> pothesis"
+
+. 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: -.0219197717421621
+
+.         di "Standard Error: `se'"
+Standard Error: .0375436836642019
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: z
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: .
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 15
+
+.         di "p-value: " `p_value'
+p-value: .55932317
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 49801
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 18064
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h2_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/95_re
+    > sults/h2_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

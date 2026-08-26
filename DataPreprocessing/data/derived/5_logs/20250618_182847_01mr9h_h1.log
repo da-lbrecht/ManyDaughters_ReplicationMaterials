@@ -1,0 +1,734 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmp4dtf_bvl.do 
+
+. do "5%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. 
+. * the following code automatically sets paths based on the project location o
+> n your system *local curdir = c(pwd)
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/5%-sample" // folder, in which the ori
+> ginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/5%-sample
+
+. global DATA "$ROOT/data/derived_confidential/5%-sample" // folder for dataset
+> s
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/5%-sample
+
+. global OUT "$ROOT/data/derived/5_results" // folder for output (results, tabl
+> es)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/5_results
+
+. 
+end of do-file
+
+. do "20250618_182847_01mr9h_h1.do"
+
+. *************************************************************************
+. ******************  Do-File H1: #ManyDaughters Project ******************
+. *************************************************************************
+. 
+. * Authors: [REDACTED], [REDACTED]
+. 
+. * ============================
+. * Setup * (Please adapt according to your needs)
+. * ============================
+. 
+. *clear all
+. version 18 // indicate the version of stata you are using here
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. /*
+> * CONFIGURE FILE PATHS * (Please do not change)
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> 
+> 
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> 
+> 
+> *global ROOT "/Users/nan/Desktop/#ManyDaughters_RT_AnalysisPackage"  //commen
+> t out when submitting the do file.
+> 
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> */
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA * (Please adapt according to your needs)
+. 
+.         use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. 
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches)
+(variable pid was long, now double to accommodate using data's values)
+(variable cid was long, now double to accommodate using data's values)
+(variable gebjahr was int, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         
+.         * pl contains all variables from the individual questionnaire
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches) //
+> /
+>                 keepusing(plh0298_v2 plh0302_v2 plh0308_v2)
+(label cid already defined)
+(label pid_EN already defined)
+(label cid_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.                 
+.                 
+.         /* 
+>         NOTE: we dropped the variables asked in 2010-2013 from pl and biol, a
+> s these were only administered to samples L1-L3
+>         As requested, we also now combine the remaining outcome variables int
+> o a single index.
+>         We have changed our code such that we now produce a single estimate w
+> ith this index, rather than a series of regression estimates using all of the
+>  separate DVs.
+>                 
+>                 keepusing(plh0298_v1 plh0298_v2 plh0302_v1 plh0302_v2 plh0308
+> _v1 plh0308_v2 ///
+>                                   plh0301 plh0303 plh0307 plh0309)
+> 
+>         * biol questions
+>         * merge 1:1 pid syear using "$IN/biol.dta", nogen keep(master matches
+> ) ///
+>                 * keepusing(lb1110 lb1114 lb1120 lb1113 lb1115 lb1119 lb1121)
+>         */
+. 
+.         label language EN // change language of the labels to English
+
+. 
+.         save "$DATA/h1_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/5%-sample/h1_dataset.dta saved
+
+. 
+. 
+. * ============================
+. * Analysis
+. * ============================
+. 
+. * FILTERS * (Please adapt according to your needs)
+.  
+.         * dropping the refugee samples as stated in the PAP
+.         drop if psample == 17 | psample == 18 | psample == 19
+(1,721 observations deleted)
+
+. 
+. 
+. * GENERATE VARIABLES * (Please adapt according to your needs)
+. 
+.         * Taking care of missing values
+.         foreach var of varlist gebjahr sex kidgeb01-kidsex19 plh0298_v2-plh03
+> 08_v2 {
+  2.                 replace `var' = . if `var' < 0
+  3.         }
+(0 real changes made)
+(0 real changes made)
+(10,155 real changes made, 10,155 to missing)
+(16,744 real changes made, 16,744 to missing)
+(27,730 real changes made, 27,730 to missing)
+(31,456 real changes made, 31,456 to missing)
+(32,814 real changes made, 32,814 to missing)
+(33,182 real changes made, 33,182 to missing)
+(33,343 real changes made, 33,343 to missing)
+(33,399 real changes made, 33,399 to missing)
+(33,475 real changes made, 33,475 to missing)
+(33,491 real changes made, 33,491 to missing)
+(33,497 real changes made, 33,497 to missing)
+(33,497 real changes made, 33,497 to missing)
+(33,507 real changes made, 33,507 to missing)
+(33,507 real changes made, 33,507 to missing)
+(33,507 real changes made, 33,507 to missing)
+(33,507 real changes made, 33,507 to missing)
+(33,507 real changes made, 33,507 to missing)
+(33,507 real changes made, 33,507 to missing)
+(33,507 real changes made, 33,507 to missing)
+(10,111 real changes made, 10,111 to missing)
+(16,714 real changes made, 16,714 to missing)
+(27,757 real changes made, 27,757 to missing)
+(31,453 real changes made, 31,453 to missing)
+(32,814 real changes made, 32,814 to missing)
+(33,182 real changes made, 33,182 to missing)
+(33,343 real changes made, 33,343 to missing)
+(33,399 real changes made, 33,399 to missing)
+(33,475 real changes made, 33,475 to missing)
+(33,491 real changes made, 33,491 to missing)
+(33,497 real changes made, 33,497 to missing)
+(33,497 real changes made, 33,497 to missing)
+(33,507 real changes made, 33,507 to missing)
+(33,507 real changes made, 33,507 to missing)
+(33,507 real changes made, 33,507 to missing)
+(33,507 real changes made, 33,507 to missing)
+(33,507 real changes made, 33,507 to missing)
+(33,507 real changes made, 33,507 to missing)
+(33,507 real changes made, 33,507 to missing)
+(24,723 real changes made, 24,723 to missing)
+(24,725 real changes made, 24,725 to missing)
+(24,726 real changes made, 24,726 to missing)
+
+.         
+.         * Total number of kids in 2018 (the year that outcomes are collected)
+.         egen numkids2018 = anycount(kidgeb01-kidgeb19), values(1900 / 2018)
+
+.         
+.         gen numkids = . 
+(33,507 missing values generated)
+
+.         replace numkids = numkids2018 if syear == 2018 & numkids2018 != 0
+(1,193 real changes made)
+
+.         
+.         
+.         * Generate variables for number of GIRLS at time of interview
+.         forvalues i = 1 / 9 {           
+  2.                 replace kidgeb0`i' = . if kidsex0`i' != 2
+  3.         }
+(12,677 real changes made, 12,677 to missing)
+(8,045 real changes made, 8,045 to missing)
+(2,858 real changes made, 2,858 to missing)
+(1,059 real changes made, 1,059 to missing)
+(372 real changes made, 372 to missing)
+(179 real changes made, 179 to missing)
+(108 real changes made, 108 to missing)
+(36 real changes made, 36 to missing)
+(16 real changes made, 16 to missing)
+
+.         
+.         forvalues i = 0 / 9 {           
+  2.                 replace kidgeb1`i' = . if kidsex1`i' != 2
+  3.         }
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+.         
+.         egen numgirls2018 = anycount(kidgeb01-kidgeb19), values(1900 / 2018)
+
+. 
+.         * Generate dummy variables for whether participant has at least one d
+> aughter (1) or not (0) in 2018
+.         gen ndaughters = .
+(33,507 missing values generated)
+
+.         
+.         replace ndaughters = numgirls2018 if syear == 2018 & numkids2018 > 0 
+> & numkids2018 <= 19
+(1,193 real changes made)
+
+.         
+.         gen d_daughter = .
+(33,507 missing values generated)
+
+.         replace d_daughter = 0 if ndaughters == 0
+(348 real changes made)
+
+.         replace d_daughter = 1 if ndaughters > 0 & ndaughters <= 19
+(845 real changes made)
+
+.         
+.         
+.         
+.         * Creating the outcome index
+.         gen childsuffer6_7pt = plh0298_v2
+(32,233 missing values generated)
+
+.         recode childsuffer6_7pt (1 = 7) (2 = 6) (3 = 5) (5 = 3) (6 = 2) (7 = 
+> 1)
+(1,052 changes made to childsuffer6_7pt)
+
+.         qui su childsuffer6_7pt if d_daughter == 0
+
+.         local mu = `r(mean)'
+
+.         local sd = `r(sd)'
+
+.         replace childsuffer6_7pt = (childsuffer6_7pt - `mu') / `sd'
+(1,274 real changes made)
+
+.         
+.         gen childsuffer3_7pt = plh0302_v2
+(32,235 missing values generated)
+
+.         recode childsuffer3_7pt (1 = 7) (2 = 6) (3 = 5) (5 = 3) (6 = 2) (7 = 
+> 1) 
+(1,110 changes made to childsuffer3_7pt)
+
+.         qui su childsuffer3_7pt if d_daughter == 0
+
+.         local mu = `r(mean)'
+
+.         local sd = `r(sd)'
+
+.         replace childsuffer3_7pt = (childsuffer3_7pt - `mu') / `sd'
+(1,272 real changes made)
+
+.         
+.         
+.         gen shareequally_7pt = plh0308_v2
+(32,236 missing values generated)
+
+.         qui su shareequally_7pt if d_daughter == 0
+
+.         local mu = `r(mean)'
+
+.         local sd = `r(sd)'
+
+.         replace shareequally_7pt = (shareequally_7pt - `mu') / `sd'
+(1,271 real changes made)
+
+.         
+.         gen I = (childsuffer6_7pt + childsuffer3_7pt + shareequally_7pt) / 3
+(32,252 missing values generated)
+
+.          
+.         
+.         
+.         /* 
+>         NOTE: here is the original loop and outcome creation code:
+>         
+>         foreach var of varlist gebjahr sex kidgeb01-kidsex19 plh0298_v1-lb112
+> 1 {
+>                 replace `var' = . if `var' < 0
+>         }
+>         
+>         * Combining outcome variables asked in pl and biol
+>         * Outcomes are only asked in 2010,2011,2012,2013 (to psamples L1,L2 a
+> nd L3) and 2018
+>         * Note that in a handful (N=14) of cases in 2012, identical answers s
+> eem to have been provided in both pl and biol
+>         * Variables are recoded such that higher values indicate greater supp
+> ort for gender equality
+>         
+>                 * children under 6 suffer if  mom works
+>                 egen childsuffer6_4pt = rowmax(plh0298_v1 lb1110)
+>         
+>                 gen childsuffer6_7pt = plh0298_v2
+>                 recode childsuffer6_7pt (1 = 7) (2 = 6) (3 = 5) (5 = 3) (6 = 
+> 2) (7 = 1)
+>         
+>         
+>                 * children under 3 suffer if mom works
+>                 egen childsuffer3_4pt = rowmax(plh0302_v1 lb1114)
+>         
+>                 gen childsuffer3_7pt = plh0302_v2
+>                 recode childsuffer3_7pt (1 = 7) (2 = 6) (3 = 5) (5 = 3) (6 = 
+> 2) (7 = 1) 
+>         
+>         
+>                 * best if man and woman work same amount so they can share th
+> e responsibility for family and household equally
+>                 egen shareequally_4pt = rowmax(lb1120 plh0308_v1)
+>                 recode shareequally_4pt (1 = 4) (2 = 3) (3 = 2) (4 = 1)
+>         
+>                 gen shareequally_7pt = plh0308_v2
+>                 
+>                 
+>                 * Women Should Rather Care About Family Than Career
+>                 egen familyovercareer = rowmax(plh0301 lb1113)
+>                 
+>                 
+>                 * Men should be involved in housework
+>                 egen malehousework = rowmax(plh0303 lb1115)
+>                 recode malehousework (1 = 4) (2 = 3) (3 = 2) (4 = 1)
+> 
+>                 
+>                 * Men Care more About Financial Security than Women
+>                 egen mencarefinance = rowmax(lb1119 plh0307)
+>                 
+>                 
+>                 * Working Mothers are Equally Emotionally Warm
+>                 egen momwarmth = rowmax(lb1121 plh0309)
+>                 recode momwarmth (1 = 4) (2 = 3) (3 = 2) (4 = 1)
+>         
+>         
+>         * Generate variable on total number of kids at time of interview
+>         egen numkids2010 = anycount(kidgeb01-kidgeb19), values(1900 / 2010)
+>         egen numkids2011 = anycount(kidgeb01-kidgeb19), values(1900 / 2011)
+>         egen numkids2012 = anycount(kidgeb01-kidgeb19), values(1900 / 2012)
+>         egen numkids2013 = anycount(kidgeb01-kidgeb19), values(1900 / 2013)
+>         egen numkids2018 = anycount(kidgeb01-kidgeb19), values(1900 / 2018)
+> 
+>         gen numkids = .
+>         
+>         foreach i in 2010 2011 2012 2013 2018 {
+>         
+>                 replace numkids = numkids`i' if syear == `i' & numkids`i' != 
+> 0
+>         
+>         }
+>         
+>         
+>         * Generate variables for number of GIRLS at time of interview
+>         forvalues i = 1 / 9 {           
+>                 replace kidgeb0`i' = . if kidsex0`i' != 2
+>         }
+>         
+>         forvalues i = 0 / 9 {           
+>                 replace kidgeb1`i' = . if kidsex1`i' != 2
+>         }
+>         
+>         egen numgirls2010 = anycount(kidgeb01-kidgeb19), values(1900 / 2010)
+>         egen numgirls2011 = anycount(kidgeb01-kidgeb19), values(1900 / 2011)
+>         egen numgirls2012 = anycount(kidgeb01-kidgeb19), values(1900 / 2012)
+>         egen numgirls2013 = anycount(kidgeb01-kidgeb19), values(1900 / 2013)
+>         egen numgirls2018 = anycount(kidgeb01-kidgeb19), values(1900 / 2018)
+>         
+>                 
+>         * Generate dummy variables for whether participant has at least one d
+> aughter (1) or not (0) at the time of the interview
+>         gen ndaughters = .
+>         
+>         foreach i in 2010 2011 2012 2013 2018 {
+>                 
+>                 replace ndaughters = numgirls`i' if syear == `i' & numkids`i'
+>  > 0 & numkids`i' <= 19
+>                 
+>         }
+> 
+>         gen d_daughter = .
+>         replace d_daughter = 0 if ndaughters == 0
+>         replace d_daughter = 1 if ndaughters > 0 & ndaughters <= 19
+>         
+>         */
+.         
+.         
+. 
+. 
+. * HYPOTHESIS TEST FOR H1 * (Please adapt according to your needs)
+. 
+.         * Respondents with 1 or more daughters will be more likely than respo
+> ndents without daughters to express attitudinal support for gender equality. 
+.         * We run a model with I as our dependent variable and d_daughter as o
+> ur independent variable.
+.         * As specified in the PAP, all models control for the number of child
+> ren, the gender of the respondent and the year of birth.
+.         * We also specified a one-sided test  for the coefficient on d_daught
+> er in the PAP.
+.         
+.         
+.         * run the regression
+.         reg I d_daughter i.sex gebjahr i.numkids, robust
+
+Linear regression                               Number of obs     =        954
+                                                F(9, 943)         =          .
+                                                Prob > F          =          .
+                                                R-squared         =     0.0681
+                                                Root MSE          =      .6889
+
+------------------------------------------------------------------------------
+             |               Robust
+           I | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  d_daughter |   .1080858   .0536196     2.02   0.044     .0028584    .2133133
+             |
+         sex |
+ [2] Female  |   .2205657    .045671     4.83   0.000     .1309372    .3101941
+     gebjahr |   .0001581   .0015354     0.10   0.918    -.0028551    .0031713
+             |
+     numkids |
+          2  |  -.0725716   .0558788    -1.30   0.194    -.1822327    .0370895
+          3  |  -.1542724   .0718648    -2.15   0.032    -.2953057    -.013239
+          4  |  -.3078689   .1045183    -2.95   0.003    -.5129842   -.1027536
+          5  |  -.5771269   .2044453    -2.82   0.005    -.9783472   -.1759065
+          6  |  -1.011511   .1901404    -5.32   0.000    -1.384659    -.638364
+          7  |  -.8867175    .059017   -15.02   0.000    -1.002537   -.7708977
+          8  |   -1.89452    .094603   -20.03   0.000    -2.080177   -1.708864
+             |
+       _cons |   -.393389    3.02004    -0.13   0.896    -6.320165    5.533387
+------------------------------------------------------------------------------
+
+.         
+.         * Extract the required statistics
+.                 
+.                 * (i) coefficient estimate
+.                 local coefficient = _b[d_daughter]
+
+. 
+.                 * (ii) standard error
+.                 local se = _se[d_daughter]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "t"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 local p_value = _b[d_daughter] / _se[d_daughter]
+
+.                 local p_value = ttail(e(df_r), abs(`p_value'))  // for one-ta
+> iled test
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation of directionality
+.                 local interpretation "positive coefficient is in line with hy
+> pothesis"
+
+.                 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: .1080858458366796
+
+.         di "Standard Error: `se'"
+Standard Error: .0536195551791224
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: t
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: 943
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 9
+
+.         di "p-value: " `p_value'
+p-value: .0220525
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 954
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 954
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h1_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/5_res
+    > ults/h1_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+.         
+.         
+. 
+.         /* 
+>         NOTE: here is our old version:
+>         
+>         * Respondents with 1 or more daughters will be more likely than respo
+> ndents without daughters to express attitudinal support for gender equality. 
+>         * We run a series of OLS regressions with childsuffer6_4pt-momwarmth 
+> as our dependent variables and the dummy variable d_daughter as independent v
+> ariable.
+>         * As specified in the PAP, all models control for the number of child
+> ren, the gender of the respondent and the year of birth.
+>         * We also specified a one-sided test  for the coefficient on d_daught
+> er in the PAP.
+> 
+> * RUN MODELS IN A LOOP, EXTRACT AND EXPORT RESULTS * (Please check whether th
+> e suggested code automatically picks up the correct statistics for your chose
+> n regression analysis and adapt if needed)
+> 
+>         * Set up the base file  
+>         file open myfile using "$OUT/h1_results.csv", write replace
+>         file write myfile "outcome, coefficient,se,family,residual_df,model_d
+> f,p_value,num_obs,num_participants,interpretation" _n
+>         file close myfile
+>         
+>         
+> 
+>         * Now looping throug the DVs,
+>         * Extract the required statistics
+> 
+>         foreach var of varlist childsuffer6_4pt-momwarmth {
+>         
+>                 * run the regression
+>                 reg `var' d_daughter i.sex gebjahr i.numkids, cluster(pid)
+>                 
+>                 * (0) variable name
+>                 local varname = "`e(depvar)'"
+>         
+>                 * (i) coefficient estimate
+>                 local coefficient = _b[d_daughter]
+> 
+>                 * (ii) standard error
+>                 local se = _se[d_daughter]
+> 
+>                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+>                 local test_stat_family = "t"
+> 
+>                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+>                 local df_residual = e(df_r)
+>                 local df_model = e(df_m)
+> 
+>                 * (v) p-value
+>                 local p_value = _b[d_daughter] / _se[d_daughter]
+>                 local p_value = ttail(e(df_r), abs(`p_value'))  // for one-ta
+> iled test
+> 
+>                 * (vi) number of observations
+>                 local num_obs = e(N)
+> 
+>                 * (vii) number of participants
+>                 quietly levelsof pid if e(sample), local(participants)
+>                 local num_participants : word count `participants'
+> 
+>                 * (viii) interpretation of directionality
+>                 scalar coef_d_daughter = _b[d_daughter]
+>                 if coef_d_daughter > 0 {
+>                         local interpretation "in line with hypothesis"
+>                 } 
+>                 else {
+>                         local interpretation "not in line with hypothesis"
+>                 }
+> 
+>         // Display the saved statistics
+>         di "DV: `e(depvar)'"
+>         di "Coefficient: `coefficient'"
+>         di "Standard Error: `se'"
+>         di "Test Statistic Family: `test_stat_family'"
+>         di "Residual Degrees of Freedom: `df_residual'"
+>         di "Model Degrees of Freedom: `df_model'"
+>         di "p-value: " `p_value'
+>         di "Number of observations: " `num_obs'
+>         di      "Number of participants: " `num_participants'
+>         di "Interpretation of directionality: " "`interpretation'"
+> 
+>         * Export results to csv 
+>         file open myfile using "$OUT/h1_results.csv", write append
+>         file write myfile "`e(depvar)', `coefficient', `se', `test_stat_famil
+> y', `df_residual', `df_model',`p_value',`num_obs',`num_participants',`interpr
+> etation'" _n
+>         file close myfile
+>         
+>         }
+> 
+> */
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

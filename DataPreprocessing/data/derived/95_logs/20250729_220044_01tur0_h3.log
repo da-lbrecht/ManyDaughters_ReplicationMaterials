@@ -1,0 +1,552 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmp_jh9zkj0.do 
+
+. do "95%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. * the following code automatically sets paths based on the project location o
+> n your system *
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/95%-sample" // folder, in which the or
+> iginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/95%-sample
+
+. global DATA "$ROOT/data/derived_confidential/95%-sample" // folder for datase
+> ts
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/95%-sample
+
+. global OUT "$ROOT/data/derived/95_results" // folder for output (results, tab
+> les)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/95_results
+
+. 
+end of do-file
+
+. do "20250729_220044_01tur0_h3.do"
+
+. *****************************************************************************
+> ***
+. ****************** Example Do-File H3: #ManyDaughters Project ***************
+> ***
+. *****************************************************************************
+> ***
+. 
+. * Authors: [REDACTED], [REDACTED]
+. 
+. * ============================
+. * Setup *
+. * ============================
+. 
+. * clear all
+. version 18
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. * ssc install outreg2
+. 
+. * CONFIGURE FILE PATHS *
+. /*
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> */
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA *
+. 
+.         use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+.         * Keep only measures that will be used in the analysis
+.     keep pid parid syear sex gebjahr netto pop migback sampreg 
+
+.         * Merge ppathl with datasets.
+.         * pl contains all variables from the individual questionnaire
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches) ke
+> epusing(plh0258_h ple0008 pli0043_h pli0044_h)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches) ke
+> epusing(kidsex* kidgeb*)
+(variable pid was long, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+(label pid_EN already defined)
+(label cid_EN already defined)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * pgen contains user-friendly data on the individual level that are c
+> onsolidated from different sources
+.         merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches) 
+> keepusing(pgfamstd pgemplst pglabnet pglabgro pgbilzeit)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * bioparen
+.         merge m:1 pid using "$IN/bioparen.dta", nogen keep(master matches) ke
+> epusing(fsedu msedu)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         
+.         label language EN // change language of the labels to English
+
+. 
+.         save "$DATA/h3_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h3_dataset.dta saved
+
+. 
+. 
+. * ============================
+. * Analysis
+. * ============================
+. 
+. * FILTERS * (Please adapt according to your needs)
+.  
+.         * 1. Only keep participants from private households
+.         keep if inlist(pop,1,2)
+(89,279 observations deleted)
+
+.         * 2. Only keep respondents who completed the individual questionnaire
+>  with household interview (with survey status between 10 and 15). These are a
+> ll individuals 18 years and older.
+.         keep if netto>=10 & netto<=15
+(69,516 observations deleted)
+
+.         * 3. Retain only respondents who had at least one child at any point 
+> before or during the sample period.
+.         rename kidgeb0* kidgeb* // Renaming the variables kidgeb01-kidgeb09 t
+> o be kidgeb1-kidgeb9. This will be useful when using the loop "forvalues i(1)
+> 19" later.
+
+.     keep if syear>=kidgeb1 & kidgeb1>0
+(144,084 observations deleted)
+
+.         * Retain only respondents who declared the gender of at least one of 
+> their children (some did not)
+.         rename kidsex0* kidsex*
+
+.         forvalues i=1(1)19{
+  2.                 qui g kid_gender_declared`i'=1 if kidsex`i'>0
+  3.         }
+
+.         egen at_least_one_kid_gender = rowtotal(kid_gender_declared*)
+
+.     keep if at_least_one_kid_gender>0
+(119 observations deleted)
+
+.         drop kid_gender_declared* at_least_one_kid_gender       
+
+. 
+. 
+. * GENERATE VARIABLES *
+. sort pid syear
+
+. 
+.         * Generate dummy variable for respondents with at least one daughter 
+> up to the year of the survey (1 if at least one daughter, 0 if not). The foll
+> owing code also creates a variable that measures the total number of daughter
+> s each participant has up to the year of the survey.
+.         forvalues i=1(1)19{
+  2.                 qui replace kidgeb`i'=. if kidgeb`i'>syear // If the ith c
+> hild is born in year t, and the observation year is earlier than t, then the 
+> variable kidgeb`i' (year of birth of the ith child) is left empty.
+  3.                 qui replace kidsex`i'=. if kidgeb`i'>syear // If the ith c
+> hild is born in year t, and the observation year is earlier than t, then the 
+> variable kidsex`i' (gender of the ith child) is left empty.
+  4.         }
+
+.         g Having_Daughters=0
+
+.         g Num_Daughters=0
+
+.         forvalues i=1(1)19{
+  2.                 qui replace Having_Daughters=1 if kidsex`i'==2
+  3.                 qui replace Num_Daughters=Num_Daughters+1 if kidsex`i'==2
+  4.         }
+
+. 
+.         * Gender Equality in the Household 
+.         g Household_Hours_Individual=pli0044_h+pli0043_h if pli0044_h>0 & pli
+> 0043_h>0
+(232,252 missing values generated)
+
+.         save h3_1.dta, replace
+(file h3_1.dta not found)
+file h3_1.dta saved
+
+.         use "$IN/pl.dta"
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+.         g Household_Hours_Partner=pli0044_h+pli0043_h if pli0044_h>0 & pli004
+> 3_h>0
+(529,861 missing values generated)
+
+.         keep pid syear Household_Hours_Partner
+
+.         rename pid parid
+
+.         save pl_partner, replace
+(file pl_partner.dta not found)
+file pl_partner.dta saved
+
+.         use "$IN/ppathl.dta"
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+.         keep pid syear sex
+
+.         rename pid parid
+
+.         rename sex sex_partner
+
+.         save ppathl_partner, replace
+(file ppathl_partner.dta not found)
+file ppathl_partner.dta saved
+
+.         use h3_1.dta
+
+.         merge m:1 parid syear using pl_partner.dta, nogen keep(master matches
+> )
+(label pid_EN already defined)
+(label syear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                        79,458
+        from master                    79,458  
+        from using                          0  
+
+    Matched                           280,667  
+    -----------------------------------------
+
+.     merge m:1 parid syear using ppathl_partner.dta, nogen keep(master matches
+> )
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                        79,458
+        from master                    79,458  
+        from using                          0  
+
+    Matched                           280,667  
+    -----------------------------------------
+
+.         g Household_Equality=1-abs(Household_Hours_Individual - Household_Hou
+> rs_Partner) / (Household_Hours_Individual + Household_Hours_Partner) if sex!=
+> sex_partner
+(296,461 missing values generated)
+
+.         erase h3_1.dta
+
+.         erase pl_partner.dta
+
+.         erase ppathl_partner.dta
+
+.         save "$DATA/h3_dataset.dta", replace
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h3_dataset.dta saved
+
+.         
+.         * Generate controls
+.         // Gender of the respondent
+.         rename sex Gender
+
+.         // Age of the respondent
+.         g Age=syear-gebjahr
+
+.         // Marital Status of the respondent
+.         g Marital_Status=pgfamstd if pgfamstd>0
+(1,570 missing values generated)
+
+.         // Employment status
+.         rename pgemplst Employment_Status
+
+.         // Income (Net)
+.         g Income_Net=pglabnet if pglabnet>=0
+(150,526 missing values generated)
+
+.         replace Income_Net=0 if pglabnet<0 & Employment_Status==5 // Income_N
+> et is assumed to be zero for individuals who are not employed and who did not
+>  declaire any income (pglabnet=-2)
+(150,524 real changes made)
+
+.         // Education in years
+.         g Education_In_Years=pgbilzeit if pgbilzeit>=0
+(4,733 missing values generated)
+
+.         // Number of Children up to the observation year
+.         g Num_Sons=0
+
+.         forvalues i=1(1)19{
+  2.                 qui replace Num_Sons=Num_Sons+1 if kidsex`i'==1
+  3.                 }       
+
+.         g Num_Children=Num_Daughters+Num_Sons
+
+.         // Migraation background
+.         rename migback Migration_Background
+
+.         // Sample region
+.         g Sample_Region=sampreg if sampreg>0
+(22 missing values generated)
+
+.         // Religion
+.         g Religion=plh0258_h if plh0258_h>0
+(271,572 missing values generated)
+
+.         // Parents minimum education level      
+.         g Parents_Min_Edu=min(msedu, fsedu) if fsedu>=0 & msedu>=0
+(55,641 missing values generated)
+
+.         // Current health
+.         g Current_Health=ple0008 if ple0008>0
+(452 missing values generated)
+
+. 
+. 
+. * HYPOTHESIS TEST FOR H3 *
+.         * Verbal description of the model: Support_Gender_Equality = β₀ + β₁ 
+> * Having_Daughters + Controls + ε 
+.         
+.         * We consider a: linear OLS regression
+. 
+.         * Accordingly, we run a linear OLS regression analysis (with robust s
+> tandard errors) using Household_Equality as dependent variable and the dummy 
+> variable Having_Daughters as independent variable. 
+.         reg Household_Equality Having_Daughters Gender Age Marital_Status Emp
+> loyment_Status Income_Net Education_In_Years Num_Children Migration_Backgroun
+> d Sample_Region Religion Parents_Min_Edu Current_Health, vce(robust)
+
+Linear regression                               Number of obs     =     10,459
+                                                F(13, 10445)      =     121.31
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.1201
+                                                Root MSE          =     .21991
+
+------------------------------------------------------------------------------
+             |               Robust
+Household_~y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+Having_Dau~s |  -.0029291   .0049261    -0.59   0.552    -.0125851    .0067269
+      Gender |   .0387945   .0049703     7.81   0.000     .0290519    .0485372
+         Age |   .0066965   .0002147    31.19   0.000     .0062756    .0071174
+Marital_St~s |   .0188033   .0030123     6.24   0.000     .0128986     .024708
+Employment~s |  -.0183933   .0018402   -10.00   0.000    -.0220004   -.0147861
+  Income_Net |  -5.01e-06   2.16e-06    -2.32   0.020    -9.24e-06   -7.80e-07
+Education_~s |  -.0060152   .0008441    -7.13   0.000    -.0076699   -.0043606
+Num_Children |  -.0184597   .0021331    -8.65   0.000     -.022641   -.0142784
+Migration_~d |   .0125029   .0046431     2.69   0.007     .0034015    .0216043
+Sample_Reg~n |   .0921974   .0058655    15.72   0.000     .0806999     .103695
+    Religion |   .0058817   .0011449     5.14   0.000     .0036375    .0081259
+Parents_Mi~u |   .0103945   .0015428     6.74   0.000     .0073703    .0134186
+Current_He~h |   .0011816   .0025952     0.46   0.649    -.0039056    .0062687
+       _cons |   .2564185   .0214883    11.93   0.000     .2142972    .2985397
+------------------------------------------------------------------------------
+
+. 
+. 
+. * EXTRACT AND EXPORT RESULTS * (Please check whether the suggested code autom
+> atically picks up the correct statistics for your chosen regression analysis 
+> and adapt if needed)
+. 
+.         * Extract the required statistics
+. 
+.                 * (i) coefficient estimate
+.                 local coefficient = _b[Having_Daughters]
+
+. 
+.                 * (ii) standard error
+.                 local se = _se[Having_Daughters]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "t"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 local p_value = _b[Having_Daughters] / _se[Having_Daughters]
+
+.                 local p_value = 2 * ttail(e(df_r), abs(`p_value'))
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation of directionality
+.                 scalar coef_Having_Daughters = _b[Having_Daughters]
+
+.                 local interpretation "positive coefficient is in line with hy
+> pothesis"
+
+. 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: -.0029291311297249
+
+.         di "Standard Error: `se'"
+Standard Error: .0049260510510507
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: t
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: 10445
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 13
+
+.         di "p-value: " `p_value'
+p-value: .55211003
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 10459
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 7465
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h3_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/95_re
+    > sults/h3_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

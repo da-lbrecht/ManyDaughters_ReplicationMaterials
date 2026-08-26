@@ -1,0 +1,1006 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmpdl8mo4ww.do 
+
+. do "95%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. * the following code automatically sets paths based on the project location o
+> n your system *
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/95%-sample" // folder, in which the or
+> iginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/95%-sample
+
+. global DATA "$ROOT/data/derived_confidential/95%-sample" // folder for datase
+> ts
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/95%-sample
+
+. global OUT "$ROOT/data/derived/95_results" // folder for output (results, tab
+> les)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/95_results
+
+. 
+end of do-file
+
+. do "20250715_181051_011q3i_h4.do"
+
+. *****************************************************************************
+> ***
+. ****************** Example Do-File H4: #ManyDaughters Project ***************
+> ***
+. *****************************************************************************
+> ***
+. 
+. * Authors: Isabel M. [REDACTED] & [REDACTED]
+. 
+. * ============================
+. * Setup * (Please adapt according to your needs)
+. * ============================
+. 
+. * clear all
+. version 16 // indicate the version of stata you are using here
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. * INSTALL PACKAGES * (Please adapt according to your needs)
+. * install all packages you need here, for example:
+. *ssc install outreg2
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. /*
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT\data\raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT\data\derived" // folder for datasets
+> global OUT "$ROOT\out" // folder for output (results, tables)
+> 
+> */
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA * (Please adapt according to your needs)
+. 
+.         use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+.         keep pid syear sex partner sexor sampreg
+
+. 
+.         * Merge ppathl with all datasets, that you deem relevant for your ana
+> lysis. (Tip: use keepusing() to specify which variables to keep from the usin
+> g dataset; the default is all.)
+.         * pl contains all variables from the individual questionnaire
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches) ke
+> epusing(plj0621 plj0622 plj0623 plj0624 plj0625)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches) ke
+> epusing(kidsex* gebjahr)
+(variable pid was long, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+(label pid_EN already defined)
+(label cid_EN already defined)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * pgen contains user-friendly data on the individual level that are c
+> onsolidated from different sources
+.         merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches) 
+> keepusing(pgisei08)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * bioparen
+.         merge m:1 pid using "$IN/bioparen.dta", nogen keep(master matches) ke
+> epusing(freli mreli fisei08 misei08)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * biol
+.         merge 1:1 pid syear using "$IN/biol.dta", nogen keep(master matches) 
+> keepusing(lr3193 lb0285 lb0287_h lb0290_h lb0293_h lb0296_h lb0299_h lb0302_h
+>  lb0305_h lb0308_h)
+(label p_buh11_EN already defined)
+(label p_buh10_EN already defined)
+(label p_buh9_EN already defined)
+(label p_buh8_EN already defined)
+(label p_buh7_EN already defined)
+(label p_buh6_EN already defined)
+(label p_buh5_EN already defined)
+(label p_buh4_EN already defined)
+(label p_buh3_EN already defined)
+(label p_buh2_EN already defined)
+(label p_buh1_EN already defined)
+(label intid_EN already defined)
+(label iyear_EN already defined)
+(label instrument_EN already defined)
+(label p_anker_EN already defined)
+(label syear_EN already defined)
+(label pnr_EN already defined)
+(label cid_EN already defined)
+(label hid_EN already defined)
+(label pid_EN already defined)
+(label p_buh11 already defined)
+(label p_buh10 already defined)
+(label p_buh9 already defined)
+(label p_buh8 already defined)
+(label p_buh7 already defined)
+(label p_buh6 already defined)
+(label p_buh5 already defined)
+(label p_buh4 already defined)
+(label p_buh3 already defined)
+(label p_buh2 already defined)
+(label p_buh1 already defined)
+(label intid already defined)
+(label iyear already defined)
+(label instrument already defined)
+(label p_anker already defined)
+(label pnr already defined)
+(label cid already defined)
+(label hid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. 
+.         
+.         label language EN // change language of the labels to English
+
+. 
+.         save "$DATA/h4_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h4_dataset.dta saved
+
+. 
+. 
+. * ============================
+. * Analysis
+. * ============================
+. * n (person)=4,508; n(person-years)=35,228
+.         sort pid syear
+
+.         egen person_max=tag(pid)        
+
+.         sum person_max if person_max==1
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+  person_max |     85,849           1           0          1          1
+
+.         
+. * GENERATE VARIABLES * (Please adapt according to your needs)
+. 
+.         *--------------------------------------------------------------------
+> ----------*
+.         * 1.1 CONSTRUCT DEPENDENT VARIABLES
+.         *--------------------------------------------------------------------
+> ----------*
+. 
+.         * H1: Gender Equality Attitudes Index
+.         * Reverse code items where necessary
+.         recode plj0621 plj0622 plj0623 plj0624 plj0625  (-8 -5 -1 =.)
+(507,540 changes made to plj0621)
+(507,538 changes made to plj0622)
+(507,711 changes made to plj0623)
+(507,512 changes made to plj0624)
+(507,443 changes made to plj0625)
+
+.         gen plj0621_r = plj0621  // No recoding needed (1-7; higher = more eq
+> uality)
+(656,173 missing values generated)
+
+.         gen plj0622_r = plj0622  // No recoding needed
+(656,171 missing values generated)
+
+.         gen plj0623_r = 8 - plj0623  // Reverse values (7-1)
+(656,344 missing values generated)
+
+.         gen plj0624_r = 8 - plj0624  // Reverse values
+(656,145 missing values generated)
+
+.         gen plj0625_r = 8 - plj0625  // Reverse values
+(656,076 missing values generated)
+
+. 
+.         * Create mean index
+.         egen GenderEquality = rowmean(plj0621_r plj0622_r plj0623_r plj0624_r
+>  plj0625_r)
+(655,928 missing values generated)
+
+. 
+.         * Check internal consistency
+.         alpha plj0621_r plj0622_r plj0623_r plj0624_r plj0625_r, std
+
+Test scale = mean(standardized items)
+
+Average interitem correlation:      0.1988
+Number of items in the scale:            5
+Scale reliability coefficient:      0.5536
+
+.         corr plj0621_r plj0622_r plj0623_r plj0624_r plj0625_r
+(obs=6,506)
+
+             | plj0~1_r plj0~2_r plj0~3_r plj0~4_r plj0~5_r
+-------------+---------------------------------------------
+   plj0621_r |   1.0000
+   plj0622_r |   0.7177   1.0000
+   plj0623_r |   0.0585   0.0712   1.0000
+   plj0624_r |   0.0287   0.0193   0.2325   1.0000
+   plj0625_r |   0.1804   0.1820   0.2337   0.2835   1.0000
+
+
+. 
+. 
+.         *--------------------------------------------------------------------
+> ----------*
+.         * 1.2 CONSTRUCT INDEPENDENT VARIABLE: DaughterHH
+.         *--------------------------------------------------------------------
+> ----------*
+.         gen n_sons = 0
+
+.         gen n_daughters = 0
+
+. 
+.         forvalues i = 1/19 {
+  2.                 local varname = "kidsex" + string(`i', "%02.0f")
+  3.                 replace `varname' = . if `varname' == -1
+  4.                 quietly replace n_sons = n_sons + 1 if `varname' == 1
+  5.                 quietly replace n_daughters = n_daughters + 1 if `varname'
+>  == 2
+  6.         }
+(777 real changes made, 777 to missing)
+(470 real changes made, 470 to missing)
+(290 real changes made, 290 to missing)
+(191 real changes made, 191 to missing)
+(117 real changes made, 117 to missing)
+(52 real changes made, 52 to missing)
+(42 real changes made, 42 to missing)
+(13 real changes made, 13 to missing)
+(7 real changes made, 7 to missing)
+(4 real changes made, 4 to missing)
+(3 real changes made, 3 to missing)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. 
+.         gen n_children = n_sons + n_daughters
+
+. 
+.         gen DaughterHH = .
+(663,123 missing values generated)
+
+.         replace DaughterHH = 0 if n_children == 0
+(216,541 real changes made)
+
+.         replace DaughterHH = 1 if n_sons > n_daughters | (n_sons > 0 & n_daug
+> hters == 0)
+(175,178 real changes made)
+
+.         replace DaughterHH = 2 if n_sons == n_daughters & n_children > 0
+(110,246 real changes made)
+
+.         replace DaughterHH = 3 if n_daughters > n_sons | (n_daughters > 0 & n
+> _sons == 0)
+(161,158 real changes made)
+
+. 
+.         label define daughter_lbl 0 "No children" 1 "More sons" 2 "Equal shar
+> e" 3 "More daughters"
+
+.         label values DaughterHH daughter_lbl
+
+.         
+.         * Gender
+.         recode sex (2=0), gen(Man)
+(343,767 differences between sex and Man)
+
+. 
+.         *--------------------------------------------------------------------
+> ----------*
+.         * 1.3 CONSTRUCT CONTROL VARIABLES
+.         *--------------------------------------------------------------------
+> ----------*
+.         
+.         * Number of children == n_children
+. 
+.         * Age groups of children
+.         recode lb0287_h lb0290_h lb0293_h lb0296_h lb0299_h lb0302_h lb0305_h
+>  lb0308_h (-5 -3 -2 -1 = .) 
+(55,576 changes made to lb0287_h)
+(67,284 changes made to lb0290_h)
+(83,761 changes made to lb0293_h)
+(91,764 changes made to lb0296_h)
+(94,642 changes made to lb0299_h)
+(95,741 changes made to lb0302_h)
+(96,153 changes made to lb0305_h)
+(96,397 changes made to lb0308_h)
+
+. 
+.         * Define value label for age groups
+.         label define agegroup_lbl ///
+>                 0 "Infant (0–<1)" ///
+>                 1 "Toddler (1–<4)" ///
+>                 2 "Preschooler (4–<6)" ///
+>                 3 "School age (6–<13)" ///
+>                 4 "Teenager (13–17)" ///
+>                 5 "Adult (18+)", replace
+
+. 
+.         * Loop through 8 child birthyear variables
+.         forvalues i = 1/8 {
+  2.                 * Get the correct variable name (e.g. lb0287_h, lb0290_h, 
+> ...)
+.                 local varnum = 287 + 3 * (`i' - 1)
+  3.                 local byear = "lb0" + string(`varnum') + "_h"
+  4. 
+.                 * Generate age and category only if birth year is not missing
+.                 gen age_child`i' = syear - `byear' if `byear' != .
+  5. 
+.                 gen childagegroup`i' = .
+  6.                 replace childagegroup`i' = 0 if age_child`i' < 1 & age_chi
+> ld`i'!=. // Infant
+  7.                 replace childagegroup`i' = 1 if age_child`i' >= 1 & age_ch
+> ild`i' < 4 // Toddler
+  8.                 replace childagegroup`i' = 2 if age_child`i' >= 4 & age_ch
+> ild`i' < 6 // Preschooler
+  9.                 replace childagegroup`i' = 3 if age_child`i' >= 6 & age_ch
+> ild`i' < 13 // School age
+ 10.                 replace childagegroup`i' = 4 if age_child`i' >= 13 & age_c
+> hild`i' <= 17  // Teenager
+ 11.                 replace childagegroup`i' = 5 if age_child`i' >= 18 & age_c
+> hild`i'!=. // Adult
+ 12.                 
+.                 * Apply value label
+.                 label values childagegroup`i' agegroup_lbl
+ 13.         }
+(622,086 missing values generated)
+(663,123 missing values generated)
+(899 real changes made)
+(4,133 real changes made)
+(2,436 real changes made)
+(8,383 real changes made)
+(5,692 real changes made)
+(19,494 real changes made)
+(633,794 missing values generated)
+(663,123 missing values generated)
+(806 real changes made)
+(3,665 real changes made)
+(1,716 real changes made)
+(6,545 real changes made)
+(3,875 real changes made)
+(12,722 real changes made)
+(650,271 missing values generated)
+(663,123 missing values generated)
+(371 real changes made)
+(1,883 real changes made)
+(1,045 real changes made)
+(3,311 real changes made)
+(1,658 real changes made)
+(4,584 real changes made)
+(658,274 missing values generated)
+(663,123 missing values generated)
+(178 real changes made)
+(790 real changes made)
+(395 real changes made)
+(1,331 real changes made)
+(559 real changes made)
+(1,596 real changes made)
+(661,152 missing values generated)
+(663,123 missing values generated)
+(77 real changes made)
+(362 real changes made)
+(168 real changes made)
+(511 real changes made)
+(228 real changes made)
+(625 real changes made)
+(662,251 missing values generated)
+(663,123 missing values generated)
+(44 real changes made)
+(123 real changes made)
+(75 real changes made)
+(222 real changes made)
+(131 real changes made)
+(277 real changes made)
+(662,663 missing values generated)
+(663,123 missing values generated)
+(21 real changes made)
+(63 real changes made)
+(19 real changes made)
+(133 real changes made)
+(70 real changes made)
+(154 real changes made)
+(662,907 missing values generated)
+(663,123 missing values generated)
+(5 real changes made)
+(17 real changes made)
+(24 real changes made)
+(54 real changes made)
+(42 real changes made)
+(74 real changes made)
+
+. 
+. 
+.         * SES (use maximum of father's or mother's ISEI if respondent's is mi
+> ssing)
+.         recode pgisei08 (-8 -2 -1 =.)
+(378,106 changes made to pgisei08)
+
+.         gen SES = pgisei08
+(521,416 missing values generated)
+
+. 
+.         * Partnership status
+.         recode partner (-2=.) (0=0) (1 2 3 4 5=1), gen(Partner)
+(60,718 differences between partner and Partner)
+
+. 
+.         * Sexual orientation
+.         gen SexualOrientation = .
+(663,123 missing values generated)
+
+.         replace SexualOrientation = 0 if sexor == 0  // Probably heterosexual
+(536,239 real changes made)
+
+.         replace SexualOrientation = 1 if sexor==1  // Probably bi/homosexual
+(9,518 real changes made)
+
+. 
+.         * Religion // Proxy Parents
+.         * Father's religion
+.         gen Religion_Father = .
+(663,123 missing values generated)
+
+.         replace Religion_Father = 1 if inlist(freli, 1, 2, 3, 7)    // Christ
+> ian
+(297,975 real changes made)
+
+.         replace Religion_Father = 2 if freli == 4                   // Muslim
+(14,257 real changes made)
+
+.         replace Religion_Father = 3 if freli == 5                   // Other
+(11,693 real changes made)
+
+.         replace Religion_Father = 4 if inlist(freli, 6, -2)         // Non-re
+> ligious
+(195,858 real changes made)
+
+. 
+.         * Mother's religion
+.         gen Religion_Mother = .
+(663,123 missing values generated)
+
+.         replace Religion_Mother = 1 if inlist(mreli, 1, 2, 3, 7)    // Christ
+> ian
+(321,043 real changes made)
+
+.         replace Religion_Mother = 2 if mreli == 4                   // Muslim
+(14,545 real changes made)
+
+.         replace Religion_Mother = 3 if mreli == 5                   // Other
+(11,961 real changes made)
+
+.         replace Religion_Mother = 4 if inlist(mreli, 6, -2)         // Non-re
+> ligious
+(181,274 real changes made)
+
+. 
+.         * Optional: assign value labels
+.         label define relig_lbl 1 "Christian" 2 "Muslim" 3 "Other" 4 "Non-reli
+> gious"
+
+.         label values Religion_Father relig_lbl
+
+.         label values Religion_Mother relig_lbl
+
+. 
+. 
+.         * Age (continuous)
+.         gen Age = syear - gebjahr
+
+. 
+.         * Region
+.         recode sampreg (-2 = .) (1 = 0) (2 = 1), gen(Region)
+(663,123 differences between sampreg and Region)
+
+. 
+.         label define region_lbl 0 "West Germany" 1 "East Germany"
+
+.         label values Region region_lbl
+
+.         
+. 
+. * FILTERS * (Please adapt according to your needs)
+. 
+.         /* SIGNIFICANT DEVIATIONS FROM THE PAP:
+>                 * We have valid data on the dependent variable for only N = 3
+> 71 individuals, none of whom have observations in consecutive years. 
+>                 * Due to the limited number of valid cases, we deviated from 
+> several restrictions specified in the pre-analysis plan (PAP):
+>                         - We include single-year observations (i.e., individu
+> als observed in only one year).
+>                         - We do not restrict the sample to children living in
+>  the same household.
+>                         - We do not apply listwise deletion for missing value
+> s in independent variables, as this would reduce the sample size to zero.
+>                         - We restrict the control variables to those availabl
+> e for all 371 valid cases.
+>                 * Because we only have single-wave observations per individua
+> l, panel data analysis is not feasible. 
+>                 * We therefore conduct an OLS regression with standard errors
+>  clustered at the individual (pid) level.
+>         */
+. 
+.         keep if GenderEquality!=.
+(655,928 observations deleted)
+
+.         tab syear, mis
+
+                            Survey Year |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+                                   2016 |      4,046       56.23       56.23
+                                   2017 |      2,745       38.15       94.38
+                                   2018 |        404        5.62      100.00
+----------------------------------------+-----------------------------------
+                                  Total |      7,195      100.00
+
+.         xtset pid syear
+
+Panel variable: pid (weakly balanced)
+ Time variable: syear, 2016 to 2018
+         Delta: 1 unit
+
+.         xtdescribe
+
+     pid:  36052101, 36052102, ..., 39238701                 n =       7195
+   syear:  2016, 2017, ..., 2018                             T =          3
+           Delta(syear) = 1 unit
+           Span(syear)  = 3 periods
+           (pid*syear uniquely identifies each observation)
+
+Distribution of T_i:   min      5%     25%       50%       75%     95%     max
+                         1       1       1         1         1       1       1
+
+     Freq.  Percent    Cum. |  Pattern
+ ---------------------------+---------
+     4046     56.23   56.23 |  1..
+     2745     38.15   94.38 |  .1.
+      404      5.62  100.00 |  ..1
+ ---------------------------+---------
+     7195    100.00         |  XXX
+
+.         bysort pid: gen n_obs = _N
+
+.         * Keep only women and men: not neccesary since their are no other gen
+> ders represented in the data
+.         
+. 
+. * HYPOTHESIS TEST FOR H1 * (Please adapt according to your needs)
+. * Control variables: Woman n_children i.childagegroup1-i.childagegroup8 SES P
+> artner SexualOrientation i.Religion_Father i.Religion_Mother Age Region
+.         reg GenderEquality Man##i.DaughterHH, vce(cluster pid)
+
+Linear regression                               Number of obs     =      7,195
+                                                F(7, 7194)        =      15.62
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.0127
+                                                Root MSE          =     1.2212
+
+                                (Std. err. adjusted for 7,195 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+GenderEqua~y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+       1.Man |   -.491863   .0556265    -8.84   0.000    -.6009073   -.3828186
+             |
+  DaughterHH |
+  More sons  |  -.3729045   .0597938    -6.24   0.000    -.4901179   -.2556911
+Equal share  |  -.1731328    .069769    -2.48   0.013    -.3099005   -.0363651
+More daug..  |  -.2832309   .0619793    -4.57   0.000    -.4047284   -.1617333
+             |
+         Man#|
+  DaughterHH |
+1#More sons  |   .3594894   .0774161     4.64   0.000     .2077311    .5112477
+          1 #|
+Equal share  |   .2859267   .0939619     3.04   0.002     .1017337    .4701197
+          1 #|
+More daug..  |   .3941754   .0795954     4.95   0.000      .238145    .5502058
+             |
+       _cons |   6.012967   .0469158   128.17   0.000     5.920998    6.104936
+------------------------------------------------------------------------------
+
+.         reg GenderEquality      Man##i.DaughterHH n_children, vce(cluster pid
+> )
+
+Linear regression                               Number of obs     =      7,195
+                                                F(8, 7194)        =      15.94
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.0153
+                                                Root MSE          =     1.2197
+
+                                (Std. err. adjusted for 7,195 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+GenderEqua~y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+       1.Man |   -.491863   .0556304    -8.84   0.000    -.6009149   -.3828111
+             |
+  DaughterHH |
+  More sons  |  -.2336097   .0671134    -3.48   0.001    -.3651717   -.1020478
+Equal share  |  -.0452759   .0763357    -0.59   0.553    -.1949164    .1043645
+More daug..  |  -.1319985   .0709661    -1.86   0.063    -.2711128    .0071159
+             |
+         Man#|
+  DaughterHH |
+1#More sons  |   .3626494    .077365     4.69   0.000     .2109914    .5143075
+          1 #|
+Equal share  |    .286937   .0937227     3.06   0.002      .103213    .4706611
+          1 #|
+More daug..  |   .3929562    .079592     4.94   0.000     .2369325    .5489799
+             |
+  n_children |  -.0425601   .0101498    -4.19   0.000    -.0624567   -.0226635
+       _cons |   6.012967   .0469191   128.16   0.000     5.920992    6.104942
+------------------------------------------------------------------------------
+
+.         reg GenderEquality      Man##i.DaughterHH n_children Partner, vce(clu
+> ster pid)
+
+Linear regression                               Number of obs     =      7,195
+                                                F(9, 7194)        =      14.84
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.0166
+                                                Root MSE          =      1.219
+
+                                (Std. err. adjusted for 7,195 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+GenderEqua~y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+       1.Man |  -.4790287   .0558956    -8.57   0.000    -.5886005   -.3694568
+             |
+  DaughterHH |
+  More sons  |  -.3041047   .0719598    -4.23   0.000    -.4451671   -.1630423
+Equal share  |  -.1192089    .080387    -1.48   0.138    -.2767911    .0383733
+More daug..  |   -.200856   .0751285    -2.67   0.008      -.34813    -.053582
+             |
+         Man#|
+  DaughterHH |
+1#More sons  |   .3450561   .0776233     4.45   0.000     .1928916    .4972206
+          1 #|
+Equal share  |   .2682608   .0939707     2.85   0.004     .0840506    .4524711
+          1 #|
+More daug..  |   .3760619   .0799254     4.71   0.000     .2193847    .5327392
+             |
+  n_children |  -.0456894   .0101931    -4.48   0.000    -.0656709   -.0257078
+     Partner |   .1251306   .0420623     2.97   0.003     .0426761     .207585
+       _cons |   5.994535    .047466   126.29   0.000     5.901487    6.087582
+------------------------------------------------------------------------------
+
+.         reg GenderEquality      Man##i.DaughterHH n_children Partner Age , vc
+> e(cluster pid)
+
+Linear regression                               Number of obs     =      7,195
+                                                F(10, 7194)       =      13.38
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.0166
+                                                Root MSE          =      1.219
+
+                                (Std. err. adjusted for 7,195 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+GenderEqua~y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+       1.Man |  -.4790605   .0558852    -8.57   0.000    -.5886119   -.3695091
+             |
+  DaughterHH |
+  More sons  |   -.303114   .0719953    -4.21   0.000     -.444246    -.161982
+Equal share  |  -.1183654   .0804264    -1.47   0.141    -.2760248     .039294
+More daug..  |  -.2001894   .0751609    -2.66   0.008    -.3475269   -.0528519
+             |
+         Man#|
+  DaughterHH |
+1#More sons  |   .3460481   .0776495     4.46   0.000     .1938323    .4982638
+          1 #|
+Equal share  |   .2702972   .0940165     2.87   0.004     .0859972    .4545973
+          1 #|
+More daug..  |   .3770288   .0799262     4.72   0.000       .22035    .5337075
+             |
+  n_children |  -.0449993   .0103053    -4.37   0.000    -.0652008   -.0247978
+     Partner |   .1246595   .0420649     2.96   0.003     .0421999     .207119
+         Age |   -.000271   .0006054    -0.45   0.654    -.0014578    .0009159
+       _cons |   6.001311   .0495859   121.03   0.000     5.904108    6.098513
+------------------------------------------------------------------------------
+
+.         * Full model:
+.         reg GenderEquality      Man##i.DaughterHH n_children Partner Age Regi
+> on, vce(cluster pid)
+
+Linear regression                               Number of obs     =      7,195
+                                                F(11, 7194)       =      12.17
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.0166
+                                                Root MSE          =     1.2191
+
+                                (Std. err. adjusted for 7,195 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+GenderEqua~y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+       1.Man |  -.4788257    .055878    -8.57   0.000    -.5883631   -.3692883
+             |
+  DaughterHH |
+  More sons  |   -.302632   .0720131    -4.20   0.000    -.4437988   -.1614652
+Equal share  |  -.1178279   .0805095    -1.46   0.143    -.2756501    .0399943
+More daug..  |  -.1995075    .075204    -2.65   0.008    -.3469295   -.0520855
+             |
+         Man#|
+  DaughterHH |
+1#More sons  |   .3459261   .0776399     4.46   0.000     .1937291    .4981231
+          1 #|
+Equal share  |   .2701018   .0940363     2.87   0.004     .0857629    .4544406
+          1 #|
+More daug..  |   .3764708   .0799124     4.71   0.000      .219819    .5331226
+             |
+  n_children |  -.0449719   .0103013    -4.37   0.000    -.0651655   -.0247784
+     Partner |   .1242249   .0420826     2.95   0.003     .0417307    .2067192
+         Age |  -.0002727   .0006047    -0.45   0.652    -.0014582    .0009127
+      Region |  -.0125962   .0438638    -0.29   0.774    -.0985821    .0733897
+       _cons |   6.002829   .0498657   120.38   0.000     5.905078    6.100581
+------------------------------------------------------------------------------
+
+.         
+.         * Please add a verbal description of your model here    
+.         reg GenderEquality      Man##i.DaughterHH n_children Partner Age Regi
+> on, vce(cluster pid)
+
+Linear regression                               Number of obs     =      7,195
+                                                F(11, 7194)       =      12.17
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.0166
+                                                Root MSE          =     1.2191
+
+                                (Std. err. adjusted for 7,195 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+GenderEqua~y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+       1.Man |  -.4788257    .055878    -8.57   0.000    -.5883631   -.3692883
+             |
+  DaughterHH |
+  More sons  |   -.302632   .0720131    -4.20   0.000    -.4437988   -.1614652
+Equal share  |  -.1178279   .0805095    -1.46   0.143    -.2756501    .0399943
+More daug..  |  -.1995075    .075204    -2.65   0.008    -.3469295   -.0520855
+             |
+         Man#|
+  DaughterHH |
+1#More sons  |   .3459261   .0776399     4.46   0.000     .1937291    .4981231
+          1 #|
+Equal share  |   .2701018   .0940363     2.87   0.004     .0857629    .4544406
+          1 #|
+More daug..  |   .3764708   .0799124     4.71   0.000      .219819    .5331226
+             |
+  n_children |  -.0449719   .0103013    -4.37   0.000    -.0651655   -.0247784
+     Partner |   .1242249   .0420826     2.95   0.003     .0417307    .2067192
+         Age |  -.0002727   .0006047    -0.45   0.652    -.0014582    .0009127
+      Region |  -.0125962   .0438638    -0.29   0.774    -.0985821    .0733897
+       _cons |   6.002829   .0498657   120.38   0.000     5.905078    6.100581
+------------------------------------------------------------------------------
+
+.         /* We assume that GenderEquality, a continuous index of gender-egalit
+> arian attitudes, reflects support for gender equality (Hypothesis 4).
+>            To test whether the effect of having daughters differs between men
+>  and women, we run a linear OLS regression with GenderEquality as the depende
+> nt variable and an interaction term between gender (Woman) and DaughterHH (ch
+> ild gender composition) as the key independent variable.
+>            Control variables include number of children, partnership status, 
+> age, and region.
+>            We cluster standard errors at the individual level (pid)..
+>         */
+. 
+. * EXTRACT AND EXPORT RESULTS * (Please check whether the suggested code autom
+> atically picks up the correct statistics for your chosen regression analysis 
+> and adapt if needed)
+. 
+.         * Extract the required statistics
+. 
+.                 * (i) coefficient estimate
+.                 local coefficient = _b[1.Man#3.DaughterHH]
+
+. 
+.                 * (ii) standard error
+.                 local se = _se[1.Man#3.DaughterHH]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "t"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 local p_value = _b[1.Man#3.DaughterHH] / _se[1.Man#3.Daughter
+> HH]
+
+.                 local p_value = 2 * ttail(e(df_r), abs(`p_value'))
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation of directionality
+.                 scalar coef_d_daughter = _b[1.Man#3.DaughterHH]
+
+.                 local interpretation "positive coefficient is in line with hy
+> pothesis"
+
+. 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: .3764707880074905
+
+.         di "Standard Error: `se'"
+Standard Error: .0799124156625754
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: t
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: 7194
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 11
+
+.         di "p-value: " `p_value'
+p-value: 2.511e-06
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 7195
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 7195
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h4_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/95_re
+    > sults/h4_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

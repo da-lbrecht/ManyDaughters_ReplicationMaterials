@@ -1,0 +1,520 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased; see help set_maxvar.
+
+. do tmpgxes_kxz.do 
+
+. do "5%-sample_Setup.do"
+
+. ********************************************************************************
+. ***************************** General Stata Setup ******************************
+. ********************************************************************************
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. 
+. * the following code automatically sets paths based on the project location on your system *local
+>  curdir = c(pwd)
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | substr("`curdir'", -36,
+>  .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked" "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaughters_DataPreprocess
+> ing
+
+. 
+. global IN "$ROOT/data/raw_confidential/5%-sample" // folder, in which the original datasets are s
+> tored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaughters_DataPreprocessin
+> g/data/raw_confidential/5%-sample
+
+. global DATA "$ROOT/data/derived_confidential/5%-sample" // folder for datasets
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaughters_DataPreprocess
+> ing/data/derived_confidential/5%-sample
+
+. global OUT "$ROOT/data/derived/5_results" // folder for output (results, tables)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaughters_DataPreprocessi
+> ng/data/derived/5_results
+
+. 
+end of do-file
+
+. do "20250731_194000_01oa0d_h4.do"
+
+. **************************************************************
+. ****************** Many Daughters Project - H4 ***************
+. **************************************************************
+. 
+. 
+. * ============================
+. * Setup
+. * ============================
+. * clear all
+. * version 19
+. set maxvar 10000
+
+
+. 
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. /*
+> * the following code automatically sets paths based on where you saved the distributed file-packa
+> ge on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stored
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> */
+. 
+. * ============================
+. * Data Preparation
+. * ============================
+. 
+. * Our dependent variable is from 2018 survey.
+. * Variables: agreement_share (plh0308_v2),
+. use "$IN/pl.dta", clear
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. keep if syear == 2018
+(33,168 observations deleted)
+
+. keep pid plh0308_v2
+
+. rename plh0308_v2 agreement_sharework
+
+. keep if agreement_sharework > 0 & !missing(agreement_sharework)
+(789 observations deleted)
+
+. save "$DATA/h4_sharework.dta", replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confidential/5%-sample/h4
+    > _sharework.dta not found)
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confidential/5%-sample/h4
+    > _sharework.dta saved
+
+. 
+. * Partner information, sex, birth year, migration background
+. * Variables: pid, syear, hid, cid, parid, partner
+. use "$IN/ppathl.dta", clear
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. keep if syear == 2018
+(33,168 observations deleted)
+
+. keep pid hid parid partner sex gebjahr migback
+
+. replace parid = . if parid < 0
+(765 real changes made, 765 to missing)
+
+. replace partner = . if partner < 0
+(0 real changes made)
+
+. keep if (!missing(pid)) & (!missing(hid)) & (!missing(partner))
+(0 observations deleted)
+
+. save "$DATA/h4_partner_migration.dta", replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confidential/5%-sample/h4
+    > _partner_migration.dta not found)
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confidential/5%-sample/h4
+    > _partner_migration.dta saved
+
+. 
+. * First child information
+. * Variables: pid, kidsex01, kidgeb01
+. * Generated variable: firstkid_female
+. use "$IN/biobirth.dta", clear
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. keep pid kidsex01 kidgeb01
+
+. keep if kidsex01 > 0
+(1,469 observations deleted)
+
+. keep if kidgeb01 > 0
+(12 observations deleted)
+
+. gen firstkid_female = kidsex01 == 2
+
+. * rename kidgeb01 to firstkid_birthyear
+. rename kidgeb01 firstkid_birthyear
+
+. * rename kidsex01 to firstkid_sex
+. rename kidsex01 firstkid_sex
+
+. save "$DATA/h4_firstkid.dta", replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confidential/5%-sample/h4
+    > _firstkid.dta not found)
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confidential/5%-sample/h4
+    > _firstkid.dta saved
+
+. 
+. 
+. * Education and income 
+. use "$IN/pgen.dta", clear
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. keep if syear == 2018
+(33,168 observations deleted)
+
+. keep pid pgbilzeit pglabnet
+
+. replace pgbilzeit = . if pgbilzeit < 0
+(110 real changes made, 110 to missing)
+
+. replace pglabnet = . if pglabnet < 0
+(650 real changes made, 650 to missing)
+
+. keep if (!missing(pid)) 
+(0 observations deleted)
+
+. *keep if (!missing(pglabnet)) & (!missing(pgbilzeit))
+. rename pglabnet incomelabor_net
+
+. rename pgbilzeit education_totalyears
+
+. save "$DATA/h4_education_income.dta", replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confidential/5%-sample/h4
+    > _education_income.dta not found)
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confidential/5%-sample/h4
+    > _education_income.dta saved
+
+. 
+. use "$IN/biobirth.dta", clear
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. 
+. * Drop cases with no valid sex or birth year info at all (optional cleanup)
+. drop if kidsex01 < 0 & kidgeb01 < 0
+(1,466 observations deleted)
+
+. 
+. * Step 1: Mask kids born after 2018
+. forvalues i = 1/19 {
+  2.     local k = string(`i', "%02.0f")
+  3. 
+.     * Replace both sex and birth year with missing if born after 2018
+.     quietly replace kidsex`k' = . if kidsex`k' < 0
+  4.         quietly replace kidgeb`k' = . if kidgeb`k' < 0
+  5.         
+.         quietly replace kidsex`k' = . if kidgeb`k' > 2018
+  6.     quietly replace kidgeb`k' = . if kidgeb`k' > 2018
+  7. }
+
+. 
+. 
+. gen byte num_sons = 0
+
+. gen byte num_daughters = 0
+
+. 
+. forvalues i = 1/19 {
+  2.     local k = string(`i', "%02.0f")
+  3.     quietly replace num_sons = num_sons + 1 if kidsex`k' == 1
+  4.     quietly replace num_daughters = num_daughters + 1 if kidsex`k' == 2
+  5. }
+
+. 
+. gen byte num_biochildren = num_sons + num_daughters
+
+. gen byte has_children = num_biochildren > 0
+
+. gen byte has_daughters = num_daughters > 0
+
+. 
+. gen lastkid_birthyear = .
+(3,042 missing values generated)
+
+. forvalues i = 1/19 {
+  2.     local k = string(`i', "%02.0f")
+  3.     quietly replace lastkid_birthyear = max(lastkid_birthyear, kidgeb`k') ///
+>         if !missing(kidgeb`k') & (missing(lastkid_birthyear) | kidgeb`k' > lastkid_birthyear)
+  4. }
+
+. 
+. 
+. keep pid num_biochildren num_sons num_daughters has_children has_daughters lastkid_birthyear
+
+. 
+. save "$DATA/h4_nkids.dta", replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confidential/5%-sample/h4
+    > _nkids.dta not found)
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confidential/5%-sample/h4
+    > _nkids.dta saved
+
+. 
+. 
+. * ============================
+. * Merge All Data
+. * ============================
+. use "$DATA/h4_firstkid.dta", clear
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. merge 1:1 pid using "$DATA/h4_nkids.dta", nogen
+(label pid_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                            15
+        from master                         0  
+        from using                         15  
+
+    Matched                             3,027  
+    -----------------------------------------
+
+. merge 1:1 pid using "$DATA/h4_education_income.dta", nogen
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                         2,144
+        from master                     1,563  
+        from using                        581  
+
+    Matched                             1,479  
+    -----------------------------------------
+
+. merge 1:1 pid using "$DATA/h4_sharework.dta", nogen
+(label pid_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                         2,352
+        from master                     2,352  
+        from using                          0  
+
+    Matched                             1,271  
+    -----------------------------------------
+
+. merge 1:1 pid using "$DATA/h4_partner_migration.dta", nogen
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                         1,563
+        from master                     1,563  
+        from using                          0  
+
+    Matched                             2,060  
+    -----------------------------------------
+
+. 
+. 
+. replace education_totalyears = . if education_totalyears < 0
+(0 real changes made)
+
+. replace agreement_sharework = . if agreement_sharework < 0
+(0 real changes made)
+
+. 
+. 
+. keep if !missing(sex) & !missing(firstkid_birthyear) & !missing(firstkid_sex) & !missing(agreemen
+> t_sharework) & !missing(gebjahr)
+(2,649 observations deleted)
+
+. keep if num_biochildren > 0
+(9 observations deleted)
+
+. 
+. * ============================
+. * Generate additional vars
+. * ============================
+. 
+. gen male = sex == 1
+
+. gen years_since_lastkid = 2018 - lastkid_birthyear
+
+. gen years_since_firstkid = 2018 - firstkid_birthyear
+
+. gen age = 2018 - gebjahr
+
+. gen logincome = log(incomelabor_net)
+(356 missing values generated)
+
+. 
+. keep if years_since_firstkid >= 1
+(17 observations deleted)
+
+. save "$DATA/h4_dataset.dta", replace
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confidential/5%-sample/h4
+    > _dataset.dta saved
+
+. 
+. 
+. 
+. * ============================
+. * Regression
+. * ============================
+. 
+. * Interactions
+. gen double has_daughters_male = has_daughters * male
+
+. gen double firstkid_female_male = firstkid_female * male
+
+. 
+. ivregress 2sls agreement_sharework ///
+>     (has_daughters has_daughters_male = firstkid_female firstkid_female_male) ///
+>     num_biochildren male age education_totalyears logincome ///
+>     i.migback i.partner years_since_firstkid, cluster(hid)
+
+Instrumental-variables 2SLS regression            Number of obs   =        589
+                                                  Wald chi2(12)   =      59.34
+                                                  Prob > chi2     =     0.0000
+                                                  R-squared       =     0.0861
+                                                  Root MSE        =      1.772
+
+                                                      (Std. err. adjusted for 425 clusters in hid)
+--------------------------------------------------------------------------------------------------
+                                 |               Robust
+             agreement_sharework | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+---------------------------------+----------------------------------------------------------------
+                   has_daughters |  -.0007625   .3921136    -0.00   0.998     -.769291     .767766
+              has_daughters_male |  -.6451498   .5834693    -1.11   0.269    -1.788729    .4984289
+                 num_biochildren |  -.1935508   .0989539    -1.96   0.050    -.3874968    .0003953
+                            male |    .209559   .4540561     0.46   0.644    -.6803747    1.099493
+                             age |   -.023625   .0177589    -1.33   0.183    -.0584318    .0111817
+            education_totalyears |   .0080224   .0328622     0.24   0.807    -.0563863     .072431
+                       logincome |   .1834422   .1066009     1.72   0.085    -.0254917    .3923761
+                                 |
+                         migback |
+[2] direkter Migrationshinter..  |   .1937705   .2249869     0.86   0.389    -.2471957    .6347368
+[3] indirekter Migrationshint..  |   .3767078    .359305     1.05   0.294    -.3275171    1.080933
+                                 |
+                         partner |
+[1] Ehepartner / eingetragene..  |  -.4121957   .2003543    -2.06   0.040    -.8048829   -.0195084
+              [2] Lebenspartner  |   .2185729   .2775457     0.79   0.431    -.3254066    .7625524
+                                 |
+            years_since_firstkid |   .0568735   .0152061     3.74   0.000     .0270702    .0866769
+                           _cons |   4.538704   .9248207     4.91   0.000     2.726088    6.351319
+--------------------------------------------------------------------------------------------------
+Endogenous: has_daughters has_daughters_male
+Exogenous:  num_biochildren male age education_totalyears logincome 2.migback 3.migback
+            1.partner 2.partner years_since_firstkid firstkid_female firstkid_female_male
+
+. 
+. 
+. * ============================
+. * Collect parameters
+. * ============================
+. 
+. * (i) Coefficient
+. local coefficient = _b[has_daughters_male]
+
+. 
+. * (ii) Standard error
+. local se = _se[has_daughters_male]
+
+. 
+. * (iii) Test statistic family
+. local test_stat_family = "z"  
+
+. 
+. * (iv) Degrees of freedom
+. * Residual d.f.
+. local num_clusters = e(N_clust)
+
+. local df_residual = `num_clusters' - 1
+
+. 
+. * Model d.f.
+. local df_model = e(df_m)
+
+. 
+. * (v) p-value
+. matrix b = r(table)
+
+. local col = colnumb(b, "has_daughters_male")
+
+. local p_value = b[4, `col']
+
+. 
+. * (vi) Number of observations
+. local num_obs = e(N)
+
+. 
+. * (vii) number of participants
+. local num_participants = e(N)
+
+. 
+. * (viii) Interpretation of directionality
+. scalar coef_interaction = _b[has_daughters_male]
+
+.                 local interpretation "positive coefficient is in line with hypothesis"
+
+. 
+. * ============================
+. * Write to CSV
+. * ============================
+. 
+. file open myfile using "$OUT/h4_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/5_results/h4_results.csv
+    not found)
+
+. file write myfile "coefficient,se,family,residual_df,model_df,p_value,num_obs,num_participants,in
+> terpretation" _n
+
+. file write myfile ///
+>     "`coefficient',`se',`test_stat_family',`df_residual',`df_model',`p_value',`num_obs',`num_part
+> icipants',`interpretation'" _n
+
+. file close myfile
+
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

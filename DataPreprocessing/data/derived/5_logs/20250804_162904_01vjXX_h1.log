@@ -1,0 +1,966 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmpv0jux7rb.do 
+
+. do "5%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. 
+. * the following code automatically sets paths based on the project location o
+> n your system *local curdir = c(pwd)
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/5%-sample" // folder, in which the ori
+> ginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/5%-sample
+
+. global DATA "$ROOT/data/derived_confidential/5%-sample" // folder for dataset
+> s
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/5%-sample
+
+. global OUT "$ROOT/data/derived/5_results" // folder for output (results, tabl
+> es)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/5_results
+
+. 
+end of do-file
+
+. do "20250804_162904_01vjXX_h1.do"
+
+. *****************************************************************************
+> ***
+. *********************  Do-File H1: #ManyDaughters Project *******************
+> ***
+. *****************************************************************************
+> ***
+. 
+. * Authors: Tina Wang, David Albrecht, adapted by 01vjXX
+. 
+. * ============================
+. * Setup * 
+. * ============================
+. 
+. *clear all
+. version 14 // stata version
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. * INSTALL PACKAGES * 
+. ssc install outreg2
+checking outreg2 consistency and verifying not already installed...
+all files already exist and are up to date.
+
+. ssc install psmatch2
+checking psmatch2 consistency and verifying not already installed...
+all files already exist and are up to date.
+
+. /*
+> * CONFIGURE FILE PATHS * 
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> */
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA * 
+. 
+.         use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. 
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches) ke
+> epusing (pid kidsex01 kidpnr01 kidgeb01 kidmon01 kidgeb02 kidgeb03 kidgeb04 k
+> idgeb05 kidgeb06 kidgeb07 kidgeb08 kidgeb09 kidgeb10 kidgeb11 kidgeb12 kidgeb
+> 13 kidgeb14 kidgeb15 kidgeb16 kidgeb17 kidgeb19 kidsex02 kidsex03 kidsex04 ki
+> dsex05 kidsex06 kidsex07 kidsex08 kidsex09 kidsex10 kidsex11 kidsex12 kidsex1
+> 3 kidsex14 kidsex15 kidsex16 kidsex17 kidsex19)
+(variable pid was long, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * pgen contains user-friendly data on the individual level that are c
+> onsolidated from different sources
+.         merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches) 
+> keepusing (pid syear pgisced11)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * pl contains all variables from the individual questionnaire
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches) ke
+> epusing(pid syear hid plj0621 plj0622 plj0623 plj0624 plj0625 plc0010 plc0011
+>  plh0298_v1 plh0298_v2 plh0300_v1 plh0300_v2 plh0302_v1 plh0302_v2 plh0308_v1
+>  plh0308_v2 plh0357 plh0358 plh0359)
+(label cid already defined)
+(label pid_EN already defined)
+(label cid_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * hgen contains generated variables on household level from the house
+> hold interview; use for household net income
+.         merge m:1 hid syear using "$IN/hgen.dta", nogen keep(master matches) 
+> keepusing(hid syear hghinc)
+(label iyear already defined)
+(label iyear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+. 
+.         label language EN // change language of the labels to English
+
+. 
+.         save "$DATA/h1_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/5%-sample/h1_dataset.dta saved
+
+. 
+. * ============================
+. * Analysis
+. * ============================
+. 
+. * Deviation from  PAP. The original analysis proved infeasible due to a lack 
+> of observations.
+. * Therefore I switched analysis strategies, instead of a fixed effects model 
+> I perform propensity score matching and do a linear regression
+. * I also change the dependent variable i.e. how gender attitudes are measured
+> . Instead of plj0621 and plj0622 (the two items with the only acceptable alph
+> a from plj0621:plj0625)
+. * I use plh0357 and plh0359 instead, which are attitudes towards homosexualit
+> y. The original items were about working women. These are arugably different 
+> aspects of gender equality.
+. 
+. * FILTERS * 
+.         keep if syear == 2018 // questions only asked in 2018 
+(33,168 observations deleted)
+
+. 
+. * GENERATE VARIABLES * 
+. 
+.         ** recode all missings
+.         mvdecode _all, mv(-8/-1 = .)
+       parid: 765 missing values generated
+     casemat: 2060 missing values generated
+         pop: 33 missing values generated
+     todjahr: 2008 missing values generated
+     todinfo: 2008 missing values generated
+    immiyear: 1368 missing values generated
+     corigin: 1 missing value generated
+    gebmonat: 6 missing values generated
+     loc1989: 460 missing values generated
+     locinfo: 37 missing values generated
+ birthregion: 1128 missing values generated
+birthregio~w: 1158 missing values generated
+    arefback: 3 missing values generated
+    arefinfo: 3 missing values generated
+       rv_id: 1375 missing values generated
+      piyear: 13 missing values generated
+    kidpnr01: 1014 missing values generated
+    kidgeb01: 590 missing values generated
+    kidgeb02: 928 missing values generated
+    kidgeb03: 1569 missing values generated
+    kidgeb04: 1863 missing values generated
+    kidgeb05: 1984 missing values generated
+    kidgeb06: 2027 missing values generated
+    kidgeb07: 2040 missing values generated
+    kidgeb08: 2046 missing values generated
+    kidgeb09: 2056 missing values generated
+    kidgeb10: 2060 missing values generated
+    kidgeb11: 2060 missing values generated
+    kidgeb12: 2060 missing values generated
+    kidgeb13: 2060 missing values generated
+    kidgeb14: 2060 missing values generated
+    kidgeb15: 2060 missing values generated
+    kidgeb16: 2060 missing values generated
+    kidgeb17: 2060 missing values generated
+    kidgeb19: 2060 missing values generated
+    kidsex01: 582 missing values generated
+    kidsex02: 923 missing values generated
+    kidsex03: 1569 missing values generated
+    kidsex04: 1862 missing values generated
+    kidsex05: 1983 missing values generated
+    kidsex06: 2026 missing values generated
+    kidsex07: 2040 missing values generated
+    kidsex08: 2046 missing values generated
+    kidsex09: 2056 missing values generated
+    kidsex10: 2060 missing values generated
+    kidsex11: 2060 missing values generated
+    kidsex12: 2060 missing values generated
+    kidsex13: 2060 missing values generated
+    kidsex14: 2060 missing values generated
+    kidsex15: 2060 missing values generated
+    kidsex16: 2060 missing values generated
+    kidsex17: 2060 missing values generated
+    kidsex19: 2060 missing values generated
+    kidmon01: 1098 missing values generated
+   pgisced11: 20 missing values generated
+     plc0010: 525 missing values generated
+     plc0011: 526 missing values generated
+  plh0298_v1: 1506 missing values generated
+  plh0298_v2: 232 missing values generated
+  plh0300_v1: 1506 missing values generated
+  plh0300_v2: 229 missing values generated
+  plh0302_v1: 1506 missing values generated
+  plh0302_v2: 234 missing values generated
+  plh0308_v1: 1506 missing values generated
+  plh0308_v2: 235 missing values generated
+     plh0357: 226 missing values generated
+     plh0358: 228 missing values generated
+     plh0359: 249 missing values generated
+     plj0621: 1485 missing values generated
+     plj0622: 1485 missing values generated
+     plj0623: 1485 missing values generated
+     plj0624: 1485 missing values generated
+     plj0625: 1485 missing values generated
+      hghinc: 82 missing values generated
+
+.         
+.         ** recode sex of child - this is a universal variable that does not y
+> et show WHEN the birth was 
+.         tab kidsex01
+
+                         Sex 1st. Child |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+                               [1] Male |        796       53.86       53.86
+                             [2] Female |        682       46.14      100.00
+----------------------------------------+-----------------------------------
+                                  Total |      1,478      100.00
+
+.         recode kidsex01 (1=0) (2=1), gen(kidsex01F) // change coding from 1,2
+>  to 0,1 - 1 is female, 0 is male
+(1,478 differences between kidsex01 and kidsex01F)
+
+.         
+.         
+.         ** now indicate whether that child was a boy or girl
+.         gen hadDaughter = .
+(2,060 missing values generated)
+
+.         replace hadDaughter = 1 if kidsex01F == 1 // 
+(682 real changes made)
+
+.         replace hadDaughter = 0 if kidsex01F == 0 // by definition children w
+> hose sex is unknown are exluded through this approach
+(796 real changes made)
+
+.         
+.         drop if hadDaughter == . // take out observations of those who don't 
+> have a son or daughter
+(582 observations deleted)
+
+.         
+.         ** gender attitudes as measured by attitudes towards gay marriage and
+>  gay parenting
+.         
+.         rename plh0357 gay_marriage // rename variables
+
+.         rename plh0359 gay_parent // rename variables
+
+.         
+.         alpha gay_marriage gay_parent // look at alpha between the two
+
+Test scale = mean(unstandardized items)
+
+Average interitem covariance:     3.183768
+Number of items in the scale:            2
+Scale reliability coefficient:      0.8169
+
+. 
+.         drop if gay_marriage == . // drop missings
+(496 observations deleted)
+
+.         drop if gay_parent == . // drop missings
+(22 observations deleted)
+
+.          
+.         gen genderAtt = (gay_marriage + gay_parent) / 2 // create index
+
+. 
+.         ** look at matching and control variables
+.         
+.         * born in East Germany
+.         *tab birthregion_ew
+.         
+.         *gen east = . 
+.         *replace east = 1 if birthregion_ew == 22 
+.         *replace east = 0 if birthregion_ew == 21
+.         *tab east, missing // about one third missings, those not from german
+> y?
+.         * collides with migraiton background - decision to only use migration
+>  background 
+.         
+.         * age at birth
+.         gen age_at_birth = kidgeb01 - gebjahr
+(2 missing values generated)
+
+.         
+.         * migration background
+.         tab migback
+
+                   Migration background |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+            [1] no migration background |        757       78.85       78.85
+        [2] direct migration background |        170       17.71       96.56
+      [3] indirect migration background |         33        3.44      100.00
+----------------------------------------+-----------------------------------
+                                  Total |        960      100.00
+
+.         gen migback_binary = . 
+(960 missing values generated)
+
+.         replace migback_binary = 1 if migback == 2
+(170 real changes made)
+
+.         replace migback_binary = 0 if migback == 1 
+(757 real changes made)
+
+.         replace migback_binary = 0 if migback == 3
+(33 real changes made)
+
+.         replace migback_binary = 0 if migback == 4
+(0 real changes made)
+
+.         tab migback_binary
+
+migback_bin |
+        ary |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |        790       82.29       82.29
+          1 |        170       17.71      100.00
+------------+-----------------------------------
+      Total |        960      100.00
+
+.         
+.         * female
+.         tab sex
+
+                                 Gender |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+                               [1] Male |        415       43.23       43.23
+                             [2] Female |        545       56.77      100.00
+----------------------------------------+-----------------------------------
+                                  Total |        960      100.00
+
+.         recode sex (1=0) (2=1), gen(female) // change coding from 1,2 to 0,1 
+> - 1 is female, 0 is male
+(960 differences between sex and female)
+
+.         tab female
+
+  RECODE of |
+        sex |
+   (Gender) |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |        415       43.23       43.23
+          1 |        545       56.77      100.00
+------------+-----------------------------------
+      Total |        960      100.00
+
+.         
+.         * total nr of children
+.         egen numChildren = rownonmiss(kidgeb01-kidgeb19) // this is based on 
+> knowing year of birth, there are some cases where year of birth is unknown 
+
+.         egen numChildren2 = rownonmiss(kidsex01-kidsex19) // this is based on
+>  knowing sex of child
+
+.         
+.         gen flag_children = .
+(960 missing values generated)
+
+.         replace flag_children = 1 if numChildren != numChildren2
+(2 real changes made)
+
+.         
+.         * 2 observations have a different value here depending on whether sex
+>  of child or year of birth of child is used 
+.         * choice made to use date of birth to establish whether someone has a
+>  child or not
+.         
+.         * education
+.         tab pgisced11
+
+              ISCED-2011-Classification |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+                  [1] Primary education |         19        1.99        1.99
+          [2] Lower secondary education |         79        8.27       10.26
+          [3] Upper secondary education |        436       45.65       55.92
+[4] Post-secondary non-tertiary educati |         83        8.69       64.61
+     [5] Short-cycle tertiary education |         47        4.92       69.53
+      [6] Bachelors or equivalent level |        170       17.80       87.33
+        [7] Masters or equivalent level |        107       11.20       98.53
+       [8] Doctoral or equivalent level |         14        1.47      100.00
+----------------------------------------+-----------------------------------
+                                  Total |        955      100.00
+
+. 
+.         gen edu = . 
+(960 missing values generated)
+
+.         replace edu = 1 if pgisced >=0 &  pgisced <= 2 // low educated
+(98 real changes made)
+
+.         replace edu = 2 if pgisced >=3 & pgisced <= 5 // middle educated
+(566 real changes made)
+
+.         replace edu = 3 if pgisced >=6 & pgisced <= 8 // highly educated
+(291 real changes made)
+
+.         tab edu
+
+        edu |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          1 |         98       10.26       10.26
+          2 |        566       59.27       69.53
+          3 |        291       30.47      100.00
+------------+-----------------------------------
+      Total |        955      100.00
+
+.         
+.         *income 
+.         tab hghinc, missing
+
+     Monthly Household Net Income (EUR) |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+                                    600 |          2        0.21        0.21
+                                    666 |          1        0.10        0.31
+                                    676 |          1        0.10        0.42
+                                    696 |          1        0.10        0.52
+                                    698 |          1        0.10        0.62
+                                    700 |          1        0.10        0.73
+                                    750 |          1        0.10        0.83
+                                    780 |          1        0.10        0.94
+                                    800 |          1        0.10        1.04
+                                    830 |          1        0.10        1.15
+                                    841 |          2        0.21        1.35
+                                    850 |          2        0.21        1.56
+                                    870 |          1        0.10        1.67
+                                    900 |          7        0.73        2.40
+                                    927 |          1        0.10        2.50
+                                    930 |          1        0.10        2.60
+                                    934 |          1        0.10        2.71
+                                    950 |          2        0.21        2.92
+                                    997 |          2        0.21        3.12
+                                   1000 |          6        0.62        3.75
+                                   1030 |          1        0.10        3.85
+                                   1050 |          2        0.21        4.06
+                                   1060 |          2        0.21        4.27
+                                   1063 |          1        0.10        4.37
+                                   1075 |          1        0.10        4.48
+                                   1080 |          2        0.21        4.69
+                                   1100 |          2        0.21        4.90
+                                   1138 |          1        0.10        5.00
+                                   1150 |          2        0.21        5.21
+                                   1197 |          2        0.21        5.42
+                                   1200 |         17        1.77        7.19
+                                   1230 |          1        0.10        7.29
+                                   1250 |          4        0.42        7.71
+                                   1264 |          1        0.10        7.81
+                                   1300 |          8        0.83        8.65
+                                   1318 |          1        0.10        8.75
+                                   1325 |          2        0.21        8.96
+                                   1330 |          1        0.10        9.06
+                                   1380 |          1        0.10        9.17
+                                   1400 |         14        1.46       10.62
+                                   1411 |          2        0.21       10.83
+                                   1420 |          1        0.10       10.94
+                                   1430 |          2        0.21       11.15
+                                   1450 |          5        0.52       11.67
+                                   1500 |         17        1.77       13.44
+                                   1571 |          1        0.10       13.54
+                                   1580 |          1        0.10       13.65
+                                   1600 |         10        1.04       14.69
+                                   1615 |          1        0.10       14.79
+                                   1650 |          4        0.42       15.21
+                                   1670 |          2        0.21       15.42
+                                   1700 |          7        0.73       16.15
+                                   1740 |          2        0.21       16.35
+                                   1760 |          1        0.10       16.46
+                                   1800 |         15        1.56       18.02
+                                   1830 |          1        0.10       18.12
+                                   1833 |          1        0.10       18.23
+                                   1849 |          1        0.10       18.33
+                                   1850 |          2        0.21       18.54
+                                   1854 |          1        0.10       18.65
+                                   1900 |          8        0.83       19.48
+                                   1934 |          2        0.21       19.69
+                                   1950 |          4        0.42       20.10
+                                   2000 |         32        3.33       23.44
+                                   2006 |          1        0.10       23.54
+                                   2100 |         21        2.19       25.73
+                                   2150 |          1        0.10       25.83
+                                   2200 |         20        2.08       27.92
+                                   2220 |          2        0.21       28.12
+                                   2250 |          3        0.31       28.44
+                                   2268 |          2        0.21       28.65
+                                   2300 |         14        1.46       30.10
+                                   2340 |          1        0.10       30.21
+                                   2390 |          1        0.10       30.31
+                                   2400 |         15        1.56       31.88
+                                   2424 |          2        0.21       32.08
+                                   2494 |          2        0.21       32.29
+                                   2500 |         27        2.81       35.10
+                                   2510 |          2        0.21       35.31
+                                   2550 |          2        0.21       35.52
+                                   2578 |          2        0.21       35.73
+                                   2600 |          8        0.83       36.56
+                                   2624 |          1        0.10       36.67
+                                   2640 |          2        0.21       36.88
+                                   2650 |          2        0.21       37.08
+                                   2700 |         14        1.46       38.54
+                                   2750 |          2        0.21       38.75
+                                   2762 |          1        0.10       38.85
+                                   2800 |         16        1.67       40.52
+                                   2830 |          1        0.10       40.63
+                                   2842 |          2        0.21       40.83
+                                   2850 |          2        0.21       41.04
+                                   2870 |          1        0.10       41.15
+                                   2883 |          2        0.21       41.35
+                                   2900 |          6        0.62       41.98
+                                   2910 |          2        0.21       42.19
+                                   2917 |          1        0.10       42.29
+                                   3000 |         38        3.96       46.25
+                                   3050 |          1        0.10       46.35
+                                   3100 |         10        1.04       47.40
+                                   3200 |         18        1.88       49.27
+                                   3230 |          2        0.21       49.48
+                                   3250 |          3        0.31       49.79
+                                   3270 |          1        0.10       49.90
+                                   3300 |         12        1.25       51.15
+                                   3368 |          2        0.21       51.35
+                                   3400 |         12        1.25       52.60
+                                   3450 |          2        0.21       52.81
+                                   3500 |         33        3.44       56.25
+                                   3510 |          1        0.10       56.35
+                                   3550 |          1        0.10       56.46
+                                   3564 |          1        0.10       56.56
+                                   3600 |          4        0.42       56.98
+                                   3650 |          2        0.21       57.19
+                                   3700 |         12        1.25       58.44
+                                   3750 |          2        0.21       58.65
+                                   3800 |         15        1.56       60.21
+                                   3807 |          1        0.10       60.31
+                                   3867 |          2        0.21       60.52
+                                   3900 |          1        0.10       60.63
+                                   3960 |          2        0.21       60.83
+                                   3967 |          2        0.21       61.04
+                                   3970 |          1        0.10       61.15
+                                   4000 |         48        5.00       66.15
+                                   4050 |          4        0.42       66.56
+                                   4080 |          2        0.21       66.77
+                                   4100 |          4        0.42       67.19
+                                   4194 |          1        0.10       67.29
+                                   4200 |          8        0.83       68.13
+                                   4270 |          3        0.31       68.44
+                                   4300 |          8        0.83       69.27
+                                   4350 |          1        0.10       69.38
+                                   4371 |          2        0.21       69.58
+                                   4400 |          7        0.73       70.31
+                                   4430 |          2        0.21       70.52
+                                   4444 |          2        0.21       70.73
+                                   4500 |         32        3.33       74.06
+                                   4540 |          2        0.21       74.27
+                                   4600 |          7        0.73       75.00
+                                   4700 |          8        0.83       75.83
+                                   4780 |          2        0.21       76.04
+                                   4800 |          5        0.52       76.56
+                                   4850 |          2        0.21       76.77
+                                   4900 |          2        0.21       76.98
+                                   4914 |          2        0.21       77.19
+                                   5000 |         36        3.75       80.94
+                                   5100 |          2        0.21       81.15
+                                   5292 |          2        0.21       81.35
+                                   5300 |          4        0.42       81.77
+                                   5360 |          1        0.10       81.87
+                                   5400 |          7        0.73       82.60
+                                   5500 |         24        2.50       85.10
+                                   5600 |          2        0.21       85.31
+                                   5700 |          2        0.21       85.52
+                                   5800 |          1        0.10       85.62
+                                   6000 |         20        2.08       87.71
+                                   6100 |          2        0.21       87.92
+                                   6300 |          1        0.10       88.02
+                                   6400 |          2        0.21       88.23
+                                   6500 |          5        0.52       88.75
+                                   6700 |          6        0.62       89.37
+                                   6800 |          2        0.21       89.58
+                                   7000 |         11        1.15       90.73
+                                   7100 |          6        0.62       91.35
+                                   7190 |          1        0.10       91.46
+                                   7250 |          2        0.21       91.67
+                                   7500 |          2        0.21       91.87
+                                   7600 |          1        0.10       91.98
+                                   7700 |          2        0.21       92.19
+                                   8000 |          9        0.94       93.12
+                                   8100 |          1        0.10       93.23
+                                   8400 |          2        0.21       93.44
+                                   8500 |          6        0.62       94.06
+                                   8800 |          1        0.10       94.17
+                                   9000 |         13        1.35       95.52
+                                   9500 |          1        0.10       95.62
+                                   9800 |          2        0.21       95.83
+                                  10000 |          6        0.62       96.46
+                                  12000 |          2        0.21       96.67
+                                  16000 |          1        0.10       96.77
+                                  50000 |          2        0.21       96.98
+                                      . |         29        3.02      100.00
+----------------------------------------+-----------------------------------
+                                  Total |        960      100.00
+
+.         
+.         histogram hghinc // look at distribution
+(bin=29, start=600, width=1703.4483)
+
+.         
+.         gen log_income = log(hghinc) // create logged income
+(29 missing values generated)
+
+.         histogram log_income // check distribution of logged income
+(bin=29, start=6.3969297, width=.15251202)
+
+.         
+.         
+.         ** Propensity score matching -  migration background, income, nr of c
+> hildren, sex, education. 
+. 
+.         psmatch2 hadDaughter c.age_at_birth i.migback_binary log_income i.fem
+> ale c.numChildren i.edu, neighbor(1) caliper(0.05) noreplace
+
+Probit regression                                       Number of obs =    925
+                                                        LR chi2(7)    =   5.83
+                                                        Prob > chi2   = 0.5601
+Log likelihood = -632.04522                             Pseudo R2     = 0.0046
+
+------------------------------------------------------------------------------
+ hadDaughter | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+age_at_birth |  -.0083195   .0081123    -1.03   0.305    -.0242192    .0075803
+1.migback_~y |  -.0327832   .1108149    -0.30   0.767    -.2499764    .1844101
+  log_income |  -.1025497   .0822482    -1.25   0.212    -.2637532    .0586538
+    1.female |  -.0004795     .08756    -0.01   0.996     -.172094    .1711349
+ numChildren |   .0566794   .0424504     1.34   0.182    -.0265219    .1398808
+             |
+         edu |
+          2  |   .0868914   .1485622     0.58   0.559    -.2042851    .3780679
+          3  |   .1018353   .1678392     0.61   0.544    -.2271234     .430794
+             |
+       _cons |   .7102553   .6224922     1.14   0.254     -.509807    1.930318
+------------------------------------------------------------------------------
+
+.         
+.         gen matched = (_weight != .)
+
+.         
+.         * look at balance
+.         pstest c.age_at_birth i.migback_binary c.log_income i.female c.numChi
+> ldren i.edu, both
+
+-------------------------------------------------------------------------------
+> ---------
+                Unmatched |       Mean               %reduct |     t-test    | 
+>  V(T)/
+Variable          Matched | Treated Control    %bias  |bias| |    t    p>|t| | 
+>  V(C)
+--------------------------+----------------------------------+---------------+-
+> ---------
+age_at_birth           U  | 27.494   28.138    -11.1         |  -1.68  0.093 | 
+>  1.06
+                       M  | 27.662   27.409      4.4    60.7 |   0.63  0.529 | 
+>  1.11
+                          |                                  |               |
+1.migback_binary       U  | .17604   .17829     -0.6         |  -0.09  0.929 | 
+>     .
+                       M  | .18045   .16541      3.9  -566.7 |   0.56  0.575 | 
+>     .
+                          |                                  |               |
+log_income             U  | 7.9984   8.0541     -9.6         |  -1.45  0.148 | 
+>  0.83
+                       M  | 8.0053   7.9921      2.3    76.2 |   0.33  0.743 | 
+>  0.88
+                          |                                  |               |
+1.female               U  | .57213   .56202      2.0         |   0.31  0.758 | 
+>     .
+                       M  | .56892    .5614      1.5    25.6 |   0.21  0.831 | 
+>     .
+                          |                                  |               |
+numChildren            U  | 2.2029   2.1105      9.0         |   1.38  0.169 | 
+>  1.29*
+                       M  | 2.1328   2.1604     -2.7    70.2 |  -0.40  0.686 | 
+>  1.04
+                          |                                  |               |
+2.edu                  U  | .60391   .58721      3.4         |   0.51  0.608 | 
+>     .
+                       M  |   .599    .6015     -0.5    85.0 |  -0.07  0.942 | 
+>     .
+                          |                                  |               |
+3.edu                  U  | .29584   .31395     -3.9         |  -0.59  0.553 | 
+>     .
+                       M  | .30075   .30075      0.0   100.0 |  -0.00  1.000 | 
+>     .
+                          |                                  |               |
+-------------------------------------------------------------------------------
+> ---------
+* if variance ratio outside [0.82; 1.21] for U and [0.82; 1.22] for M
+
+-------------------------------------------------------------------------------
+> ----
+ Sample    | Ps R2   LR chi2   p>chi2   MeanBias   MedBias      B      R     %V
+> ar
+-----------+-------------------------------------------------------------------
+> ----
+ Unmatched | 0.005      5.83    0.560      5.7       3.9      16.0    1.00     
+> 33
+ Matched   | 0.001      1.23    0.990      2.2       2.3       7.8    1.12     
+>  0
+-------------------------------------------------------------------------------
+> ----
+* if B>25%, R outside [0.5; 2]
+
+. 
+. 
+. * HYPOTHESIS TEST FOR H1 * 
+.         
+.         * My original analysis was planned as: 
+.         * I run a fixed effects model. I assume that gender equality attitude
+> s can be measured through an index created by two items (plj0621 and plj0622)
+>  that ask about attitudes towards women working. 
+.         * The variable is coded as 1 = strongly disagree and 7 = strongly agr
+> ee. A higher value indicates more liberal gender equality attitudes.
+.         * I run a fixed-effects model with standard errors clustered at the i
+> ndividual level.
+.         * The variable genderAtt is the dependent variable and the dummy vari
+> able hadDaughter is the independent variable. 
+.         * I also include year fixed effects in the initial model. If sample s
+> ize proves too small they will be removed. 
+.         * However, this was infeasible (I can provide the code upon request).
+>  I had already noted this potential problem in the PAP. 
+.         * Therefore I switched strategies and did the following: 
+.         * I identified questions on gender equality attitudes that had a high
+> er rate of responses, albeit only in 2018 (plh0357 and plh0359)
+.         * I then used PSM to match participants on age at birth of first chil
+> d, migration background, logged income, gender, number of children, level of 
+> education
+.         * I then performed an OLS regression uses the propensity scores
+.         
+.         * with weights 
+.         reg genderAtt hadDaughter i.female c.age_at_birth i.migback_binary c.
+> log_income c.numChildren i.edu [pw=_weight] if matched, vce(robust)
+(sum of wgt is 798)
+
+Linear regression                               Number of obs     =        798
+                                                F(8, 789)         =      18.38
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.1573
+                                                Root MSE          =     1.8274
+
+------------------------------------------------------------------------------
+             |               Robust
+   genderAtt | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+ hadDaughter |   .1600044   .1290118     1.24   0.215    -.0932426    .4132513
+    1.female |    .978338   .1374809     7.12   0.000     .7084664     1.24821
+age_at_birth |   .0159422   .0132903     1.20   0.231    -.0101464    .0420308
+1.migback_~y |  -1.437833   .1875784    -7.67   0.000    -1.806045   -1.069622
+  log_income |   .1269325    .124812     1.02   0.309    -.1180703    .3719353
+ numChildren |  -.1388801   .0728362    -1.91   0.057    -.2818558    .0040956
+             |
+         edu |
+          2  |   .4580151   .2447355     1.87   0.062    -.0223946    .9384247
+          3  |   .5280048   .2754958     1.92   0.056    -.0127866    1.068796
+             |
+       _cons |   2.833501   .9491139     2.99   0.003     .9704142    4.696588
+------------------------------------------------------------------------------
+
+.         
+. * EXTRACT AND EXPORT RESULTS * 
+.         * Extract the required statistics
+. 
+.                 * (i) coefficient estimate
+.                 local coefficient = _b[hadDaughter]
+
+. 
+.                 * (ii) standard error
+.                 local se = _se[hadDaughter]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "t"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 local p_value = _b[hadDaughter] / _se[hadDaughter]
+
+.                 local p_value = 2 * ttail(e(df_r), abs(`p_value'))
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation of directionality
+.                 local interpretation "positive coefficient is in line with hy
+> pothesis"
+
+.         
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: .1600043624685981
+
+.         di "Standard Error: `se'"
+Standard Error: .1290117798625487
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: t
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: 789
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 8
+
+.         di "p-value: " `p_value'
+p-value: .21525879
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 798
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 798
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h1_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/5_res
+    > ults/h1_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

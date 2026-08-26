@@ -1,0 +1,2301 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmpauy8biam.do 
+
+. do "5%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. 
+. * the following code automatically sets paths based on the project location o
+> n your system *local curdir = c(pwd)
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/5%-sample" // folder, in which the ori
+> ginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/5%-sample
+
+. global DATA "$ROOT/data/derived_confidential/5%-sample" // folder for dataset
+> s
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/5%-sample
+
+. global OUT "$ROOT/data/derived/5_results" // folder for output (results, tabl
+> es)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/5_results
+
+. 
+end of do-file
+
+. do "20250727_075741_01xxpe_h3.do"
+
+. 
+. *****************************************************************************
+> ***
+. ****************** Do-File H3: #ManyDaughters Project ********************
+. *****************************************************************************
+> ***
+. 
+. * Changes from PAP
+. * The variable "hgnrpers" denoting number of persons living in a household fr
+> om the dataset "pgen" that was present in the documentation was unfortunately
+>  not featured in the datasets made available to us, therefore we could not ca
+> lculate the Nr of Adults control variable and consequently we dropped it from
+>  the analyses. 
+. * Recoded negative values for all control variables as missing values
+. * We have dropped the following individual-difference control variables from 
+> the final model because they were static: Education, Immigration Status, Sex
+. * HouseEquality measure: We have not excluded whole respondents with no value
+> s on any of the items used to calculate the HouseEquality variable, just thei
+> r entries in years (Wave) where they had missing values; excluded also all ho
+> useholds that had only one person living in them and those households that ha
+> d sum of housework = 0 (the formula was also capped at 0 on the lower end)
+. * EastWest: will we code East as 0 and West as 1
+. 
+. 
+. 
+. * Author: [REDACTED] & [REDACTED]
+. * ============================
+. * Setup
+. * ============================
+. 
+. * clear all
+. version 19.5
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. * INSTALL PACKAGES * (Please adapt according to your needs)
+. * install all packages you need here, for example:
+. * ssc install outreg2
+. * ssc install reghdfe, replace
+. * ssc install ftools, replace
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. /*
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> */
+. * ============================
+. * Load and Merge Data
+. * ============================
+. 
+. use "$IN/pl.dta", clear //
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. keep pid syear pli0040 pli0043_h pli0044_h pli0046 pli0049_h plb0186_h
+
+. merge 1:1 pid syear using "$IN/ppathl.dta", keepusing(pid cid hid syear gebja
+> hr sex sampreg) nogen
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+. merge 1:1 pid syear using "$IN/pgen.dta", keepusing(pid syear pgfamstd pgpart
+> z pgbilzeit pgnation) nogen
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+. merge m:1 pid using "$IN/biobirth.dta", keepusing(pid kidsex01-kidsex19 sumki
+> ds kidgeb01-kidgeb19) nogen
+(variable pid was long, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+(label pid_EN already defined)
+(label cid_EN already defined)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+. 
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * Exclude respondents <18
+. gen AgeP = syear - gebjahr
+
+. keep if AgeP > 18
+(3,235 observations deleted)
+
+. 
+. * Replace all negative values with missing in kidgeb01 to kidgeb19
+. foreach v of varlist kidgeb01-kidgeb19 {
+  2.     replace `v' = . if `v' < 0
+  3. }
+(7,603 real changes made, 7,603 to missing)
+(14,176 real changes made, 14,176 to missing)
+(25,463 real changes made, 25,463 to missing)
+(29,530 real changes made, 29,530 to missing)
+(31,105 real changes made, 31,105 to missing)
+(31,585 real changes made, 31,585 to missing)
+(31,758 real changes made, 31,758 to missing)
+(31,833 real changes made, 31,833 to missing)
+(31,944 real changes made, 31,944 to missing)
+(31,977 real changes made, 31,977 to missing)
+(31,983 real changes made, 31,983 to missing)
+(31,983 real changes made, 31,983 to missing)
+(31,993 real changes made, 31,993 to missing)
+(31,993 real changes made, 31,993 to missing)
+(31,993 real changes made, 31,993 to missing)
+(31,993 real changes made, 31,993 to missing)
+(31,993 real changes made, 31,993 to missing)
+(31,993 real changes made, 31,993 to missing)
+(31,993 real changes made, 31,993 to missing)
+
+. 
+. foreach v of varlist kidsex01-kidsex19 {
+  2.     replace `v' = . if `v' < 0
+  3. }
+(7,547 real changes made, 7,547 to missing)
+(14,139 real changes made, 14,139 to missing)
+(25,486 real changes made, 25,486 to missing)
+(29,523 real changes made, 29,523 to missing)
+(31,101 real changes made, 31,101 to missing)
+(31,581 real changes made, 31,581 to missing)
+(31,758 real changes made, 31,758 to missing)
+(31,833 real changes made, 31,833 to missing)
+(31,944 real changes made, 31,944 to missing)
+(31,977 real changes made, 31,977 to missing)
+(31,983 real changes made, 31,983 to missing)
+(31,983 real changes made, 31,983 to missing)
+(31,993 real changes made, 31,993 to missing)
+(31,993 real changes made, 31,993 to missing)
+(31,993 real changes made, 31,993 to missing)
+(31,993 real changes made, 31,993 to missing)
+(31,993 real changes made, 31,993 to missing)
+(31,993 real changes made, 31,993 to missing)
+(31,993 real changes made, 31,993 to missing)
+
+. 
+. * Exclude respondents with missing housework data
+. foreach var in pli0040 pli0043_h pli0044_h pli0046 pli0049_h {
+  2.     replace `var' = . if `var' < 0
+  3. }
+(1,395 real changes made, 1,395 to missing)
+(1,059 real changes made, 1,059 to missing)
+(1,309 real changes made, 1,309 to missing)
+(2,626 real changes made, 2,626 to missing)
+(984 real changes made, 984 to missing)
+
+. drop if missing(pli0040, pli0043_h, pli0044_h, pli0046, pli0049_h)
+(9,398 observations deleted)
+
+. 
+. * Employment
+. gen Empl = plb0186_h
+
+. replace Empl = 0 if plb0186_h == -2
+(9,089 real changes made)
+
+. 
+. * MaritalStatus
+. gen MaritalStatus = pgfamstd
+
+. replace MaritalStatus = . if pgfamstd < 0
+(75 real changes made, 75 to missing)
+
+. 
+. * PartnerStatus
+. gen PartnerStatus = pgpartz
+
+. replace PartnerStatus = . if pgpartz < 0
+(0 real changes made)
+
+. 
+. * Education
+. gen Edu = pgbilzeit
+
+. replace Edu = . if pgbilzeit < 0
+(768 real changes made, 768 to missing)
+
+. 
+. * East/West
+. gen EastWest = sampreg
+
+. replace EastWest = . if sampreg < 0
+(2 real changes made, 2 to missing)
+
+. 
+. * Clean kid birth years / sex
+. forvalues i = 1/19 {
+  2.     replace kidgeb`=string(`i',"%02.0f")' = . if kidgeb`=string(`i',"%02.0
+> f")' < 0
+  3.     replace kidsex`=string(`i',"%02.0f")' = . if kidsex`=string(`i',"%02.0
+> f")' < 0
+  4. }
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. 
+. * BioKids (count per year)
+. gen BioKids = .
+(22,595 missing values generated)
+
+. 
+. forvalues y = 2000/2020 {
+  2.     gen bk_`y' = 0
+  3.     forvalues i = 1/19 {
+  4.         local kidyear = "kidgeb" + string(`i', "%02.0f")
+  5.         quietly replace bk_`y' = bk_`y' + ///
+>             ( `y' > `kidyear' & !missing(`kidyear') ) if syear == `y'
+  6.     }
+  7. }
+
+. 
+. forvalues y = 2000/2020 {
+  2.     replace BioKids = bk_`y' if syear == `y'
+  3.     drop bk_`y'
+  4. }
+(0 real changes made)
+(1,012 real changes made)
+(1,037 real changes made)
+(994 real changes made)
+(983 real changes made)
+(952 real changes made)
+(1,007 real changes made)
+(952 real changes made)
+(869 real changes made)
+(920 real changes made)
+(1,192 real changes made)
+(1,315 real changes made)
+(1,324 real changes made)
+(1,220 real changes made)
+(1,312 real changes made)
+(1,296 real changes made)
+(1,190 real changes made)
+(1,281 real changes made)
+(1,240 real changes made)
+(1,241 real changes made)
+(1,258 real changes made)
+
+. 
+. * AgeD (age of oldest daughter)
+. gen AgeD = 0
+
+. forvalues y = 2000/2020 {
+  2.     gen aged_`y' = .
+  3.     forvalues i = 1/19 {
+  4.         gen temp_age = `y' - kidgeb`=string(`i',"%02.0f")'
+  5.         replace temp_age = . if kidsex`=string(`i',"%02.0f")' != 2
+  6.         replace aged_`y' = cond(syear==`y', min(aged_`y', temp_age), aged_
+> `y')
+  7.         drop temp_age
+  8.     }
+  9.     replace aged_`y' = 0 if aged_`y' < 0
+ 10.     replace AgeD = aged_`y' if syear == `y'
+ 11.     drop aged_`y'
+ 12. }
+(22,595 missing values generated)
+(4,722 missing values generated)
+(9,738 real changes made, 9,738 to missing)
+(0 real changes made)
+(9,549 missing values generated)
+(6,264 real changes made, 6,264 to missing)
+(0 real changes made)
+(18,162 missing values generated)
+(2,231 real changes made, 2,231 to missing)
+(0 real changes made)
+(21,003 missing values generated)
+(832 real changes made, 832 to missing)
+(0 real changes made)
+(22,097 missing values generated)
+(272 real changes made, 272 to missing)
+(0 real changes made)
+(22,361 missing values generated)
+(118 real changes made, 118 to missing)
+(0 real changes made)
+(22,490 missing values generated)
+(69 real changes made, 69 to missing)
+(0 real changes made)
+(22,526 missing values generated)
+(25 real changes made, 25 to missing)
+(0 real changes made)
+(22,580 missing values generated)
+(4 real changes made, 4 to missing)
+(0 real changes made)
+(22,586 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(4,722 missing values generated)
+(9,738 real changes made, 9,738 to missing)
+(349 real changes made)
+(9,549 missing values generated)
+(6,264 real changes made, 6,264 to missing)
+(279 real changes made)
+(18,162 missing values generated)
+(2,231 real changes made, 2,231 to missing)
+(86 real changes made)
+(21,003 missing values generated)
+(832 real changes made, 832 to missing)
+(27 real changes made)
+(22,097 missing values generated)
+(272 real changes made, 272 to missing)
+(8 real changes made)
+(22,361 missing values generated)
+(118 real changes made, 118 to missing)
+(7 real changes made)
+(22,490 missing values generated)
+(69 real changes made, 69 to missing)
+(6 real changes made)
+(22,526 missing values generated)
+(25 real changes made, 25 to missing)
+(3 real changes made)
+(22,580 missing values generated)
+(4 real changes made, 4 to missing)
+(0 real changes made)
+(22,586 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(50 real changes made)
+(954 real changes made, 459 to missing)
+(22,595 missing values generated)
+(4,722 missing values generated)
+(9,738 real changes made, 9,738 to missing)
+(370 real changes made)
+(9,549 missing values generated)
+(6,264 real changes made, 6,264 to missing)
+(294 real changes made)
+(18,162 missing values generated)
+(2,231 real changes made, 2,231 to missing)
+(80 real changes made)
+(21,003 missing values generated)
+(832 real changes made, 832 to missing)
+(26 real changes made)
+(22,097 missing values generated)
+(272 real changes made, 272 to missing)
+(9 real changes made)
+(22,361 missing values generated)
+(118 real changes made, 118 to missing)
+(5 real changes made)
+(22,490 missing values generated)
+(69 real changes made, 69 to missing)
+(4 real changes made)
+(22,526 missing values generated)
+(25 real changes made, 25 to missing)
+(3 real changes made)
+(22,580 missing values generated)
+(4 real changes made, 4 to missing)
+(0 real changes made)
+(22,586 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(48 real changes made)
+(987 real changes made, 462 to missing)
+(22,595 missing values generated)
+(4,722 missing values generated)
+(9,738 real changes made, 9,738 to missing)
+(354 real changes made)
+(9,549 missing values generated)
+(6,264 real changes made, 6,264 to missing)
+(297 real changes made)
+(18,162 missing values generated)
+(2,231 real changes made, 2,231 to missing)
+(78 real changes made)
+(21,003 missing values generated)
+(832 real changes made, 832 to missing)
+(24 real changes made)
+(22,097 missing values generated)
+(272 real changes made, 272 to missing)
+(9 real changes made)
+(22,361 missing values generated)
+(118 real changes made, 118 to missing)
+(5 real changes made)
+(22,490 missing values generated)
+(69 real changes made, 69 to missing)
+(4 real changes made)
+(22,526 missing values generated)
+(25 real changes made, 25 to missing)
+(3 real changes made)
+(22,580 missing values generated)
+(4 real changes made, 4 to missing)
+(0 real changes made)
+(22,586 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(47 real changes made)
+(942 real changes made, 431 to missing)
+(22,595 missing values generated)
+(4,722 missing values generated)
+(9,738 real changes made, 9,738 to missing)
+(353 real changes made)
+(9,549 missing values generated)
+(6,264 real changes made, 6,264 to missing)
+(298 real changes made)
+(18,162 missing values generated)
+(2,231 real changes made, 2,231 to missing)
+(76 real changes made)
+(21,003 missing values generated)
+(832 real changes made, 832 to missing)
+(29 real changes made)
+(22,097 missing values generated)
+(272 real changes made, 272 to missing)
+(9 real changes made)
+(22,361 missing values generated)
+(118 real changes made, 118 to missing)
+(4 real changes made)
+(22,490 missing values generated)
+(69 real changes made, 69 to missing)
+(3 real changes made)
+(22,526 missing values generated)
+(25 real changes made, 25 to missing)
+(2 real changes made)
+(22,580 missing values generated)
+(4 real changes made, 4 to missing)
+(0 real changes made)
+(22,586 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(53 real changes made)
+(922 real changes made, 422 to missing)
+(22,595 missing values generated)
+(4,722 missing values generated)
+(9,738 real changes made, 9,738 to missing)
+(330 real changes made)
+(9,549 missing values generated)
+(6,264 real changes made, 6,264 to missing)
+(285 real changes made)
+(18,162 missing values generated)
+(2,231 real changes made, 2,231 to missing)
+(72 real changes made)
+(21,003 missing values generated)
+(832 real changes made, 832 to missing)
+(24 real changes made)
+(22,097 missing values generated)
+(272 real changes made, 272 to missing)
+(6 real changes made)
+(22,361 missing values generated)
+(118 real changes made, 118 to missing)
+(4 real changes made)
+(22,490 missing values generated)
+(69 real changes made, 69 to missing)
+(2 real changes made)
+(22,526 missing values generated)
+(25 real changes made, 25 to missing)
+(2 real changes made)
+(22,580 missing values generated)
+(4 real changes made, 4 to missing)
+(0 real changes made)
+(22,586 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(41 real changes made)
+(900 real changes made, 425 to missing)
+(22,595 missing values generated)
+(4,722 missing values generated)
+(9,738 real changes made, 9,738 to missing)
+(346 real changes made)
+(9,549 missing values generated)
+(6,264 real changes made, 6,264 to missing)
+(289 real changes made)
+(18,162 missing values generated)
+(2,231 real changes made, 2,231 to missing)
+(74 real changes made)
+(21,003 missing values generated)
+(832 real changes made, 832 to missing)
+(27 real changes made)
+(22,097 missing values generated)
+(272 real changes made, 272 to missing)
+(8 real changes made)
+(22,361 missing values generated)
+(118 real changes made, 118 to missing)
+(5 real changes made)
+(22,490 missing values generated)
+(69 real changes made, 69 to missing)
+(2 real changes made)
+(22,526 missing values generated)
+(25 real changes made, 25 to missing)
+(2 real changes made)
+(22,580 missing values generated)
+(4 real changes made, 4 to missing)
+(0 real changes made)
+(22,586 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(40 real changes made)
+(959 real changes made, 460 to missing)
+(22,595 missing values generated)
+(4,722 missing values generated)
+(9,738 real changes made, 9,738 to missing)
+(329 real changes made)
+(9,549 missing values generated)
+(6,264 real changes made, 6,264 to missing)
+(283 real changes made)
+(18,162 missing values generated)
+(2,231 real changes made, 2,231 to missing)
+(77 real changes made)
+(21,003 missing values generated)
+(832 real changes made, 832 to missing)
+(22 real changes made)
+(22,097 missing values generated)
+(272 real changes made, 272 to missing)
+(5 real changes made)
+(22,361 missing values generated)
+(118 real changes made, 118 to missing)
+(4 real changes made)
+(22,490 missing values generated)
+(69 real changes made, 69 to missing)
+(0 real changes made)
+(22,526 missing values generated)
+(25 real changes made, 25 to missing)
+(2 real changes made)
+(22,580 missing values generated)
+(4 real changes made, 4 to missing)
+(0 real changes made)
+(22,586 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(45 real changes made)
+(903 real changes made, 416 to missing)
+(22,595 missing values generated)
+(4,722 missing values generated)
+(9,738 real changes made, 9,738 to missing)
+(311 real changes made)
+(9,549 missing values generated)
+(6,264 real changes made, 6,264 to missing)
+(258 real changes made)
+(18,162 missing values generated)
+(2,231 real changes made, 2,231 to missing)
+(64 real changes made)
+(21,003 missing values generated)
+(832 real changes made, 832 to missing)
+(19 real changes made)
+(22,097 missing values generated)
+(272 real changes made, 272 to missing)
+(3 real changes made)
+(22,361 missing values generated)
+(118 real changes made, 118 to missing)
+(2 real changes made)
+(22,490 missing values generated)
+(69 real changes made, 69 to missing)
+(0 real changes made)
+(22,526 missing values generated)
+(25 real changes made, 25 to missing)
+(2 real changes made)
+(22,580 missing values generated)
+(4 real changes made, 4 to missing)
+(0 real changes made)
+(22,586 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(41 real changes made)
+(823 real changes made, 379 to missing)
+(22,595 missing values generated)
+(4,722 missing values generated)
+(9,738 real changes made, 9,738 to missing)
+(311 real changes made)
+(9,549 missing values generated)
+(6,264 real changes made, 6,264 to missing)
+(261 real changes made)
+(18,162 missing values generated)
+(2,231 real changes made, 2,231 to missing)
+(66 real changes made)
+(21,003 missing values generated)
+(832 real changes made, 832 to missing)
+(19 real changes made)
+(22,097 missing values generated)
+(272 real changes made, 272 to missing)
+(5 real changes made)
+(22,361 missing values generated)
+(118 real changes made, 118 to missing)
+(2 real changes made)
+(22,490 missing values generated)
+(69 real changes made, 69 to missing)
+(0 real changes made)
+(22,526 missing values generated)
+(25 real changes made, 25 to missing)
+(2 real changes made)
+(22,580 missing values generated)
+(4 real changes made, 4 to missing)
+(0 real changes made)
+(22,586 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(31 real changes made)
+(879 real changes made, 432 to missing)
+(22,595 missing values generated)
+(4,722 missing values generated)
+(9,738 real changes made, 9,738 to missing)
+(438 real changes made)
+(9,549 missing values generated)
+(6,264 real changes made, 6,264 to missing)
+(367 real changes made)
+(18,162 missing values generated)
+(2,231 real changes made, 2,231 to missing)
+(138 real changes made)
+(21,003 missing values generated)
+(832 real changes made, 832 to missing)
+(45 real changes made)
+(22,097 missing values generated)
+(272 real changes made, 272 to missing)
+(17 real changes made)
+(22,361 missing values generated)
+(118 real changes made, 118 to missing)
+(8 real changes made)
+(22,490 missing values generated)
+(69 real changes made, 69 to missing)
+(1 real change made)
+(22,526 missing values generated)
+(25 real changes made, 25 to missing)
+(6 real changes made)
+(22,580 missing values generated)
+(4 real changes made, 4 to missing)
+(3 real changes made)
+(22,586 missing values generated)
+(0 real changes made)
+(2 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(2 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(2 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(62 real changes made)
+(1,100 real changes made, 498 to missing)
+(22,595 missing values generated)
+(4,722 missing values generated)
+(9,738 real changes made, 9,738 to missing)
+(514 real changes made)
+(9,549 missing values generated)
+(6,264 real changes made, 6,264 to missing)
+(438 real changes made)
+(18,162 missing values generated)
+(2,231 real changes made, 2,231 to missing)
+(147 real changes made)
+(21,003 missing values generated)
+(832 real changes made, 832 to missing)
+(53 real changes made)
+(22,097 missing values generated)
+(272 real changes made, 272 to missing)
+(17 real changes made)
+(22,361 missing values generated)
+(118 real changes made, 118 to missing)
+(7 real changes made)
+(22,490 missing values generated)
+(69 real changes made, 69 to missing)
+(1 real change made)
+(22,526 missing values generated)
+(25 real changes made, 25 to missing)
+(4 real changes made)
+(22,580 missing values generated)
+(4 real changes made, 4 to missing)
+(2 real changes made)
+(22,586 missing values generated)
+(0 real changes made)
+(2 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(2 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(2 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(68 real changes made)
+(1,234 real changes made, 514 to missing)
+(22,595 missing values generated)
+(4,722 missing values generated)
+(9,738 real changes made, 9,738 to missing)
+(506 real changes made)
+(9,549 missing values generated)
+(6,264 real changes made, 6,264 to missing)
+(415 real changes made)
+(18,162 missing values generated)
+(2,231 real changes made, 2,231 to missing)
+(154 real changes made)
+(21,003 missing values generated)
+(832 real changes made, 832 to missing)
+(63 real changes made)
+(22,097 missing values generated)
+(272 real changes made, 272 to missing)
+(19 real changes made)
+(22,361 missing values generated)
+(118 real changes made, 118 to missing)
+(8 real changes made)
+(22,490 missing values generated)
+(69 real changes made, 69 to missing)
+(2 real changes made)
+(22,526 missing values generated)
+(25 real changes made, 25 to missing)
+(4 real changes made)
+(22,580 missing values generated)
+(4 real changes made, 4 to missing)
+(3 real changes made)
+(22,586 missing values generated)
+(0 real changes made)
+(3 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(2 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(2 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(52 real changes made)
+(1,246 real changes made, 528 to missing)
+(22,595 missing values generated)
+(4,722 missing values generated)
+(9,738 real changes made, 9,738 to missing)
+(470 real changes made)
+(9,549 missing values generated)
+(6,264 real changes made, 6,264 to missing)
+(386 real changes made)
+(18,162 missing values generated)
+(2,231 real changes made, 2,231 to missing)
+(135 real changes made)
+(21,003 missing values generated)
+(832 real changes made, 832 to missing)
+(51 real changes made)
+(22,097 missing values generated)
+(272 real changes made, 272 to missing)
+(17 real changes made)
+(22,361 missing values generated)
+(118 real changes made, 118 to missing)
+(10 real changes made)
+(22,490 missing values generated)
+(69 real changes made, 69 to missing)
+(2 real changes made)
+(22,526 missing values generated)
+(25 real changes made, 25 to missing)
+(4 real changes made)
+(22,580 missing values generated)
+(4 real changes made, 4 to missing)
+(2 real changes made)
+(22,586 missing values generated)
+(0 real changes made)
+(2 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(2 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(2 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(40 real changes made)
+(1,172 real changes made, 489 to missing)
+(22,595 missing values generated)
+(4,722 missing values generated)
+(9,738 real changes made, 9,738 to missing)
+(484 real changes made)
+(9,549 missing values generated)
+(6,264 real changes made, 6,264 to missing)
+(389 real changes made)
+(18,162 missing values generated)
+(2,231 real changes made, 2,231 to missing)
+(137 real changes made)
+(21,003 missing values generated)
+(832 real changes made, 832 to missing)
+(53 real changes made)
+(22,097 missing values generated)
+(272 real changes made, 272 to missing)
+(17 real changes made)
+(22,361 missing values generated)
+(118 real changes made, 118 to missing)
+(7 real changes made)
+(22,490 missing values generated)
+(69 real changes made, 69 to missing)
+(3 real changes made)
+(22,526 missing values generated)
+(25 real changes made, 25 to missing)
+(5 real changes made)
+(22,580 missing values generated)
+(4 real changes made, 4 to missing)
+(1 real change made)
+(22,586 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(47 real changes made)
+(1,254 real changes made, 556 to missing)
+(22,595 missing values generated)
+(4,722 missing values generated)
+(9,738 real changes made, 9,738 to missing)
+(461 real changes made)
+(9,549 missing values generated)
+(6,264 real changes made, 6,264 to missing)
+(388 real changes made)
+(18,162 missing values generated)
+(2,231 real changes made, 2,231 to missing)
+(147 real changes made)
+(21,003 missing values generated)
+(832 real changes made, 832 to missing)
+(51 real changes made)
+(22,097 missing values generated)
+(272 real changes made, 272 to missing)
+(11 real changes made)
+(22,361 missing values generated)
+(118 real changes made, 118 to missing)
+(6 real changes made)
+(22,490 missing values generated)
+(69 real changes made, 69 to missing)
+(1 real change made)
+(22,526 missing values generated)
+(25 real changes made, 25 to missing)
+(0 real changes made)
+(22,580 missing values generated)
+(4 real changes made, 4 to missing)
+(0 real changes made)
+(22,586 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(38 real changes made)
+(1,246 real changes made, 554 to missing)
+(22,595 missing values generated)
+(4,722 missing values generated)
+(9,738 real changes made, 9,738 to missing)
+(436 real changes made)
+(9,549 missing values generated)
+(6,264 real changes made, 6,264 to missing)
+(357 real changes made)
+(18,162 missing values generated)
+(2,231 real changes made, 2,231 to missing)
+(129 real changes made)
+(21,003 missing values generated)
+(832 real changes made, 832 to missing)
+(50 real changes made)
+(22,097 missing values generated)
+(272 real changes made, 272 to missing)
+(11 real changes made)
+(22,361 missing values generated)
+(118 real changes made, 118 to missing)
+(6 real changes made)
+(22,490 missing values generated)
+(69 real changes made, 69 to missing)
+(1 real change made)
+(22,526 missing values generated)
+(25 real changes made, 25 to missing)
+(0 real changes made)
+(22,580 missing values generated)
+(4 real changes made, 4 to missing)
+(0 real changes made)
+(22,586 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(40 real changes made)
+(1,146 real changes made, 502 to missing)
+(22,595 missing values generated)
+(4,722 missing values generated)
+(9,738 real changes made, 9,738 to missing)
+(459 real changes made)
+(9,549 missing values generated)
+(6,264 real changes made, 6,264 to missing)
+(349 real changes made)
+(18,162 missing values generated)
+(2,231 real changes made, 2,231 to missing)
+(133 real changes made)
+(21,003 missing values generated)
+(832 real changes made, 832 to missing)
+(39 real changes made)
+(22,097 missing values generated)
+(272 real changes made, 272 to missing)
+(11 real changes made)
+(22,361 missing values generated)
+(118 real changes made, 118 to missing)
+(6 real changes made)
+(22,490 missing values generated)
+(69 real changes made, 69 to missing)
+(1 real change made)
+(22,526 missing values generated)
+(25 real changes made, 25 to missing)
+(0 real changes made)
+(22,580 missing values generated)
+(4 real changes made, 4 to missing)
+(0 real changes made)
+(22,586 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(33 real changes made)
+(1,236 real changes made, 573 to missing)
+(22,595 missing values generated)
+(4,722 missing values generated)
+(9,738 real changes made, 9,738 to missing)
+(434 real changes made)
+(9,549 missing values generated)
+(6,264 real changes made, 6,264 to missing)
+(358 real changes made)
+(18,162 missing values generated)
+(2,231 real changes made, 2,231 to missing)
+(128 real changes made)
+(21,003 missing values generated)
+(832 real changes made, 832 to missing)
+(40 real changes made)
+(22,097 missing values generated)
+(272 real changes made, 272 to missing)
+(10 real changes made)
+(22,361 missing values generated)
+(118 real changes made, 118 to missing)
+(6 real changes made)
+(22,490 missing values generated)
+(69 real changes made, 69 to missing)
+(1 real change made)
+(22,526 missing values generated)
+(25 real changes made, 25 to missing)
+(0 real changes made)
+(22,580 missing values generated)
+(4 real changes made, 4 to missing)
+(0 real changes made)
+(22,586 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(18 real changes made)
+(1,206 real changes made, 546 to missing)
+(22,595 missing values generated)
+(4,722 missing values generated)
+(9,738 real changes made, 9,738 to missing)
+(441 real changes made)
+(9,549 missing values generated)
+(6,264 real changes made, 6,264 to missing)
+(354 real changes made)
+(18,162 missing values generated)
+(2,231 real changes made, 2,231 to missing)
+(118 real changes made)
+(21,003 missing values generated)
+(832 real changes made, 832 to missing)
+(33 real changes made)
+(22,097 missing values generated)
+(272 real changes made, 272 to missing)
+(8 real changes made)
+(22,361 missing values generated)
+(118 real changes made, 118 to missing)
+(4 real changes made)
+(22,490 missing values generated)
+(69 real changes made, 69 to missing)
+(1 real change made)
+(22,526 missing values generated)
+(25 real changes made, 25 to missing)
+(0 real changes made)
+(22,580 missing values generated)
+(4 real changes made, 4 to missing)
+(0 real changes made)
+(22,586 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(2 real changes made)
+(1,224 real changes made, 563 to missing)
+(22,595 missing values generated)
+(4,722 missing values generated)
+(9,738 real changes made, 9,738 to missing)
+(439 real changes made)
+(9,549 missing values generated)
+(6,264 real changes made, 6,264 to missing)
+(340 real changes made)
+(18,162 missing values generated)
+(2,231 real changes made, 2,231 to missing)
+(110 real changes made)
+(21,003 missing values generated)
+(832 real changes made, 832 to missing)
+(30 real changes made)
+(22,097 missing values generated)
+(272 real changes made, 272 to missing)
+(7 real changes made)
+(22,361 missing values generated)
+(118 real changes made, 118 to missing)
+(4 real changes made)
+(22,490 missing values generated)
+(69 real changes made, 69 to missing)
+(1 real change made)
+(22,526 missing values generated)
+(25 real changes made, 25 to missing)
+(0 real changes made)
+(22,580 missing values generated)
+(4 real changes made, 4 to missing)
+(0 real changes made)
+(22,586 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,587 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(22,595 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(1,254 real changes made, 598 to missing)
+
+. 
+. * HavingDaughter per year
+. gen HavingDaughter = 0
+
+. forvalues y = 2000/2020 {
+  2.     gen hd_`y' = 0
+  3.     forvalues i = 1/19 {
+  4.         gen temp_hd = (kidsex`=string(`i',"%02.0f")' == 2 & kidgeb`=string
+> (`i',"%02.0f")' < `y')
+  5.         replace hd_`y' = hd_`y' + cond(missing(temp_hd), 0, temp_hd)
+  6.         drop temp_hd
+  7.     }
+  8.     replace HavingDaughter = 1 if hd_`y' > 0 & syear == `y'
+  9.     drop hd_`y'
+ 10. }
+(5,893 real changes made)
+(4,549 real changes made)
+(1,204 real changes made)
+(420 real changes made)
+(90 real changes made)
+(64 real changes made)
+(21 real changes made)
+(22 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(6,097 real changes made)
+(4,707 real changes made)
+(1,230 real changes made)
+(425 real changes made)
+(98 real changes made)
+(64 real changes made)
+(21 real changes made)
+(30 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(504 real changes made)
+(6,266 real changes made)
+(4,805 real changes made)
+(1,260 real changes made)
+(471 real changes made)
+(98 real changes made)
+(64 real changes made)
+(21 real changes made)
+(30 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(534 real changes made)
+(6,450 real changes made)
+(4,922 real changes made)
+(1,278 real changes made)
+(481 real changes made)
+(102 real changes made)
+(72 real changes made)
+(21 real changes made)
+(30 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(523 real changes made)
+(6,626 real changes made)
+(5,068 real changes made)
+(1,353 real changes made)
+(481 real changes made)
+(102 real changes made)
+(72 real changes made)
+(21 real changes made)
+(30 real changes made)
+(8 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(513 real changes made)
+(6,850 real changes made)
+(5,251 real changes made)
+(1,394 real changes made)
+(484 real changes made)
+(104 real changes made)
+(72 real changes made)
+(21 real changes made)
+(30 real changes made)
+(8 real changes made)
+(8 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(488 real changes made)
+(6,953 real changes made)
+(5,392 real changes made)
+(1,487 real changes made)
+(536 real changes made)
+(106 real changes made)
+(74 real changes made)
+(21 real changes made)
+(30 real changes made)
+(8 real changes made)
+(8 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(508 real changes made)
+(7,163 real changes made)
+(5,519 real changes made)
+(1,565 real changes made)
+(550 real changes made)
+(106 real changes made)
+(76 real changes made)
+(21 real changes made)
+(30 real changes made)
+(8 real changes made)
+(8 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(495 real changes made)
+(7,376 real changes made)
+(5,598 real changes made)
+(1,633 real changes made)
+(550 real changes made)
+(123 real changes made)
+(76 real changes made)
+(21 real changes made)
+(34 real changes made)
+(8 real changes made)
+(8 real changes made)
+(8 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(455 real changes made)
+(7,438 real changes made)
+(5,754 real changes made)
+(1,744 real changes made)
+(583 real changes made)
+(137 real changes made)
+(94 real changes made)
+(21 real changes made)
+(34 real changes made)
+(8 real changes made)
+(8 real changes made)
+(8 real changes made)
+(8 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(456 real changes made)
+(7,605 real changes made)
+(5,955 real changes made)
+(1,831 real changes made)
+(630 real changes made)
+(156 real changes made)
+(94 real changes made)
+(25 real changes made)
+(34 real changes made)
+(8 real changes made)
+(8 real changes made)
+(8 real changes made)
+(8 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(639 real changes made)
+(7,733 real changes made)
+(6,065 real changes made)
+(1,909 real changes made)
+(666 real changes made)
+(167 real changes made)
+(94 real changes made)
+(25 real changes made)
+(42 real changes made)
+(8 real changes made)
+(8 real changes made)
+(8 real changes made)
+(8 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(761 real changes made)
+(7,796 real changes made)
+(6,153 real changes made)
+(1,938 real changes made)
+(714 real changes made)
+(185 real changes made)
+(94 real changes made)
+(25 real changes made)
+(44 real changes made)
+(11 real changes made)
+(9 real changes made)
+(8 real changes made)
+(8 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(753 real changes made)
+(7,887 real changes made)
+(6,301 real changes made)
+(2,029 real changes made)
+(728 real changes made)
+(188 real changes made)
+(94 real changes made)
+(25 real changes made)
+(44 real changes made)
+(11 real changes made)
+(9 real changes made)
+(8 real changes made)
+(8 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(701 real changes made)
+(7,913 real changes made)
+(6,406 real changes made)
+(2,067 real changes made)
+(728 real changes made)
+(188 real changes made)
+(94 real changes made)
+(25 real changes made)
+(44 real changes made)
+(11 real changes made)
+(9 real changes made)
+(8 real changes made)
+(8 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(718 real changes made)
+(7,935 real changes made)
+(6,450 real changes made)
+(2,086 real changes made)
+(743 real changes made)
+(215 real changes made)
+(94 real changes made)
+(25 real changes made)
+(44 real changes made)
+(11 real changes made)
+(9 real changes made)
+(8 real changes made)
+(8 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(709 real changes made)
+(7,987 real changes made)
+(6,552 real changes made)
+(2,124 real changes made)
+(753 real changes made)
+(215 real changes made)
+(94 real changes made)
+(25 real changes made)
+(44 real changes made)
+(11 real changes made)
+(9 real changes made)
+(8 real changes made)
+(8 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(661 real changes made)
+(7,989 real changes made)
+(6,579 real changes made)
+(2,142 real changes made)
+(760 real changes made)
+(215 real changes made)
+(94 real changes made)
+(25 real changes made)
+(44 real changes made)
+(11 real changes made)
+(9 real changes made)
+(8 real changes made)
+(8 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(677 real changes made)
+(8,043 real changes made)
+(6,625 real changes made)
+(2,161 real changes made)
+(760 real changes made)
+(215 real changes made)
+(94 real changes made)
+(25 real changes made)
+(44 real changes made)
+(11 real changes made)
+(9 real changes made)
+(8 real changes made)
+(8 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(670 real changes made)
+(8,101 real changes made)
+(6,681 real changes made)
+(2,176 real changes made)
+(760 real changes made)
+(226 real changes made)
+(116 real changes made)
+(36 real changes made)
+(44 real changes made)
+(11 real changes made)
+(9 real changes made)
+(8 real changes made)
+(8 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(667 real changes made)
+(8,135 real changes made)
+(6,765 real changes made)
+(2,202 real changes made)
+(760 real changes made)
+(226 real changes made)
+(116 real changes made)
+(36 real changes made)
+(44 real changes made)
+(11 real changes made)
+(9 real changes made)
+(8 real changes made)
+(8 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(658 real changes made)
+
+. 
+. * Wave
+. gen Wave = syear
+
+. drop syear
+
+. 
+. * Save derived dataset
+. save "${DATA}/h3_dataset.dta", replace
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/5%-sample/h3_dataset.dta saved
+
+. 
+. * Generate DV: HouseEquality
+. 
+. * Calculate total housework per person
+. gen total_hw = pli0040 + pli0043_h + pli0044_h + pli0046 + pli0049_h
+
+. replace total_hw = . if missing(total_hw)
+(0 real changes made)
+
+. 
+. * Generate subgroup variables
+. gen men_hw = total_hw if sex == 1
+(11,971 missing values generated)
+
+. gen women_hw = total_hw if sex == 2
+(10,624 missing values generated)
+
+. gen men = (sex == 1)
+
+. gen women = (sex == 2)
+
+. 
+. * Collapse to household-wave level
+. collapse (sum) total_hw men_hw women_hw men women, by(hid Wave)
+
+. 
+. * Rename and compute household-level stats
+. rename men n_men
+
+. rename women n_women
+
+. rename men_hw TM
+
+. rename women_hw TW
+
+. 
+. gen total_adults = n_men + n_women
+
+. keep if total_adults >= 2 & n_men > 0 & n_women > 0 & total_hw > 0
+(6,451 observations deleted)
+
+. gen PM = n_men / total_adults
+
+. gen PW = n_women / total_adults
+
+. gen EM = total_hw * PM
+
+. gen EW = total_hw * PW
+
+. gen HouseEquality = 1 - (abs(TM - EM) + abs(TW - EW)) / total_hw
+
+. replace HouseEquality = 0 if HouseEquality < 0
+(43 real changes made)
+
+. 
+. tempfile equality
+
+. save `equality'
+file C:\Users\DALBRE~1\AppData\Local\Temp\ST_611c_000002.tmp saved as .dta
+    format
+
+. 
+. use "$DATA/h3_dataset.dta", clear
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. merge m:1 hid Wave using `equality', nogen
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                         6,756
+        from master                     6,756  
+        from using                          0  
+
+    Matched                            15,839  
+    -----------------------------------------
+
+. 
+. * Save the derived dataset
+. save "${DATA}/h2_dataset.dta", replace
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/5%-sample/h2_dataset.dta saved
+
+. 
+. * ============================
+. * Hypothesis Test H3
+. * ============================
+. 
+. xtset pid Wave
+
+Panel variable: pid (unbalanced)
+ Time variable: Wave, 2001 to 2020, but with gaps
+         Delta: 1 unit
+
+. reghdfe HouseEquality HavingDaughter BioKids AgeD Empl MaritalStatus PartnerS
+> tatus Edu EastWest, absorb(pid Wave) vce(cluster pid)
+(dropped 250 singleton observations)
+(MWFE estimator converged in 8 iterations)
+
+HDFE Linear regression                            Number of obs   =      9,011
+Absorbing 2 HDFE groups                           F(   8,   1174) =       7.04
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.5187
+                                                  Adj R-squared   =     0.4446
+                                                  Within R-sq.    =     0.0115
+Number of clusters (pid)     =      1,175         Root MSE        =     0.2163
+
+                                (Std. err. adjusted for 1,175 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+HouseEqual~y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+HavingDaug~r |  -.1080638   .0248345    -4.35   0.000    -.1567888   -.0593388
+     BioKids |  -.0156266   .0112561    -1.39   0.165    -.0377109    .0064577
+        AgeD |   .0021535   .0046408     0.46   0.643    -.0069516    .0112586
+        Empl |  -.0004629   .0003577    -1.29   0.196    -.0011647    .0002389
+MaritalSta~s |   .0064112   .0082797     0.77   0.439    -.0098335    .0226559
+PartnerSta~s |   .0175773   .0186418     0.94   0.346    -.0189976    .0541521
+         Edu |  -.0135838   .0147604    -0.92   0.358    -.0425434    .0153758
+    EastWest |   .0992135   .0464155     2.14   0.033     .0081469    .1902801
+       _cons |   .7179997   .2620867     2.74   0.006      .203789     1.23221
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+         pid |      1175        1175           0    *|
+        Wave |        20           1          19     |
+-----------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+
+. 
+. 
+. * ============================
+. * Export Results
+. * ============================
+. 
+. local coefficient = _b[HavingDaughter]
+
+. local se = _se[HavingDaughter]
+
+. local test_stat_family = "t"
+
+. local df_residual = e(df_r)
+
+. local df_model = e(df_m)
+
+. local p_value = _b[HavingDaughter] / _se[HavingDaughter]
+
+. local p_value = 2 * ttail(e(df_r), abs(`p_value'))
+
+. local num_obs = e(N)
+
+. quietly levelsof pid if e(sample), local(participants)
+
+. local num_participants : word count `participants'
+
+. 
+. scalar coef_d = _b[HavingDaughter]
+
+. local interpretation "positive coefficient is in line with hypothesis"
+
+. 
+. file open myfile using "$OUT/h3_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/5_res
+    > ults/h3_results.csv not found)
+
+. file write myfile "coefficient,se,family,residual_df,model_df,p_value,num_obs
+> ,num_participants,interpretation" _n
+
+. file write myfile "`coefficient', `se', `test_stat_family', `df_residual', `d
+> f_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+. file close myfile
+
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

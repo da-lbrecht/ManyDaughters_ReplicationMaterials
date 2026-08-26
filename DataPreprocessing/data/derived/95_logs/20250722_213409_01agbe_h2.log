@@ -1,0 +1,538 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmpjgod2j77.do 
+
+. do "95%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. * the following code automatically sets paths based on the project location o
+> n your system *
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/95%-sample" // folder, in which the or
+> iginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/95%-sample
+
+. global DATA "$ROOT/data/derived_confidential/95%-sample" // folder for datase
+> ts
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/95%-sample
+
+. global OUT "$ROOT/data/derived/95_results" // folder for output (results, tab
+> les)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/95_results
+
+. 
+end of do-file
+
+. do "20250722_213409_01agbe_h2.do"
+
+. **************************************************************************
+. * H2: Political preferences – Analysis                      *
+. * Authors: [REDACTED], [REDACTED]                                     *
+. /********************************************************************
+> * CHANGE LOG (July 2025):
+> * Following feedback, we revised the H2 
+> * analysis to ensure it yields one single testable coefficient per 
+> * hypothesis. Specifically, we:
+> * - Focused exclusively on the ideological self-placement variable 
+> *   (`zLeftRight`) as the outcome for H2.
+> * - Removed the secondary outcome based on political party affiliation 
+> *   (`plh0012_h`, previously recoded into `LeftParty5`).
+> *
+> * This change aligns the analysis with the pre-analysis plan's DiD 
+> * specification (Equation 1), and guarantees comparability across 
+> * hypotheses.
+> ********************************************************************/
+. * clear all
+. version 18
+
+. set maxvar 10000
+
+
+. 
+. 
+. *----------------------------------------------------------------------------
+. * INSTALL PACKAGES * (Please adapt according to your needs)
+. *----------------------------------------------------------------------------
+. ssc install mdesc
+checking mdesc consistency and verifying not already installed...
+all files already exist and are up to date.
+
+. 
+. *-----------------------------
+. * CONFIGURE FILE PATHS
+. /*
+> *-----------------------------
+> if strpos("`c(pwd)'", "code") {
+> global ROOT "`c(pwd)'/.."
+> }
+> else {
+> global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> */
+. 
+. *============================================================================
+> ===
+. **# Data Preparation * 
+. *============================================================================
+> ===
+. 
+. *----------------------------------------------------------------------------
+. * LOAD AND MERGE DATA * (Please adapt according to your needs)
+. *----------------------------------------------------------------------------
+. 
+. use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. 
+. * Merge ppathl with all datasets, that you deem relevant for your analysis. (
+> Tip: use keepusing() to specify which variables to keep from the using datase
+> t; the default is all.)
+. 
+. * biobirth contains information on fertility history
+. merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches)
+(variable pid was long, now double to accommodate using data's values)
+(variable cid was long, now double to accommodate using data's values)
+(variable gebjahr was int, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. * pgen contains user-friendly data on the individual level that are consolida
+> ted from different sources
+. merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. * pl contains all variables from the individual questionnaire
+. merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches)
+(variable inputdataset was str6, now str9 to accommodate using data's values)
+(label cid_EN already defined)
+(label pid_EN already defined)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. * hgen contains generated variables on household level from the household int
+> erview; use for household net income
+. merge m:1 hid syear using "$IN/hgen.dta", nogen keep(master matches) keepusin
+> g(hid syear hghinc)
+(label iyear already defined)
+(label iyear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. 
+. label language EN // change language of the labels to English
+
+. ************************************
+. save "$DATA/h2_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h2_dataset.dta saved
+
+. ************************************
+. 
+. *----------------------------------------------------------------------------
+. * PREPARE VARIABLES * 
+. *----------------------------------------------------------------------------
+. use "$DATA/h2_dataset.dta", clear
+
+. 
+. *-----------------------------
+. * Construct Outcome Variables
+. *-----------------------------
+. 
+. *–– 3.1 Clean raw items; set negatives to missing
+. foreach v in plh0004 plh0012_h {
+  2.     replace `v' = . if `v' < 0
+  3. }
+(428,081 real changes made, 428,081 to missing)
+(311,415 real changes made, 311,415 to missing)
+
+. 
+. *–– 3.2 Ideological self‐placement (plh0004)
+. *    Flip so higher = more left, then standardize within wave
+. gen LeftRight = 10 - plh0004
+(576,714 missing values generated)
+
+. bysort syear: egen mean_LR = mean(LeftRight) if !missing(LeftRight)
+(576,714 missing values generated)
+
+. bysort syear: egen sd_LR   = sd(LeftRight)   if !missing(LeftRight)
+(576,714 missing values generated)
+
+. gen zLeftRight = (LeftRight - mean_LR) / sd_LR
+(576,714 missing values generated)
+
+. drop mean_LR sd_LR
+
+. 
+. *-----------------------------
+. * 4.  Construct key regressors
+. *    – Daughter_i  (firstborn=girl)
+. *    – Post_i,t    (post‐birth periods)
+. *-----------------------------
+. * identify ever‐had a daughter/son (first child)
+. bysort pid: egen byte Daughter = max(kidsex01==2)
+
+. bysort pid: egen byte Son      = max(kidsex01==1)
+
+. bysort pid (syear): assert Daughter==Daughter[1]    // ensure time‐invariant
+
+. 
+. * timing of birth
+. gen yearFirstChild = kidgeb01
+
+. gen byte Post = (syear >= kidgeb01) 
+
+. 
+. * gender dummy (for H4)
+. gen byte Man = (sex==1)
+
+. 
+. *-----------------------------
+. * 5.  Controls (Table 4 PaP) 
+. *-----------------------------
+. mdesc sumkids pgfamstd plh0258_h sampreg birthregion_ew bioage migback pgbilz
+> eit hghinc pgemplst pgexpft
+
+    Variable    |     Missing          Total     Percent Missing
+----------------+-----------------------------------------------
+        sumkids |           0        663,123           0.00
+       pgfamstd |     143,310        663,123          21.61
+      plh0258_h |     148,633        663,123          22.41
+        sampreg |           0        663,123           0.00
+   birthregio~w |           0        663,123           0.00
+         bioage |           0        663,123           0.00
+        migback |           0        663,123           0.00
+      pgbilzeit |     143,310        663,123          21.61
+         hghinc |      80,120        663,123          12.08
+       pgemplst |     143,310        663,123          21.61
+        pgexpft |     143,310        663,123          21.61
+----------------+-----------------------------------------------
+
+. 
+. * number of children (pool 5+)
+. gen nchild = sumkids
+
+. replace nchild = 5 if nchild>5
+(7,063 real changes made)
+
+. 
+. * marital status
+. gen mastat = pgfamstd == 1 | pgfamstd == 6 | pgfamstd == 7 | pgfamstd == 8
+
+. replace mastat = . if pgfamstd == .
+(143,310 real changes made, 143,310 to missing)
+
+. label define mastat 0 "Unmarried" 1 "Married"
+
+. label values mastat mastat
+
+. 
+. * region of interview & origin
+. replace sampreg      = sampreg - 1                   // 0=West,1=East
+(663,123 real changes made)
+
+. replace birthregion_ew = birthregion_ew - 1           // 0=West,1=East
+(663,123 real changes made)
+
+. label define ew 0 "West" 1 "East"
+
+. label values sampreg ew
+
+. label values birthregion_ew ew
+
+. 
+. * age & squared
+. sort pid piyear
+
+. gen age    = syear - gebjahr
+
+. gen age_sq = age^2
+
+. 
+. * work experience & squared
+. gen exp    = pgexpft
+(143,310 missing values generated)
+
+. gen exp_sq = exp^2
+(143,310 missing values generated)
+
+. 
+. * employment indicator
+. gen byte emplyd = inlist(pgemplst,1,2)
+
+. label define emp 0 "Not employed" 1 "Employed"
+
+. label values emplyd emp
+
+. 
+. * rename household income
+. label variable hghinc "Household net income"
+
+. local controls "i.nchild i.mastat i.sampreg age age_sq exp exp_sq i.migback p
+> gbilzeit hghinc i.emplyd"
+
+. global controls "`controls'"
+
+. 
+. *-----------------------------
+. *   Sample restrictions (Section 4 PaP)
+. *    – first‐time parents
+. *    – outcome observed both before & after
+. *-----------------------------
+. keep if inlist(pop,1,2) // only keeping participants from private households 
+> and with complete information 
+(89,279 observations deleted)
+
+. 
+. * restrict to plausible ages and valid region
+. keep if sampreg>=0 & inrange(age,18,50)
+(262,973 observations deleted)
+
+. 
+. * must have become first‐time parent within window
+. keep if yearFirstChild>0 
+(103,248 observations deleted)
+
+. 
+. * Flags for zLeftRight availability pre/post
+. bysort pid: egen byte has_zLR_pre  = max(!missing(zLeftRight) & !Post)
+
+. bysort pid: egen byte has_zLR_post = max(!missing(zLeftRight) & Post)
+
+. 
+. 
+. *============================================================================
+> ===
+. * H2 Analysis
+. *============================================================================
+> ===
+. 
+. 
+. *-----------------------------
+. * DiD regressions  
+. *Regression : y_i,t = β_0 + β_1*Daughter_i + β_2*Post_i,t + β_3*Daughter_i × 
+> Post_i,t + \gamma*X_i,t + \varepsilon_i,t
+. * The study employs a difference-in-differences (DiD) design to test whether 
+> having daughters leads to more left-leaning political preferences. The approa
+> ch leverages the quasi-random assignment of child sex to compare individuals 
+> whose first child is a girl (treatment group) versus those whose first child 
+> is a boy (control group), examining changes in political attitudes before and
+>  after childbirth.
+. *-----------------------------
+. 
+. keep if has_zLR_pre & has_zLR_post
+(190,857 observations deleted)
+
+. xtset pid syear
+
+Panel variable: pid (unbalanced)
+ Time variable: syear, 2000 to 2020, but with gaps
+         Delta: 1 unit
+
+. xtreg zLeftRight i.Daughter##i.Post i.Man $controls, vce(cluster cid)
+
+Random-effects GLS regression                   Number of obs     =      3,431
+Group variable: pid                             Number of groups  =      1,185
+
+R-squared:                                      Obs per group:
+     Within  = 0.0000                                         min =          2
+     Between = 0.0606                                         avg =        2.9
+     Overall = 0.0430                                         max =          4
+
+                                                Wald chi2(19)     =     369.92
+corr(u_i, X) = 0 (assumed)                      Prob > chi2       =     0.0000
+
+                                  (Std. err. adjusted for 819 clusters in cid)
+------------------------------------------------------------------------------
+             |               Robust
+  zLeftRight | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  1.Daughter |   .0603339   .0600363     1.00   0.315    -.0573352    .1780029
+      1.Post |   .0624785   .0511211     1.22   0.222    -.0377171     .162674
+             |
+    Daughter#|
+        Post |
+        1 1  |  -.0453536   .0511917    -0.89   0.376    -.1456875    .0549803
+             |
+       1.Man |  -.1897765   .0425339    -4.46   0.000    -.2731414   -.1064116
+             |
+      nchild |
+          2  |  -.0083948    .058532    -0.14   0.886    -.1231153    .1063258
+          3  |  -.0449292   .1173761    -0.38   0.702    -.2749821    .1851236
+          4  |   .0883135   .2134062     0.41   0.679     -.329955     .506582
+          5  |  -.6168168   .0680424    -9.07   0.000    -.7501775   -.4834562
+             |
+      mastat |
+    Married  |  -.0820665   .0409755    -2.00   0.045     -.162377    -.001756
+             |
+     sampreg |
+       East  |   .0124418   .0551037     0.23   0.821    -.0955594    .1204431
+         age |   .0136976    .022174     0.62   0.537    -.0297626    .0571577
+      age_sq |  -.0000458   .0003219    -0.14   0.887    -.0006768    .0005852
+         exp |    -.02869   .0124303    -2.31   0.021    -.0530529   -.0043272
+      exp_sq |   .0004351    .000529     0.82   0.411    -.0006017    .0014719
+             |
+     migback |
+[2] direc..  |   .1472802   .0889898     1.66   0.098    -.0271366    .3216971
+[3] indir..  |   .2436965   .0953386     2.56   0.011     .0568363    .4305568
+             |
+   pgbilzeit |   .0085267   .0049268     1.73   0.084    -.0011296     .018183
+      hghinc |   6.02e-07   7.32e-06     0.08   0.934    -.0000137    .0000149
+             |
+      emplyd |
+   Employed  |   .0013812   .0349856     0.04   0.969    -.0671893    .0699516
+       _cons |  -.1762834   .3441331    -0.51   0.608    -.8507719    .4982052
+-------------+----------------------------------------------------------------
+     sigma_u |   .7033213
+     sigma_e |  .67762485
+         rho |  .51860142   (fraction of variance due to u_i)
+------------------------------------------------------------------------------
+
+.     
+. * Extract coefficients and SEs
+. local b1 = _b[1.Daughter]
+
+. local s1 = _se[1.Daughter]
+
+. local b2 = _b[1.Post]
+
+. local s2 = _se[1.Post]
+
+. local b3 = _b[1.Daughter#1.Post]
+
+. local s3 = _se[1.Daughter#1.Post]
+
+. 
+. * Compute test for β3 > 0
+. local df_m = e(df_m)
+
+. local df_r = e(N_clust) - 1
+
+. local t3 = `b3'/`s3'
+
+. local pval3 = ttail(`df_r', `t3')
+
+. local Nobs = e(N)
+
+. quietly levelsof pid if e(sample), local(ids)
+
+. local Nind: word count `ids'
+
+. local R2 = e(r2_o)
+
+. local interp = "positive coefficient is in line with hypothesis"
+
+. local test_stat_family = "t"
+
+. 
+. * Export results to csv 
+.         file open myfile using "$OUT/h2_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/95_re
+    > sults/h2_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`b3',`s3',`test_stat_family',`df_r',`df_m',`pval3'
+> ,`Nobs',`Nind',`interp'" _n
+
+.         file close myfile
+
+. 
+. 
+. **************************************************************************
+. * End of H2 Political Preferences DiD Analysis                           *
+. **************************************************************************
+. 
+end of do-file
+
+. 
+end of do-file

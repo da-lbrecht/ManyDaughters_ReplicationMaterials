@@ -1,0 +1,622 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmpnvq_gcby.do 
+
+. do "95%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. * the following code automatically sets paths based on the project location o
+> n your system *
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/95%-sample" // folder, in which the or
+> iginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/95%-sample
+
+. global DATA "$ROOT/data/derived_confidential/95%-sample" // folder for datase
+> ts
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/95%-sample
+
+. global OUT "$ROOT/data/derived/95_results" // folder for output (results, tab
+> les)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/95_results
+
+. 
+end of do-file
+
+. do "20250716_134356_01fp6j_h2.do"
+
+. *****************************************************************************
+> ***
+. ****************** Do-File H2: #ManyDaughters Project ******************
+. *****************************************************************************
+> ***
+. 
+. * Authors: [REDACTED], [REDACTED] (Team ID: 01fp6j)
+. 
+. *********
+. * Setup * 
+. *********
+. 
+. * clear all
+. version 18
+
+. set maxvar 10000
+
+
+. set seed 8942
+
+. 
+. * INSTALL PACKAGES *
+. * net install st0718_1.pkg, from(http://www.stata-journal.com/software/sj24-3
+> /)
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. /*
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> */
+. 
+. ********************
+. * Data Preparation * 
+. ********************
+. 
+. * LOAD AND MERGE DATA *
+. 
+. use pid cid syear sex phrf gebjahr using "$IN/ppathl.dta"  , clear // use ppa
+> thl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+.         
+. /*gebjahr retrieved from ppathl instead of ppath as planned in the PAP (ident
+> ical information)*/
+. 
+. * Merge ppathl with datasets
+. 
+. * biobirth contains information on fertility history
+. merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches) keepusing(
+> kidsex01 kidgeb01 kidgeb02 kidmon01 kidmon02)
+(variable pid was long, now double to accommodate using data's values)
+(label sex already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. * pgen contains user-friendly data on the individual level that are consolida
+> ted from different sources
+. merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches) keepusin
+> g(pgtatzeit pgemplst pgpartz pgisced97 pgpiyear pgmonth)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. * pl contains all variables from the individual questionnaire
+. merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches) keepusing(
+> plh0301 plh0303 plh0004 pli0043_h)
+(label cid_EN already defined)
+(label pid_EN already defined)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. 
+. label language EN // change language of the labels to English
+
+. compress
+  variable pgemplst was float now byte
+  variable pgmonth was float now byte
+  variable pgpiyear was float now int
+  variable pid was double now long
+  variable syear was double now int
+  variable kidgeb01 was double now int
+  variable kidgeb02 was double now int
+  variable kidsex01 was double now byte
+  variable kidmon01 was double now byte
+  variable kidmon02 was double now byte
+  variable pgpartz was double now byte
+  variable pgisced97 was double now byte
+  (43,102,995 bytes saved)
+
+. save "$DATA/h1_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h1_dataset.dta saved
+
+. 
+. 
+. **********************
+. * GENERATE VARIABLES *
+. **********************
+. 
+. ******************
+. * Help-Variables *
+. ******************
+. 
+. * Birthdate first child
+. recode kidgeb01 (-100/-1=.)
+(217,072 changes made to kidgeb01)
+
+. recode kidmon01 (-100/-1=.)
+(377,877 changes made to kidmon01)
+
+. gen birthdate_1=mdy(kidmon01, 15, kidgeb01) //day not recorded, set to the 15
+> th of the month
+(377,877 missing values generated)
+
+. lab var birthdate_1 "Birthdate of first child"
+
+. 
+. * Birthdate second child
+. recode kidgeb02 (-100/-1=.)
+(340,439 changes made to kidgeb02)
+
+. recode kidmon02 (-100/-1=.)
+(442,842 changes made to kidmon02)
+
+. gen birthdate_2=mdy(kidmon02, 15, kidgeb02) //day not recorded, set to the 15
+> th of the month
+(442,842 missing values generated)
+
+. lab var birthdate_2 "Birthdate of second child"
+
+. 
+. * Date of interview
+. recode pgpiyear (-100/-1=.)
+(381,576 changes made to pgpiyear)
+
+. replace pgpiyear=syear if pgpiyear>=. /*not mentioned in PAP, we did not know
+>  about the high number of missing*/
+(524,886 real changes made)
+
+. recode pgmonth (-100/-1=.)
+(18 changes made to pgmonth)
+
+. replace pgmonth=2 if pgmonth>=. /*not mentioned in PAP, we did not know about
+>  the high number of missing, February=modus*/
+(143,328 real changes made)
+
+. 
+. gen intdate =mdy(pgmonth, 15, pgpiyear)
+
+. format intdate %td
+
+. lab var intdate "Date of interview"
+
+. 
+. 
+. **********************
+. * Treatment-Variable *
+. **********************
+. 
+. * Daughter-Variable, Hypotheses 1, 2, 3, 4
+. gen daughters=1 if intdate-birthdate_1>0 & kidsex01==2 //respondent has a fem
+> ale child
+(456,128 missing values generated)
+
+. replace daughters=0 if intdate-birthdate_1>0 & kidsex01==1 //respondent has a
+>  male child
+(219,189 real changes made)
+
+. replace daughters=. if intdate-birthdate_1<=0 // respondent does not (yet) ha
+> ve a child
+(0 real changes made)
+
+. replace daughters=. if intdate>=. // missing date of interview
+(0 real changes made)
+
+. replace daughters=. if birthdate_1>=. /*typo in pap: ">0." --> corrected to "
+> >=." */
+(161,113 real changes made, 161,113 to missing)
+
+. lab var daughters "Daughter"
+
+. lab define daughterslbl 1 "daughter" 0 "son"
+
+. lab value daughters daughterslbl
+
+. *tab daughters kidsex01, m
+. 
+. 
+. /*
+> *************
+> * Moderator *
+> *************
+> 
+> * Sex of respondent (female-dummy), Hypotheses 3, 4
+> gen female=1 if sex==2
+> replace female=0 if sex==1
+> replace female=. if sex<=0
+> tab female sex, m
+> lab var female "female respondent"
+> lab define femalelbl 1 "female" 0 "male"
+> lab value female femalelbl
+> tab female sex, m
+> 
+> ************
+> * Controls *
+> ************
+> 
+> * Year of birth, Hypotheses 3, 4
+> recode gebjahr (-100/-1=.), gen(birthyear)
+> lab var birthyear "Year of birth"
+> 
+> * Education, Hypotheses 3, 4
+> recode pgisced97 (-100/-1=.) (0 1 2=0 "low") (3 4=1 "middle") (5 6=2 "high"),
+>  gen(educ)
+> lab var educ "Education"
+> tab pgisced97 educ , m
+> */
+. 
+. ************
+. * Outcomes *
+. ************
+. 
+. /*
+> * Family versus Career Attitudes, Hypotheses 1,4 
+> recode plh0301 (-100/-1=.), gen (famvscareer) // no need to recode any furthe
+> r, as high values already indicate gender equality. Incorrect in the prelimin
+> ary stata code submitted within the PAP.
+> lab var famvscareer "Gender equality attitudes: family versus career"
+> lab define attlbl 1 "gender inequality" 4 "gender equality"
+> lab value famvscareer attlbl
+> tab famvscareer plh0301, m
+>         
+> * Men should invole in Housework Attitudes, , Hypotheses 1,4 
+> recode plh0303 (-100/-1=.) (4=1) (3=2) (2=3) (1=4), gen(menhousework)
+> lab var menhousework "Gender equality attitudes: men should involve in housew
+> ork"
+> lab value menhousework attlbl
+> tab menhousework plh0303, m
+> */
+. 
+. * Left versus right political ideology, Hypothesis 2    
+. recode plh0004 (-100/-1=.) (10=0) (9=1) (8=2) (7=3) (6=4) (5=5) (4=6) (3=7) (
+> 2=8) (1=9) (0=10), gen(left)       
+(476,831 differences between plh0004 and left)
+
+. lab var left "left political ideology"
+
+. lab define lftlbl 0 "right" 10 "left"
+
+. lab value left lftlbl
+
+. *tab left plh0004, m
+. 
+. /*
+> * Working hours, Hypothesis 3
+> recode pgtatzeit (-100/-1=.), gen(workhours)
+> replace workhours=0 if pgemplst==5 // not working equals 0 hours
+> lab var workhours "Working hours"
+> tab workhours, m
+> 
+> * Housework, Hypothesis 3
+> recode pli0043_h (-100/-1=.) (16/24=16), gen(housework) //top coded to 16 hou
+> rs per day
+> lab var housework "Hours of housework"
+> tab housework, m
+> */
+. 
+. ************************
+. *** Filter Variables ***
+. ************************
+. 
+. * Parity 2 Indicator (Defining Analytic Sample), Hypotheses 1, 2, 3, 4
+. gen parity2=1 if intdate-birthdate_2>0 & intdate-birthdate_2<.
+(462,713 missing values generated)
+
+. lab var parity2 "Second child is born"
+
+. * if parity2=1: a second child is already born
+. 
+. /*
+> * Cohabitation, Hypothesis 3
+> gen cohab=1 if pgpartz!=0 & pgpartz!=5
+> lab var cohab "cohabiting with a partner"
+> */
+. 
+. *********************************
+. *** Apply sample restrictions ***
+. *********************************
+. 
+. * We estimate the following regressions using a sample restricted to responde
+> nts with exactly one child.
+. * Note: There was a typo in the preliminary Stata code provided in the PAP. A
+> lthough the verbal description 
+. * of the sample restriction was correct, the code mistakenly included `parity
+> 2==1`, which would select 
+. * respondents with at least two children—contradicting the intended analytic 
+> sample.
+. 
+. 
+. keep if parity2!=1 // Hypotheses 1, 2, 3, 4
+(200,410 observations deleted)
+
+. 
+. * Restrict the analyses to cohabiting couples 
+. * keep if cohab==1 // Hypothesis 3
+. 
+. keep if !missing(left, daughters, syear, phrf) & phrf!=0
+(449,938 observations deleted)
+
+. 
+. count
+  12,775
+
+. 
+. *********************************
+. *********************************
+. 
+. * HYPOTHESIS TEST FOR H2
+. 
+.         *********************************************************************
+> *****************************************************************************
+> ***************
+.         * We assume that the causal effect of having a daughter is identified
+>  in a sample of parents of a single child without further adjustment (see PAP
+> )
+.         * Since information on variable "left" is available in multiple surve
+> y years, we pool over and fully stratify by wave
+.         * !! NOTE THIS IS THE AVERAGE CAUSAL EFFECT IN THE POPULATION OF PARE
+> NTS OF A SINGLE CHILD !!
+.         * Accordingly, we run a linear regression analysis with left [plh0004
+> ] as dependent variables, assuming it can be treated as linear-continous,
+.         * and the dummy variable daughter as independent variable in a sample
+>  of respondents with a single child (parity2!=1)
+.         * We apply weights cross-sectionally calibrated weights (phrf)
+.         * To account for non-independence of observatons, we cluster standard
+>  errors at the household level
+.         * The null we test against is that the effect of having daughters is 
+> <=0 
+.         * I.e., we have to consider a one-sided test 
+.         * For consistency with the PAP and between hypothesis tests, we emplo
+> y the same method here, although not strictily necessary
+.         * !! NOTE THAT AT AN A PRIORI CONFIDENCE LEVEL OF 0.05 WITHOUT PREDER
+> MINED SIGN OF THE EFFECT, THE CONFIDENCE LEVEL BECOMES 0.025
+.         *********************************************************************
+> *****************************************************************************
+> ***************
+.         * The below code follows the conception outlined in the PAP
+.         * Note that the sample restriction is already implemented in the data
+>  preparation and therefore omitted for redundancy
+.         *********************************************************************
+> *****************************************************************************
+> ***************
+. 
+. 
+.         *obtain point esttimates for daughter effects
+.         regress left daughters##syear [pw=phrf], vce(cluster cid)
+(sum of wgt is 35,214,566.55)
+
+Linear regression                               Number of obs     =     12,775
+                                                F(7, 4624)        =       0.80
+                                                Prob > F          =     0.5833
+                                                R-squared         =     0.0012
+                                                Root MSE          =     1.6332
+
+                                (Std. err. adjusted for 4,625 clusters in cid)
+------------------------------------------------------------------------------
+             |               Robust
+        left | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+   daughters |
+   daughter  |  -.0332341   .0915826    -0.36   0.717    -.2127797    .1463114
+             |
+       syear |
+       2009  |   .0999428   .0849742     1.18   0.240    -.0666473    .2665328
+       2014  |  -.0544842    .085381    -0.64   0.523    -.2218718    .1129034
+       2019  |   .0109962   .0887336     0.12   0.901     -.162964    .1849565
+             |
+   daughters#|
+       syear |
+   daughter #|
+       2009  |  -.0932524   .1201175    -0.78   0.438      -.32874    .1422353
+   daughter #|
+       2014  |   .0779576   .1164723     0.67   0.503    -.1503836    .3062988
+   daughter #|
+       2019  |   .1310084   .1403321     0.93   0.351    -.1441094    .4061262
+             |
+       _cons |    5.28319   .0666862    79.22   0.000     5.152453    5.413927
+------------------------------------------------------------------------------
+
+.         est sto e1
+
+.         
+.         *obtain conditional marginal effect (identical to AME)
+.         margins, dydx(daughters) at((mean) syear) post
+
+Conditional marginal effects                            Number of obs = 12,775
+Model VCE: Robust
+
+Expression: Linear prediction, predict()
+dy/dx wrt:  1.daughters
+At: 2005.syear = .2662686 (mean)
+    2009.syear = .2566788 (mean)
+    2014.syear =  .236947 (mean)
+    2019.syear = .2401055 (mean)
+
+------------------------------------------------------------------------------
+             |            Delta-method
+             |      dy/dx   std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+   daughters |
+   daughter  |  -.0072424   .0617595    -0.12   0.907    -.1283204    .1138357
+------------------------------------------------------------------------------
+Note: dy/dx for factor levels is the discrete change from the base level.
+
+.         // equivalent to running above regression with sample-demeaned syear 
+> dummies
+.         
+.         *obtain inference statistics accounting for one-sided multiple testin
+> g
+.         sotable, alternative(upper)
+
+Single-comparison results 
+       p-value = 0.547
+Critical value = 1.960  
+-----------------------------------------------------------------------------
+      depvar |      Coef.   Std. Err.      t    P>|t|      [97.5% Conf. Band]
+-------------+---------------------------------------------------------------
+ 1.daughters |  -.0072424   .0617595    -0.117  0.547   -.1283204          .
+-----------------------------------------------------------------------------
+
+.         // we keep this routine for consistency with PAP and between hypothes
+> is tests, although not strictly necessary
+.         // if _b[daughters] is positive, this will lead to the same conclusio
+> n as without adjustment (just dividing both, p and alpha by 2)
+.         // but it will also report a correct p value if _b[daughters] is nega
+> tive
+. 
+.         *post-processing output
+.         mat R = r(results)'                                                  
+>                    // full results table
+
+.         mat rownames R =  left
+
+.         mat colnames R = b se z P>|z| low up
+
+.         est resto e1
+(results e1 are active now)
+
+. 
+.         qui {
+-------------------------------------------------------------------------------
+RESULTS
+Linear regression of  left on daughters
+P-value and lower CI band adjusted for one-sided testing
+-------------------------------------------------------------------------------
+
+             |      b      se       z   P>|z|     low 
+-------------+---------------------------------------
+        left | -0.007   0.062  -0.117   0.547  -0.128 
+-------------------------------------------------------------------------------
+
+Exported statistics for outcome with highest t / lowest p
+
+Coefficient: -.0072423527480909
+Standard Error: .0617594683662486
+Test Statistic Family: t
+Residual Degrees of Freedom: 4624
+Model Degrees of Freedom: 7
+p-value: .54667325
+Number of observations: 12775
+Number of participants: 7504
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+*Statistical assessment on H1: cannot reject H0
+-------------------------------------------------------------------------------
+
+.         
+.         * Export results to csv 
+.         file open myfile using "$OUT/h2_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/95_re
+    > sults/h2_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+.         
+. *****************************************************************************
+> ***
+. 
+. *exit
+. 
+. *****************************************************************************
+> ***
+.         
+. 
+. 
+. 
+end of do-file
+
+. 
+end of do-file

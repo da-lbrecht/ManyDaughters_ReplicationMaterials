@@ -1,0 +1,580 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmpmkhj119_.do 
+
+. do "5%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. 
+. * the following code automatically sets paths based on the project location o
+> n your system *local curdir = c(pwd)
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/5%-sample" // folder, in which the ori
+> ginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/5%-sample
+
+. global DATA "$ROOT/data/derived_confidential/5%-sample" // folder for dataset
+> s
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/5%-sample
+
+. global OUT "$ROOT/data/derived/5_results" // folder for output (results, tabl
+> es)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/5_results
+
+. 
+end of do-file
+
+. do "20250721_095627_01m66l_h1.do"
+
+. *****************************************************************************
+> ***
+. ****************** Do-File H1: #ManyDaughters Project ******************
+. *****************************************************************************
+> ***
+. 
+. 
+. * ============================
+. * Setup * 
+. * ============================
+. 
+. * clear all
+. version 17 // indicate the version of stata you are using here
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. * INSTALL PACKAGES * (Please adapt according to your needs)
+. * install all packages you need here, for example:
+. ssc install outreg2
+checking outreg2 consistency and verifying not already installed...
+all files already exist and are up to date.
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. /*
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> */
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA * (Please adapt according to your needs)
+. 
+. use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. 
+. * Merge ppathl with all datasets, that you deem relevant for your analysis. (
+> Tip: use keepusing() to specify which variables to keep from the using datase
+> t; the default is all.)
+. 
+. * biobirth contains information on fertility history
+. merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches)
+(variable pid was long, now double to accommodate using data's values)
+(variable cid was long, now double to accommodate using data's values)
+(variable gebjahr was int, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+. * pgen contains user-friendly data on the individual level that are consolida
+> ted from different sources
+. merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+. * pl contains all variables from the individual questionnaire
+. merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches)
+(variable inputdataset was str6, now str9 to accommodate using data's values)
+(label cid already defined)
+(label pid_EN already defined)
+(label cid_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+. * hgen contains generated variables on household level from the household int
+> erview; use for household net income
+. merge m:1 hid syear using "$IN/hgen.dta", nogen keep(master matches) keepusin
+> g(hid syear hghinc)
+(label iyear already defined)
+(label iyear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+. 
+. label language EN // change language of the labels to English
+
+. 
+. save "$DATA/h1_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/5%-sample/h1_dataset.dta saved
+
+. 
+. 
+. * ============================
+. * Generate Variables
+. * ============================
+. 
+. * FILTER 
+. * only keep participants from private households
+. keep if inlist(pop,1,2)
+(4,698 observations deleted)
+
+. 
+. *------------
+. * GENERATE CONTROLS
+. * compute age by birth year, as the age variable is missing for around 8k obs
+> ervations
+. gen age =  syear - gebjahr
+
+. gen age2 =  age^2
+
+. // the "bioage" variable misses some values
+. 
+. * male
+. gen male = 0
+
+. replace male = 1 if sex == 1
+(14,628 real changes made)
+
+. 
+. *------------
+. * GENERATE TREATMENT VARIABLE
+. 
+. * generate variable to describe if individual has a daughter and how many
+. gen num_daughters = 0
+
+. foreach i of numlist 1/9 {
+  2.         // https://paneldata.org/soep-core/datasets/biobirth/kidsex01
+.     replace num_daughters = num_daughters + 1 if kidsex0`i' == 2 & syear >= k
+> idgeb0`i'
+  3.         // the second if-condition ensures that the child has already been
+>  born when the respondent is asked
+. }
+(9,500 real changes made)
+(7,615 real changes made)
+(2,687 real changes made)
+(987 real changes made)
+(305 real changes made)
+(156 real changes made)
+(75 real changes made)
+(69 real changes made)
+(10 real changes made)
+
+. foreach i of numlist 0/9 {
+  2.     replace num_daughters = num_daughters + 1 if kidsex1`i' == 2 & syear >
+> = kidgeb1`i'
+  3. }
+(10 real changes made)
+(8 real changes made)
+(8 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. 
+. * generate variable to describe if individual has a son and how many
+. gen num_sons = 0
+
+. foreach i of numlist 1/9 {
+  2.     replace num_sons = num_sons + 1 if kidsex0`i' == 1 & syear >= kidgeb0`
+> i'
+  3.         // the second if-condition ensures that the child has already been
+>  born when the respondent is asked
+. }
+(11,123 real changes made)
+(7,235 real changes made)
+(2,565 real changes made)
+(976 real changes made)
+(385 real changes made)
+(143 real changes made)
+(88 real changes made)
+(36 real changes made)
+(25 real changes made)
+
+. foreach i of numlist 0/9 {
+  2.     replace num_sons = num_sons + 1 if kidsex1`i' == 1 & syear >= kidgeb1`
+> i'
+  3. }
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. 
+. * generate variables
+. gen num_children = num_sons + num_daughters
+
+. gen num_children2 = num_children ^ 2
+
+. gen d_daughter = 0
+
+. replace d_daughter = 1 if num_daughters > 0 & num_daughters != . 
+(14,774 real changes made)
+
+. gen d_son = 0
+
+. replace d_son = 1 if num_sons > 0 & num_sons != .
+(15,539 real changes made)
+
+. 
+. * Quality Check: the two variables almost perfectly align. For consistency, w
+> e stick to our own variable
+. tab sumkids num_children // https://paneldata.org/soep-core/datasets/biobirth
+> /
+
+      Total Number Of |                num_children
+               Births |         0          1          2          3 |     Total
+----------------------+--------------------------------------------+----------
+                    0 |     8,946          0          0          0 |     8,946 
+                    1 |       572      5,224          0          0 |     5,796 
+                    2 |       310        484      9,352          0 |    10,146 
+                    3 |        55         77        208      3,193 |     3,533 
+                    4 |         7          6         36         83 |     1,367 
+                    5 |         0          3          4          6 |       412 
+                    6 |         0          0          0          0 |       147 
+                    7 |         0          0          0          0 |        60 
+                    8 |         0          0          2          2 |        85 
+                    9 |         0          0          0          0 |        27 
+                   10 |         0          0          0          0 |         3 
+                   12 |         0          0          0          0 |         8 
+----------------------+--------------------------------------------+----------
+                Total |     9,890      5,794      9,602      3,284 |    30,530 
+
+
+      Total Number Of |                num_children
+               Births |         4          5          6          7 |     Total
+----------------------+--------------------------------------------+----------
+                    0 |         0          0          0          0 |     8,946 
+                    1 |         0          0          0          0 |     5,796 
+                    2 |         0          0          0          0 |    10,146 
+                    3 |         0          0          0          0 |     3,533 
+                    4 |     1,235          0          0          0 |     1,367 
+                    5 |        30        369          0          0 |       412 
+                    6 |         1         21        125          0 |       147 
+                    7 |         0          1          7         52 |        60 
+                    8 |         4          0          4          6 |        85 
+                    9 |         0          0          0          0 |        27 
+                   10 |         0          0          0          0 |         3 
+                   12 |         0          0          0          0 |         8 
+----------------------+--------------------------------------------+----------
+                Total |     1,270        391        136         58 |    30,530 
+
+
+      Total Number Of |                num_children
+               Births |         8          9         10         12 |     Total
+----------------------+--------------------------------------------+----------
+                    0 |         0          0          0          0 |     8,946 
+                    1 |         0          0          0          0 |     5,796 
+                    2 |         0          0          0          0 |    10,146 
+                    3 |         0          0          0          0 |     3,533 
+                    4 |         0          0          0          0 |     1,367 
+                    5 |         0          0          0          0 |       412 
+                    6 |         0          0          0          0 |       147 
+                    7 |         0          0          0          0 |        60 
+                    8 |        67          0          0          0 |        85 
+                    9 |         5         22          0          0 |        27 
+                   10 |         0          1          2          0 |         3 
+                   12 |         0          0          0          8 |         8 
+----------------------+--------------------------------------------+----------
+                Total |        72         23          2          8 |    30,530 
+
+. 
+. 
+. *------------
+. * GENERATE OUTCOME VARIABLE
+. 
+. * WE COULD BUILD AN INDEX. BASED ON FOUR VARIABLES ON ATTITUDES TOWARD GENDER
+>  EQUALITY
+. 
+. * re-scale variables scaled from 0 (more gender equality) to 4 (less gender e
+> quality)
+. gen gender_attitude1 = (plh0308_v1 + plh0303) - 2 // substract 3 to start val
+> ues at 1
+(3,847 missing values generated)
+
+. replace gender_attitude1 = . if plh0308_v1 < 0 | plh0303 < 0 // remove missin
+> g data
+(26,322 real changes made, 26,322 to missing)
+
+. replace gender_attitude1 = gender_attitude1 / 6 // normalize to 0 to 1
+(266 real changes made)
+
+. replace gender_attitude1 = 1- gender_attitude1 // rescale such that a value o
+> f 1 means higher gender equality attitudes
+(302 real changes made)
+
+.  
+. * re-scale variables scaled from 0 (less gender equality) to 4 (more gender e
+> quality)
+. gen gender_attitude2 = (plh0301 + plh0307) - 2 // substract 2 to start values
+>  at 0
+(3,847 missing values generated)
+
+. replace gender_attitude2 = . if plh0301 < 0 | plh0307 < 0 // remove missing d
+> ata
+(26,319 real changes made, 26,319 to missing)
+
+. replace gender_attitude2 = gender_attitude2 / 6 // normalize to 0 to 1
+(336 real changes made)
+
+.  
+. * merge the variables:
+. gen gender_attitude = 1/2 * gender_attitude1 + 1/2 * gender_attitude2 // crea
+> te one index variable of gender attitudes
+(30,171 missing values generated)
+
+. // gender attitudes are scaled from 0 to 1 with 1 meaning more gender equalit
+> y supporting attitudes
+. 
+. 
+. 
+. 
+. * ============================
+. * Analysis
+. * ============================
+. 
+. 
+. * HYPOTHESIS TEST FOR H1 * (Please adapt according to your needs)
+. 
+. * here, we regress the index of gender attitudes on the number of daughters a
+> nd controls. A positive coefficient
+. * for the number of daughters suggests that parents with female children have
+>  attitudes that are stronger in favor of gender equality.
+. 
+. reg gender_attitude num_daughters male age age2 i.num_children if num_childre
+> n > 0, vce(robust)
+
+Linear regression                               Number of obs     =        330
+                                                F(10, 317)        =          .
+                                                Prob > F          =          .
+                                                R-squared         =     0.1215
+                                                Root MSE          =     .19831
+
+------------------------------------------------------------------------------
+             |               Robust
+gender_att~e | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+num_daught~s |   .0070995   .0145857     0.49   0.627    -.0215975    .0357966
+        male |  -.0898074   .0224194    -4.01   0.000    -.1339171   -.0456977
+         age |   .0093708   .0070952     1.32   0.188    -.0045889    .0233305
+        age2 |  -.0000744   .0000779    -0.95   0.341    -.0002277    .0000789
+             |
+num_children |
+          2  |   .0279299   .0310674     0.90   0.369    -.0331944    .0890543
+          3  |  -.0007906   .0378009    -0.02   0.983     -.075163    .0735819
+          4  |  -.1135269   .0481917    -2.36   0.019    -.2083429   -.0187109
+          5  |  -.1205023   .0715814    -1.68   0.093    -.2613371    .0203324
+          6  |  -.1637623   .1038314    -1.58   0.116    -.3680481    .0405235
+          9  |    -.55834   .0725004    -7.70   0.000    -.7009827   -.4156973
+         10  |  -.3084099   .0748932    -4.12   0.000    -.4557605   -.1610593
+         12  |  -.1818925   .1445329    -1.26   0.209    -.4662574    .1024724
+             |
+       _cons |   .4336774    .154337     2.81   0.005     .1300231    .7373317
+------------------------------------------------------------------------------
+
+. 
+.         
+.         * Extract the required statistics
+. 
+.                 * (i) coefficient estimate
+.                 local coefficient = _b[num_daughter]
+
+. 
+.                 * (ii) standard error
+.                 local se = _se[num_daughter]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "t"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 local p_value = _b[num_daughter] / _se[num_daughter]
+
+.                 local p_value = 2 * ttail(e(df_r), abs(`p_value'))
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation of directionality
+.                 scalar coef_num_daughter = _b[num_daughter]
+
+.                 local interpretation "positive coefficient is in line with hy
+> pothesis"
+
+. 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: .0070995171993003
+
+.         di "Standard Error: `se'"
+Standard Error: .0145857173893143
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: t
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: 317
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 10
+
+.         di "p-value: " `p_value'
+p-value: .62677579
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 330
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 330
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h1_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/5_res
+    > ults/h1_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

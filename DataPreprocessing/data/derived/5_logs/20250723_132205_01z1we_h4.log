@@ -1,0 +1,1212 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmpl3trj65a.do 
+
+. do "5%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. 
+. * the following code automatically sets paths based on the project location o
+> n your system *local curdir = c(pwd)
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/5%-sample" // folder, in which the ori
+> ginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/5%-sample
+
+. global DATA "$ROOT/data/derived_confidential/5%-sample" // folder for dataset
+> s
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/5%-sample
+
+. global OUT "$ROOT/data/derived/5_results" // folder for output (results, tabl
+> es)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/5_results
+
+. 
+end of do-file
+
+. do "20250723_132205_01z1we_h4.do"
+
+. *****************************************************************************
+> ***
+. ********************** Do-File H1: #ManyDaughters Project *******************
+> ***
+. *****************************************************************************
+> ***
+. 
+. * Authors: [REDACTED], [REDACTED]
+. 
+. * ============================
+. * Setup * 
+. * ============================
+. 
+. * clear all
+. version 16.1 // indicate the version of stata you are using here
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. * INSTALL PACKAGES *
+. * install all packages you need here, for example:
+. *ssc install outreg2
+. 
+. * CONFIGURE FILE PATHS * 
+. /*
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> */
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA * 
+. 
+.         use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+.         keep gebjahr syear partner pid parid sex hid piyear
+
+.         
+. 
+.         * Merge ppathl with all datasets, that are relevant for the analysis.
+>  
+. 
+.                 * biobirth contains information on fertility history
+.                 merge m:1 pid using "$IN/biobirth.dta", keepusing(kidgeb01 ki
+> dgeb02 kidgeb03 kidgeb04 kidgeb05 kidgeb06 kidgeb07 kidgeb08 kidgeb09 kidgeb1
+> 0 kidgeb11 kidgeb12 kidgeb13 kidgeb14 kidgeb15 kidgeb16 kidgeb17 kidgeb18 kid
+> geb19 kidmon01 kidmon02 kidmon03 kidmon04 kidmon05 kidmon06 kidmon07 kidmon08
+>  kidmon09 kidmon11 kidmon10 kidmon12 kidmon13 kidmon14 kidmon15 kidmon16 kidm
+> on17 kidmon18 kidmon19 kidsex01 kidsex02 kidsex03 kidsex04 kidsex05 kidsex06 
+> kidsex07 kidsex08 kidsex09 kidsex10 kidsex11 kidsex12 kidsex13 kidsex14 kidse
+> x15 kidsex16 kidsex17 kidsex18 kidsex19 sumkids) gen(merge_check)
+(variable pid was long, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  (merge_check==3)
+    -----------------------------------------
+
+.                 drop merge_check
+
+.                 
+.                 * pgen contains user-friendly data on the individual level th
+> at are consolidated from different sources
+.                 merge 1:1 pid syear using "$IN/pgen.dta", keep(master matches
+> ) keepusing(pgbilzeit) gen(merge_check)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  (merge_check==3)
+    -----------------------------------------
+
+.                 drop merge_check
+
+.                 
+.                 * pl contains all variables from the individual questionnaire
+.                 merge 1:1 pid syear using "$IN/pl.dta", keep(master matches) 
+> keepusing(iyear pmonin plj0621 plj0622 plj0623 plj0624 plj0625 plh0004  plc00
+> 15_h plb0057_h1 plb0471_h plb0474_h pli0038_h pli0043_h pli0012_h pli0016_h p
+> li0044_h pli0019_h pli0022_h) gen(merge_check)
+(label cid already defined)
+(label pid_EN already defined)
+(label cid_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  (merge_check==3)
+    -----------------------------------------
+
+.                 drop merge_check
+
+.                 
+.                 * hgen contains generated variables on household level from t
+> he household interview
+.                 merge m:1 hid syear using "$IN/hgen.dta", keepusing(hghinc) g
+> en(merge_check)
+(label iyear already defined)
+(label iyear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  (merge_check==3)
+    -----------------------------------------
+
+.                 drop merge_check
+
+. 
+.         label language EN // change language of the labels to English
+
+. 
+.         save "$DATA/h4_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/5%-sample/h4_dataset.dta saved
+
+. 
+. 
+. * ============================
+. * Analysis
+. * ============================
+. 
+. * GENERATE VARIABLES * 
+. 
+.         * Generate dummy variable for whether participant has at least one ch
+> ild (1) or not (0)
+.         foreach x in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19
+>  {
+  2.         replace kidgeb`x' = . if kidgeb`x' <0
+  3.         replace kidmon`x' = . if kidmon`x' <0
+  4.         gen birthdate`x' = string(kidgeb`x') + "-" + string(kidmon`x', "%0
+> 2.0f")
+  5.         gen child`x'_birthdate = monthly(birthdate`x', "YM")
+  6.         format child`x'_birthdate %tm 
+  7.         drop birthdate`x'
+  8.         }
+(10,693 real changes made, 10,693 to missing)
+(20,201 real changes made, 20,201 to missing)
+(20,201 missing values generated)
+(17,388 real changes made, 17,388 to missing)
+(23,109 real changes made, 23,109 to missing)
+(23,109 missing values generated)
+(28,693 real changes made, 28,693 to missing)
+(30,496 real changes made, 30,496 to missing)
+(30,496 missing values generated)
+(32,761 real changes made, 32,761 to missing)
+(33,436 real changes made, 33,436 to missing)
+(33,436 missing values generated)
+(34,340 real changes made, 34,340 to missing)
+(34,645 real changes made, 34,645 to missing)
+(34,645 missing values generated)
+(34,820 real changes made, 34,820 to missing)
+(34,998 real changes made, 34,998 to missing)
+(34,998 missing values generated)
+(34,993 real changes made, 34,993 to missing)
+(35,066 real changes made, 35,066 to missing)
+(35,066 missing values generated)
+(35,068 real changes made, 35,068 to missing)
+(35,110 real changes made, 35,110 to missing)
+(35,110 missing values generated)
+(35,179 real changes made, 35,179 to missing)
+(35,182 real changes made, 35,182 to missing)
+(35,182 missing values generated)
+(35,212 real changes made, 35,212 to missing)
+(35,212 real changes made, 35,212 to missing)
+(35,212 missing values generated)
+(35,218 real changes made, 35,218 to missing)
+(35,218 real changes made, 35,218 to missing)
+(35,218 missing values generated)
+(35,218 real changes made, 35,218 to missing)
+(35,218 real changes made, 35,218 to missing)
+(35,218 missing values generated)
+(35,228 real changes made, 35,228 to missing)
+(35,228 real changes made, 35,228 to missing)
+(35,228 missing values generated)
+(35,228 real changes made, 35,228 to missing)
+(35,228 real changes made, 35,228 to missing)
+(35,228 missing values generated)
+(35,228 real changes made, 35,228 to missing)
+(35,228 real changes made, 35,228 to missing)
+(35,228 missing values generated)
+(35,228 real changes made, 35,228 to missing)
+(35,228 real changes made, 35,228 to missing)
+(35,228 missing values generated)
+(35,228 real changes made, 35,228 to missing)
+(35,228 real changes made, 35,228 to missing)
+(35,228 missing values generated)
+(35,228 real changes made, 35,228 to missing)
+(35,228 real changes made, 35,228 to missing)
+(35,228 missing values generated)
+(35,228 real changes made, 35,228 to missing)
+(35,228 real changes made, 35,228 to missing)
+(35,228 missing values generated)
+
+.         
+.         replace piyear = . if piyear <0
+(444 real changes made, 444 to missing)
+
+.         replace pmonin = . if pmonin <0 // We prespecified to use imonth. Sin
+> ce this variable was not available we are using pmonin.
+(7 real changes made, 7 to missing)
+
+.         gen interviewdateh = string(piyear) + "-" + string(pmonin, "%02.0f")
+
+.         gen interviewdate = monthly(interviewdateh, "YM")
+(8,129 missing values generated)
+
+.         format interviewdate %tm 
+
+.         drop interviewdateh
+
+.         
+.         gen parent = 0 // We pre-specified to use the interviewdate for all o
+> bservations. Since there are many (systematic) missings, we first use the sur
+> vey year for children born in previous years and then the interviewdate (when
+>  available) for children born in the same year as the survey.
+
+.         foreach x in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19
+>  {
+  2.         replace parent = 1 if parent == 0 & kidgeb`x' < syear & kidgeb`x' 
+> != . & syear != . // child born at least in the previous year
+  3.         }
+(23,287 real changes made)
+(8 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(4 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+.         foreach x in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19
+>  {
+  2.         replace parent = 1 if parent == 0 & child`x'_birthdate < interview
+> date & child`x'_birthdate != . & interviewdate != . // child born in the same
+>  year as the interview but in a previous month
+  3.         }
+(98 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+.         
+.         *Generate a dummy variable for whether participant has a daughter (1)
+>  or not (0)
+.         gen daughter = 0 
+
+.         foreach x in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19
+>  {
+  2.                 replace daughter = 1 if (kidsex`x' == 2 & daughter == 0 & 
+> kidgeb`x' < syear & kidgeb`x' != . & syear != .) | (kidsex`x' == 2 & daughter
+>  == 0 & child`x'_birthdate < interviewdate & child`x'_birthdate != . & interv
+> iewdate != .)
+  3.         }
+(10,761 real changes made)
+(5,048 real changes made)
+(793 real changes made)
+(84 real changes made)
+(28 real changes made)
+(5 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+.         replace daughter = . if kidsex01 < 1 & kidsex02 < 1 & kidsex03 < 1 & 
+> kidsex04 < 1 & kidsex05 < 1 & kidsex06 < 1 & kidsex07 < 1 & kidsex08 < 1 & ki
+> dsex09 < 1 & kidsex10 < 1 & kidsex11 < 1 & kidsex12 < 1 & kidsex13 < 1 & kids
+> ex14 < 1 & kidsex15 < 1 & kidsex16 < 1 & kidsex17 < 1 & kidsex18 < 1 & kidsex
+> 19 < 1 
+(10,615 real changes made, 10,615 to missing)
+
+.         
+.         *Generate the age of the respondent 
+.         tab gebjahr
+
+Birth Year, |
+    4-digit |      Freq.     Percent        Cum.
+------------+-----------------------------------
+       1903 |          5        0.01        0.01
+       1905 |          6        0.02        0.03
+       1906 |          3        0.01        0.04
+       1907 |          3        0.01        0.05
+       1909 |          8        0.02        0.07
+       1910 |          8        0.02        0.09
+       1911 |         11        0.03        0.12
+       1912 |          5        0.01        0.14
+       1913 |         14        0.04        0.18
+       1914 |         25        0.07        0.25
+       1915 |         22        0.06        0.31
+       1916 |         34        0.10        0.41
+       1917 |         18        0.05        0.46
+       1918 |         13        0.04        0.50
+       1919 |         32        0.09        0.59
+       1920 |         61        0.17        0.76
+       1921 |         31        0.09        0.85
+       1922 |          4        0.01        0.86
+       1923 |         80        0.23        1.09
+       1924 |         48        0.14        1.22
+       1925 |         77        0.22        1.44
+       1926 |        152        0.43        1.87
+       1927 |        132        0.37        2.25
+       1928 |        168        0.48        2.73
+       1929 |        110        0.31        3.04
+       1930 |        238        0.68        3.71
+       1931 |        227        0.64        4.36
+       1932 |        254        0.72        5.08
+       1933 |        185        0.53        5.60
+       1934 |        164        0.47        6.07
+       1935 |        296        0.84        6.91
+       1936 |        343        0.97        7.88
+       1937 |        251        0.71        8.60
+       1938 |        289        0.82        9.42
+       1939 |        488        1.39       10.80
+       1940 |        546        1.55       12.35
+       1941 |        397        1.13       13.48
+       1942 |        349        0.99       14.47
+       1943 |        483        1.37       15.84
+       1944 |        347        0.99       16.82
+       1945 |        356        1.01       17.84
+       1946 |        328        0.93       18.77
+       1947 |        286        0.81       19.58
+       1948 |        442        1.25       20.83
+       1949 |        572        1.62       22.46
+       1950 |        526        1.49       23.95
+       1951 |        414        1.18       25.12
+       1952 |        381        1.08       26.21
+       1953 |        310        0.88       27.09
+       1954 |        559        1.59       28.67
+       1955 |        575        1.63       30.31
+       1956 |        388        1.10       31.41
+       1957 |        683        1.94       33.35
+       1958 |        523        1.48       34.83
+       1959 |        605        1.72       36.55
+       1960 |        777        2.21       38.75
+       1961 |        503        1.43       40.18
+       1962 |        607        1.72       41.90
+       1963 |        560        1.59       43.49
+       1964 |        601        1.71       45.20
+       1965 |        685        1.94       47.14
+       1966 |        814        2.31       49.45
+       1967 |        656        1.86       51.32
+       1968 |        720        2.04       53.36
+       1969 |        722        2.05       55.41
+       1970 |        639        1.81       57.22
+       1971 |        716        2.03       59.26
+       1972 |        575        1.63       60.89
+       1973 |        504        1.43       62.32
+       1974 |        489        1.39       63.71
+       1975 |        504        1.43       65.14
+       1976 |        519        1.47       66.61
+       1977 |        557        1.58       68.19
+       1978 |        431        1.22       69.42
+       1979 |        628        1.78       71.20
+       1980 |        583        1.65       72.85
+       1981 |        639        1.81       74.67
+       1982 |        577        1.64       76.31
+       1983 |        517        1.47       77.77
+       1984 |        499        1.42       79.19
+       1985 |        480        1.36       80.55
+       1986 |        492        1.40       81.95
+       1987 |        579        1.64       83.59
+       1988 |        479        1.36       84.95
+       1989 |        416        1.18       86.13
+       1990 |        380        1.08       87.21
+       1991 |        323        0.92       88.13
+       1992 |        393        1.12       89.24
+       1993 |        428        1.21       90.46
+       1994 |        449        1.27       91.73
+       1995 |        407        1.16       92.89
+       1996 |        371        1.05       93.94
+       1997 |        509        1.44       95.39
+       1998 |        441        1.25       96.64
+       1999 |        366        1.04       97.68
+       2000 |        294        0.83       98.51
+       2001 |        301        0.85       99.37
+       2002 |        223        0.63      100.00
+------------+-----------------------------------
+      Total |     35,228      100.00
+
+.         gen age = syear - gebjahr if gebjahr>=0 & syear>=0
+
+.         
+.         gen age_sq = age * age
+
+.         
+.         *Generate a dummy variable whether a respondent lives in the same hou
+> sehold as their partner (1) or not (0)
+.         gen same_household = 0 
+
+.         replace same_household = 1 if partner == 1 | partner == 2
+(21,817 real changes made)
+
+.         
+.         * Household income
+.         replace hghinc = . if hghinc == -1| hghinc == -2 | hghinc == -3 // We
+>  prespecified to use hlc0005_h. Since this variable was not available we are 
+> using hghinc.
+(1,699 real changes made, 1,699 to missing)
+
+.         
+.         * Education 
+.         replace pgbilzeit = . if pgbilzeit == -1| pgbilzeit == -2
+(1,548 real changes made, 1,548 to missing)
+
+. 
+.         * Gender 
+.         gen female = 0 if sex == 1
+(18,318 missing values generated)
+
+.         replace female = 1 if sex == 2
+(18,318 real changes made)
+
+.         
+.         gen male = 0 if sex == 2
+(16,910 missing values generated)
+
+.         replace male = 1 if sex == 1
+(16,910 real changes made)
+
+.         
+.         * Age of oldest child
+.         gen age_oldest_child = .
+(35,228 missing values generated)
+
+.         foreach x in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19
+>  {
+  2.         replace age_oldest_child = syear - kidgeb`x' if syear != . & kidge
+> b`x' != . & age_oldest_child == .
+  3.         }
+(24,535 real changes made)
+(8 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(4 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+.         replace age_oldest_child = . if parent == 0
+(1,150 real changes made, 1,150 to missing)
+
+.         
+.         gen age_oldest_child_sq = age_oldest_child * age_oldest_child
+(11,831 missing values generated)
+
+. 
+.         * Number of children 
+.         foreach x in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19
+>  {
+  2.         replace sumkids = sumkids - 1 if (kidgeb`x' > syear & kidgeb`x' !=
+>  . & syear != . & sumkids>=0) | (child`x'_birthdate > interviewdate & child`x
+> '_birthdate != . & interviewdate != . & kidgeb`x' == syear & sumkids>=0)
+  3.         }
+(1,105 real changes made)
+(1,088 real changes made)
+(428 real changes made)
+(171 real changes made)
+(59 real changes made)
+(34 real changes made)
+(21 real changes made)
+(22 real changes made)
+(3 real changes made)
+(1 real change made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+.         gen nb_children_indicator = .
+(35,228 missing values generated)
+
+.         replace nb_children_indicator = 0  if sumkids == 1
+(6,715 real changes made)
+
+.         replace nb_children_indicator = 1 if sumkids == 2 
+(10,695 real changes made)
+
+.         replace nb_children_indicator = 2 if sumkids >= 3
+(6,119 real changes made)
+
+.         
+.         gen nb_children_indicator_1 = .
+(35,228 missing values generated)
+
+.         replace nb_children_indicator_1 = 0 if nb_children_indicator!=.
+(23,529 real changes made)
+
+.         replace nb_children_indicator_1 = 1 if nb_children_indicator == 0
+(6,715 real changes made)
+
+.         
+.         gen nb_children_indicator_2 = .
+(35,228 missing values generated)
+
+.         replace nb_children_indicator_2 = 0 if nb_children_indicator!=.
+(23,529 real changes made)
+
+.         replace nb_children_indicator_2 = 1 if nb_children_indicator == 1
+(10,695 real changes made)
+
+.         
+.         gen nb_children_indicator_3 = .
+(35,228 missing values generated)
+
+.         replace nb_children_indicator_3 = 0 if nb_children_indicator!=.
+(23,529 real changes made)
+
+.         replace nb_children_indicator_3 = 1 if nb_children_indicator == 2
+(6,119 real changes made)
+
+. 
+. 
+.         * Composition of children 
+.         gen nb_sons = 0
+
+.         foreach x in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19
+>  {
+  2.         replace nb_sons = nb_sons + 1 if (kidgeb`x' < syear & kidsex`x' ==
+>  1 & kidgeb`x' != . & syear != .  & kidsex`x' != .) | (child`x'_birthdate < i
+> nterviewdate & kidsex`x' == 1 & child`x'_birthdate != . & interviewdate != . 
+> & kidsex`x' != . & kidgeb`x' == syear)
+  3.         }
+(12,586 real changes made)
+(8,111 real changes made)
+(2,957 real changes made)
+(1,134 real changes made)
+(451 real changes made)
+(182 real changes made)
+(120 real changes made)
+(42 real changes made)
+(30 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+.         
+.         * Create missing indicators for the relevant covariates
+.         foreach var in hghinc pgbilzeit age age_sq female age_oldest_child ag
+> e_oldest_child_sq nb_children_indicator nb_children_indicator_1 nb_children_i
+> ndicator_2 nb_children_indicator_3 nb_sons{
+  2.                 gen `var'_missing = 0 
+  3.                 replace `var'_missing = 1 if `var' == .
+  4.                 replace `var' = 0 if `var' == .
+  5.         }
+(5,906 real changes made)
+(5,906 real changes made)
+(9,371 real changes made)
+(9,371 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(11,831 real changes made)
+(11,831 real changes made)
+(11,831 real changes made)
+(11,831 real changes made)
+(11,699 real changes made)
+(11,699 real changes made)
+(11,699 real changes made)
+(11,699 real changes made)
+(11,699 real changes made)
+(11,699 real changes made)
+(11,699 real changes made)
+(11,699 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. 
+.         *Prepare the outcome variables 
+.         replace plj0621 = . if plj0621<0
+(26,743 real changes made, 26,743 to missing)
+
+.         replace plj0622 = . if plj0622<0
+(26,746 real changes made, 26,746 to missing)
+
+.         replace plj0623 = . if plj0623<0
+(26,751 real changes made, 26,751 to missing)
+
+.         replace plj0624 = . if plj0624<0
+(26,748 real changes made, 26,748 to missing)
+
+.         replace plj0625 = . if plj0625<0 
+(26,740 real changes made, 26,740 to missing)
+
+. 
+.         replace plj0623 = 8 - plj0623 // Invert variables so that high number
+> s indicate support for gender equality; plj0621 and plj0622 already correct 
+(326 real changes made)
+
+.         replace plj0624 = 8 - plj0624
+(347 real changes made)
+
+.         replace plj0625 = 8 - plj0625
+(318 real changes made)
+
+. 
+.         * Interaction between gender and having a daughter
+.         gen daughter_father = daughter * male if daughter != . & male != .
+(10,615 missing values generated)
+
+.         
+. 
+. * FILTERS * 
+.  
+.         * For H1, we only keep the year 2016
+.         keep if syear == 2016
+(33,280 observations deleted)
+
+.         
+.         * Respondents must have at least one child
+.         keep if parent == 1
+(605 observations deleted)
+
+.         
+.         * Information on the gender of children must be available
+.         keep if daughter != .
+(1 observation deleted)
+
+.         
+.         * Respondents must have valid observations for at least on of the out
+> come variables of the hypothesis
+.         keep if plj0621 != . & plj0622 != . & plj0623 != . & plj0624 != . & p
+> lj0625 != . 
+(1,204 observations deleted)
+
+.         
+.         * Respondents must be no older than 60 years of age 
+.         keep if age <= 60
+(4 observations deleted)
+
+.         
+.         * Respondents must live in the same household as their partner
+.         keep if same_household == 1
+(33 observations deleted)
+
+. 
+. * STANDARDIZATION WITHIN SAMPLE * 
+. 
+.         *Generate gender equality attitudes index, using principal component 
+> factor analysis retaining the first factor, in the relavant sample
+.         factor plj0621 plj0622 plj0623 plj0624 plj0625, pcf factors (1)
+(obs=101)
+
+Factor analysis/correlation                      Number of obs    =        101
+    Method: principal-component factors          Retained factors =          1
+    Rotation: (unrotated)                        Number of params =          5
+
+    --------------------------------------------------------------------------
+         Factor  |   Eigenvalue   Difference        Proportion   Cumulative
+    -------------+------------------------------------------------------------
+        Factor1  |      1.96073      0.70789            0.3921       0.3921
+        Factor2  |      1.25284      0.37321            0.2506       0.6427
+        Factor3  |      0.87963      0.17225            0.1759       0.8186
+        Factor4  |      0.70738      0.50797            0.1415       0.9601
+        Factor5  |      0.19941            .            0.0399       1.0000
+    --------------------------------------------------------------------------
+    LR test: independent vs. saturated:  chi2(10) =  117.03 Prob>chi2 = 0.0000
+
+Factor loadings (pattern matrix) and unique variances
+
+    ---------------------------------------
+        Variable |  Factor1 |   Uniqueness 
+    -------------+----------+--------------
+         plj0621 |   0.8584 |      0.2632  
+         plj0622 |   0.8394 |      0.2954  
+         plj0623 |   0.3514 |      0.8765  
+         plj0624 |   0.4720 |      0.7772  
+         plj0625 |   0.4159 |      0.8270  
+    ---------------------------------------
+
+.         predict gender_equality_index_pcf 
+(option regression assumed; regression scoring)
+
+Scoring coefficients (method = regression)
+
+    ------------------------
+        Variable |  Factor1 
+    -------------+----------
+         plj0621 |  0.43779 
+         plj0622 |  0.42812 
+         plj0623 |  0.17924 
+         plj0624 |  0.24074 
+         plj0625 |  0.21211 
+    ------------------------
+
+
+.         sum gender_equality_index_pcf
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+gender_equ~f |        101   -7.52e-09           1  -3.309651   .9023517
+
+.         replace gender_equality_index_pcf = (gender_equality_index_pcf-r(mean
+> ))/r(sd)
+(9 real changes made)
+
+.         
+.         
+. * BALANCE TESTS * 
+.         // We deviate from PAP by using standard errors clustered at the HH l
+> evel (rather than heteroskedasticity robust standard errors) as both partners
+>  are included in the dataset as individual observations
+. 
+.         reg hghinc daughter if hghinc_missing == 0, cluster(hid)  
+
+Linear regression                               Number of obs     =         97
+                                                F(1, 66)          =       0.00
+                                                Prob > F          =     0.9877
+                                                R-squared         =     0.0000
+                                                Root MSE          =     439.91
+
+                                   (Std. err. adjusted for 67 clusters in hid)
+------------------------------------------------------------------------------
+             |               Robust
+      hghinc | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+    daughter |   2.487469   161.2009     0.02   0.988    -319.3604    324.3354
+       _cons |   1350.381   149.3509     9.04   0.000     1052.192     1648.57
+------------------------------------------------------------------------------
+
+.         
+.         reg pgbilzeit daughter if pgbilzeit_missing == 0, cluster(hid)  
+
+Linear regression                               Number of obs     =         95
+                                                F(1, 64)          =       0.04
+                                                Prob > F          =     0.8358
+                                                R-squared         =     0.0004
+                                                Root MSE          =     1.8281
+
+                                   (Std. err. adjusted for 65 clusters in hid)
+------------------------------------------------------------------------------
+             |               Robust
+   pgbilzeit | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+    daughter |  -.0833333   .4004945    -0.21   0.836     -.883413    .7167464
+       _cons |   8.833333   .3311552    26.67   0.000     8.171775    9.494892
+------------------------------------------------------------------------------
+
+.         
+.         reg age daughter if age_missing == 0, cluster(hid)  
+
+Linear regression                               Number of obs     =        101
+                                                F(1, 68)          =       1.54
+                                                Prob > F          =     0.2191
+                                                R-squared         =     0.0130
+                                                Root MSE          =     8.4665
+
+                                   (Std. err. adjusted for 69 clusters in hid)
+------------------------------------------------------------------------------
+             |               Robust
+         age | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+    daughter |   2.372619   1.912755     1.24   0.219    -1.444223    6.189461
+       _cons |   35.95238   1.519239    23.66   0.000     32.92079    38.98398
+------------------------------------------------------------------------------
+
+.         
+.         reg female daughter if female_missing == 0, cluster(hid)  
+
+Linear regression                               Number of obs     =        101
+                                                F(1, 68)          =       0.90
+                                                Prob > F          =     0.3459
+                                                R-squared         =     0.0025
+                                                Root MSE          =     .50378
+
+                                   (Std. err. adjusted for 69 clusters in hid)
+------------------------------------------------------------------------------
+             |               Robust
+      female | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+    daughter |  -.0613095   .0645957    -0.95   0.346    -.1902082    .0675892
+       _cons |   .5238095   .0538388     9.73   0.000     .4163759    .6312431
+------------------------------------------------------------------------------
+
+.         
+.         reg age_oldest_child daughter if age_oldest_child_missing == 0, clust
+> er(hid)  
+
+Linear regression                               Number of obs     =        101
+                                                F(1, 68)          =       0.49
+                                                Prob > F          =     0.4849
+                                                R-squared         =     0.0050
+                                                Root MSE          =     7.7106
+
+                                   (Std. err. adjusted for 69 clusters in hid)
+------------------------------------------------------------------------------
+             |               Robust
+age_oldest~d | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+    daughter |   1.339881   1.907744     0.70   0.485    -2.466964    5.146726
+       _cons |   12.04762   1.535254     7.85   0.000     8.984067    15.11117
+------------------------------------------------------------------------------
+
+.         
+.         reg nb_children_indicator_1 daughter if nb_children_indicator_1_missi
+> ng == 0, cluster(hid)  
+
+Linear regression                               Number of obs     =        101
+                                                F(1, 68)          =       0.05
+                                                Prob > F          =     0.8300
+                                                R-squared         =     0.0005
+                                                Root MSE          =     .31458
+
+                                   (Std. err. adjusted for 69 clusters in hid)
+------------------------------------------------------------------------------
+             |               Robust
+nb_childre~1 | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+    daughter |   .0172619   .0800991     0.22   0.830    -.1425734    .1770972
+       _cons |   .0952381   .0674012     1.41   0.162    -.0392589    .2297351
+------------------------------------------------------------------------------
+
+.         reg nb_children_indicator_2 daughter if nb_children_indicator_2_missi
+> ng == 0, cluster(hid)  
+
+Linear regression                               Number of obs     =        101
+                                                F(1, 68)          =       3.25
+                                                Prob > F          =     0.0758
+                                                R-squared         =     0.0580
+                                                Root MSE          =     .45213
+
+                                   (Std. err. adjusted for 69 clusters in hid)
+------------------------------------------------------------------------------
+             |               Robust
+nb_childre~2 | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+    daughter |  -.2738095   .1518578    -1.80   0.076    -.5768371    .0292181
+       _cons |   .5238095   .1380474     3.79   0.000     .2483403    .7992787
+------------------------------------------------------------------------------
+
+.         reg nb_children_indicator_3 daughter if nb_children_indicator_3_missi
+> ng == 0, cluster(hid)  
+
+Linear regression                               Number of obs     =        101
+                                                F(1, 68)          =       2.83
+                                                Prob > F          =     0.0968
+                                                R-squared         =     0.0446
+                                                Root MSE          =     .48659
+
+                                   (Std. err. adjusted for 69 clusters in hid)
+------------------------------------------------------------------------------
+             |               Robust
+nb_childre~3 | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+    daughter |   .2565476   .1523808     1.68   0.097    -.0475236    .5606188
+       _cons |   .3809524   .1358539     2.80   0.007     .1098602    .6520445
+------------------------------------------------------------------------------
+
+.         
+.         reg nb_sons daughter if nb_sons_missing == 0, cluster(hid)  
+
+Linear regression                               Number of obs     =        101
+                                                F(1, 68)          =       6.14
+                                                Prob > F          =     0.0157
+                                                R-squared         =     0.0950
+                                                Root MSE          =     1.0956
+
+                                   (Std. err. adjusted for 69 clusters in hid)
+------------------------------------------------------------------------------
+             |               Robust
+     nb_sons | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+    daughter |  -.8660714   .3495055    -2.48   0.016    -1.563499   -.1686441
+       _cons |   2.428571   .3148533     7.71   0.000     1.800291    3.056851
+------------------------------------------------------------------------------
+
+. 
+. 
+. * HYPOTHESIS TEST FOR H1 * 
+. 
+.         * Verbal description of the model: We run a linear OLS regression ana
+> lysis with gender equality, measured by an index in standard deviations (gend
+> er_equality_index_pcf), as dependent variable and the dummy variable daughter
+>  interacted with a dummy variable for men as independent variable, controllin
+> g for having a daughter, the respondent's sex (male/female) and various covar
+> iates, and using standard errors clustered at the household level.
+. 
+.         global controls hghinc hghinc_missing pgbilzeit pgbilzeit_missing age
+>  age_missing age_sq age_sq_missing female female_missing age_oldest_child age
+> _oldest_child_missing age_oldest_child_sq age_oldest_child_sq_missing nb_chil
+> dren_indicator_2 nb_children_indicator_2_missing nb_children_indicator_3 nb_c
+> hildren_indicator_3_missing
+
+. 
+.         reg gender_equality_index_pcf daughter_father daughter $controls, clu
+> ster(hid)  // We deviate from PAP by using standard errors clustered at the H
+> H level (rather than heteroskedasticity robust standard errors) as both partn
+> ers are included in the dataset as individual observations
+note: age_missing omitted because of collinearity.
+note: age_sq_missing omitted because of collinearity.
+note: female_missing omitted because of collinearity.
+note: age_oldest_child_missing omitted because of collinearity.
+note: age_oldest_child_sq_missing omitted because of collinearity.
+note: nb_children_indicator_2_missing omitted because of collinearity.
+note: nb_children_indicator_3_missing omitted because of collinearity.
+
+Linear regression                               Number of obs     =        101
+                                                F(13, 68)         =       3.61
+                                                Prob > F          =     0.0003
+                                                R-squared         =     0.1675
+                                                Root MSE          =     .97819
+
+                                   (Std. err. adjusted for 69 clusters in hid)
+------------------------------------------------------------------------------
+             |               Robust
+gender_equ~f | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+daughter_f~r |  -.1705134   .4479076    -0.38   0.705    -1.064299    .7232722
+    daughter |  -.4299489   .3005254    -1.43   0.157    -1.029638    .1697403
+      hghinc |   .0002614   .0003383     0.77   0.442    -.0004137    .0009366
+hghinc_mis~g |   1.249244    .575423     2.17   0.033     .1010049    2.397482
+   pgbilzeit |    .135813   .0431804     3.15   0.002     .0496478    .2219782
+pgbilzeit_~g |   .6229594    .775694     0.80   0.425     -.924914    2.170833
+         age |   .0719982     .11345     0.63   0.528    -.1543877     .298384
+ age_missing |          0  (omitted)
+      age_sq |  -.0012048   .0014406    -0.84   0.406    -.0040796    .0016699
+age_sq_mis~g |          0  (omitted)
+      female |  -.3777419   .3944484    -0.96   0.342    -1.164851    .4093676
+female_mis~g |          0  (omitted)
+age_oldest~d |  -.0613646   .0643242    -0.95   0.343    -.1897215    .0669923
+ag~d_missing |          0  (omitted)
+age_oldest~q |    .002283   .0016794     1.36   0.178    -.0010681    .0056341
+age_oldest.. |          0  (omitted)
+nb_childre~2 |  -.1311717     .47318    -0.28   0.782    -1.075388    .8130442
+nb~2_missing |          0  (omitted)
+nb_childre~3 |   .0679126   .5239096     0.13   0.897    -.9775327    1.113358
+nb~3_missing |          0  (omitted)
+       _cons |  -1.588163   2.198819    -0.72   0.473    -5.975838    2.799511
+------------------------------------------------------------------------------
+
+. 
+. 
+. 
+. * EXTRACT AND EXPORT RESULTS * 
+. 
+.         * Extract the required statistics
+. 
+.                 * (i) coefficient estimate
+.                 local coefficient = _b[daughter_father]
+
+. 
+.                 * (ii) standard error
+.                 local se = _se[daughter_father]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "t"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 local p_value = _b[daughter_father] / _se[daughter_father]
+
+.                 local p_value = 2 * ttail(e(df_r), abs(`p_value'))
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation of directionality
+.                 scalar coef_daughter_father = _b[daughter_father]
+
+.                 local interpretation "positive coefficient is in line with hy
+> pothesis"
+
+.                 
+.  // Note on interpretation: 
+.  // In PAP we specified: "We interpret whether a test result is in line with 
+> the hypothesis if we reject the null hypothesis at the five percent significa
+> nce level."; 
+.  // It should have been: "We interpret whether a test result is in line with 
+> the hypothesis if the coefficient is in the hypothesized direction and we rej
+> ect the null hypothesis at the five percent significance level."
+.  
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: -.1705133681035657
+
+.         di "Standard Error: `se'"
+Standard Error: .4479075544339455
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: t
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: 68
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 13
+
+.         di "p-value: " `p_value'
+p-value: .7046209
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 101
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 101
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h4_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/5_res
+    > ults/h4_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

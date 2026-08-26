@@ -1,0 +1,826 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmplqhwyl80.do 
+
+. do "95%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. * the following code automatically sets paths based on the project location o
+> n your system *
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/95%-sample" // folder, in which the or
+> iginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/95%-sample
+
+. global DATA "$ROOT/data/derived_confidential/95%-sample" // folder for datase
+> ts
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/95%-sample
+
+. global OUT "$ROOT/data/derived/95_results" // folder for output (results, tab
+> les)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/95_results
+
+. 
+end of do-file
+
+. do "20250729_093055_01uppd_h3.do"
+
+. *****************************************************************************
+> ***
+. ****************** Do-File H3: #ManyDaughters Project ******************
+. *****************************************************************************
+> ***
+. *----------------------------------------------------------
+. * H3: Effect of Having a Daughter on Household Behavior
+. *----------------------------------------------------------
+. 
+. * Authors: [REDACTED], [REDACTED]
+. 
+. * ============================
+. * Setup * (Please adapt according to your needs)
+. * ============================
+. 
+. * clear all
+. version 18 // indicate the version of stata you are using here
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. * INSTALL PACKAGES * (Please adapt according to your needs)
+. * install all packages you need here, for example:
+. *ssc install outreg2
+. *ssc install esttab
+. *ssc install coefplot
+. * CONFIGURE FILE PATHS * (Please do not change)
+. /*
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> */
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA * (Please adapt according to your needs)
+. 
+.         use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. 
+.         * Merge ppathl with all datasets, that you deem relevant for your ana
+> lysis. (Tip: use keepusing() to specify which variables to keep from the usin
+> g dataset; the default is all.)
+. 
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches)
+(variable pid was long, now double to accommodate using data's values)
+(variable cid was long, now double to accommodate using data's values)
+(variable gebjahr was int, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * pgen contains user-friendly data on the individual level that are c
+> onsolidated from different sources
+.         merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * pl contains all variables from the individual questionnaire
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches)
+(variable inputdataset was str6, now str9 to accommodate using data's values)
+(label cid_EN already defined)
+(label pid_EN already defined)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * hgen contains generated variables on household level from the house
+> hold interview; use for household net income
+.         merge m:1 hid syear using "$IN/hgen.dta", nogen keep(master matches) 
+> keepusing(hid syear hghinc)
+(label iyear already defined)
+(label iyear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. 
+.         label language EN // change language of the labels to English
+
+. 
+.         save "$DATA/h3_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h3_dataset.dta saved
+
+. 
+. *-----------------------------------------------
+. * Step 1: Prepare individual-level totals
+. *-----------------------------------------------
+. 
+. gen age = syear - gebjahr
+
+. keep if age >= 18
+(47,454 observations deleted)
+
+. 
+. 
+. * Drop invalid values (<0 are missing codes in SOEP data)
+. foreach var in pli0044_h pli0019_h pli0022_h pli0043_h pli0012_h pli0016_h pl
+> i0049_h pli0034_v4 pli0031_h age pgbilzeit hghinc pgemplst pgfamstd migback {
+  2.     replace `var' = . if `var' < 0
+  3. }
+(26,873 real changes made, 26,873 to missing)
+(289,527 real changes made, 289,527 to missing)
+(289,647 real changes made, 289,647 to missing)
+(20,871 real changes made, 20,871 to missing)
+(283,337 real changes made, 283,337 to missing)
+(285,079 real changes made, 285,079 to missing)
+(20,742 real changes made, 20,742 to missing)
+(302,948 real changes made, 302,948 to missing)
+(285,635 real changes made, 285,635 to missing)
+(0 real changes made)
+(22,731 real changes made, 22,731 to missing)
+(29,266 real changes made, 29,266 to missing)
+(5 real changes made, 5 to missing)
+(2,297 real changes made, 2,297 to missing)
+(0 real changes made)
+
+. 
+. 
+. * Drop if any household behavior variable is missing
+. drop if missing(pli0044_h, pli0019_h, pli0022_h, pli0012_h, pli0043_h, pli001
+> 6_h, pli0031_h, pli0034_v4, pli0049_h, age, pgbilzeit, hghinc, pgemplst, pgfa
+> mstd, migback)
+(429,451 observations deleted)
+
+. 
+. 
+. * household with available partner information
+. keep if parid >= 0
+(52,895 observations deleted)
+
+. 
+. 
+. 
+. 
+. * Total weekly hours by category
+. gen childcare = 5*pli0044_h + pli0019_h + pli0022_h //compute weekly hours fo
+> r childcare
+
+. gen chores    = 5*pli0043_h + pli0012_h + pli0016_h //compute weekly hours fo
+> r household chores
+
+. gen repair    = 5*pli0049_h + pli0034_v4 + pli0031_h //compute weekly hours f
+> or repair work
+
+. 
+. gen total_hh_labor = childcare + chores + repair
+
+. 
+. *-----------------------------------------------
+. * Step 2: Create treatment variable has_daughter
+. *-----------------------------------------------
+. 
+. gen has_daughter = 0
+
+. foreach var of varlist kidsex01-kidsex15 {
+  2.     replace has_daughter = 1 if `var' == 2
+  3. }
+(55,750 real changes made)
+(21,317 real changes made)
+(3,875 real changes made)
+(663 real changes made)
+(114 real changes made)
+(6 real changes made)
+(10 real changes made)
+(4 real changes made)
+(5 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. 
+. drop if missing(has_daughter)
+(0 observations deleted)
+
+. //replace has_daughter = 0 if missing(has_daughter)
+. 
+. *-----------------------------------------------
+. * Step 3: Merge respondent with partner's total_hh_labor
+. *-----------------------------------------------
+. 
+. * Step 1: Keep only needed person-level variables
+. preserve
+
+. keep cid syear pid sex age pgbilzeit pgemplst migback
+
+. tempfile person_vars
+
+. save "$DATA/person_vars.dta", replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/person_vars.dta not found)
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/person_vars.dta saved
+
+. restore
+
+. 
+. * Step 2: Create dataset with partner's total household labor
+. preserve
+
+. keep cid syear pid total_hh_labor
+
+. rename pid partner_id
+
+. rename total_hh_labor partner_total_hh_labor
+
+. tempfile partner_data
+
+. save "$DATA/partner_data.dta", replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/partner_data.dta not found)
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/partner_data.dta saved
+
+. restore
+
+. 
+. * Step 3: Prepare main dataset to join
+. keep cid syear pid parid sex total_hh_labor hghinc has_daughter
+
+. rename parid partner_id
+
+. 
+. 
+. * Step 4: Merge with partner's total_hh_labor
+. merge m:1 cid syear partner_id using "$DATA/partner_data.dta"
+(variable partner_id was long, now double to accommodate using data's values)
+(label syear_EN already defined)
+(label cid_EN already defined)
+(label pid_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                        32,266
+        from master                    16,133  (_merge==1)
+        from using                     16,133  (_merge==2)
+
+    Matched                           117,190  (_merge==3)
+    -----------------------------------------
+
+. 
+. * Step 5: Keep only matches (drop if no partner info)
+. keep if _merge == 3
+(32,266 observations deleted)
+
+. drop _merge
+
+. tempfile data_joined
+
+. save "$DATA/data_joined.dta", replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/data_joined.dta not found)
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/data_joined.dta saved
+
+. 
+. 
+. * Step 6: Prepare partner attributes to merge *
+. * Keep only partner attributes from person_vars
+. use "$DATA/person_vars.dta", clear
+
+. rename age partner_age
+
+. rename pgbilzeit partner_pgbilzeit
+
+. rename pgemplst partner_pgemplst
+
+. rename migback partner_migback
+
+. rename pid partner_id
+
+. tempfile partner_attrs
+
+. save "$DATA/partner_attrs.dta", replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/partner_attrs.dta not found)
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/partner_attrs.dta saved
+
+. 
+. * Now go back to joined dataset
+. use "$DATA/data_joined.dta", clear
+
+. 
+. * Merge partner attributes
+. merge m:1 cid syear partner_id using "$DATA/partner_attrs.dta"
+(label syear_EN already defined)
+(label cid_EN already defined)
+(label pid_EN already defined)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                        16,133
+        from master                         0  (_merge==1)
+        from using                     16,133  (_merge==2)
+
+    Matched                           117,190  (_merge==3)
+    -----------------------------------------
+
+. drop if _merge != 3
+(16,133 observations deleted)
+
+. drop _merge
+
+. tempfile data_joined
+
+. save "$DATA/data_joined.dta", replace
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/data_joined.dta saved
+
+. 
+. * Step 7: Merge in respondent (self) attributes   *
+. * Reload person_vars and rename respondent variables
+. use "$DATA/person_vars.dta", clear
+
+. rename age respondent_age
+
+. rename pgbilzeit respondent_pgbilzeit
+
+. rename pgemplst respondent_pgemplst
+
+. rename migback respondent_migback
+
+. * Keep pid for merging (no rename)
+. tempfile respondent_attrs
+
+. save "$DATA/respondent_attrs.dta", replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/respondent_attrs.dta not found)
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/respondent_attrs.dta saved
+
+. 
+. * Reload current joined dataset
+. use "$DATA/data_joined.dta", clear
+
+. 
+. * Merge respondent attributes by cid syear pid
+. merge m:1 cid syear pid using "$DATA/respondent_attrs.dta"
+(label syear_EN already defined)
+(label cid_EN already defined)
+(label pid_EN already defined)
+(label sex already defined)
+(label migback already defined)
+(label sex_EN already defined)
+(label migback_EN already defined)
+(label pgbilzeit_EN already defined)
+(label pgemplst_EN already defined)
+(label pgbilzeit already defined)
+(label pgemplst already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                        16,133
+        from master                         0  (_merge==1)
+        from using                     16,133  (_merge==2)
+
+    Matched                           117,190  (_merge==3)
+    -----------------------------------------
+
+. drop if _merge != 3
+(16,133 observations deleted)
+
+. drop _merge
+
+. tempfile data_joined
+
+. save "$DATA/data_joined.dta", replace
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/data_joined.dta saved
+
+. 
+. * Fix sex variable
+. 
+. tab sex
+
+                                 Gender |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+                               [1] Male |     58,542       49.95       49.95
+                             [2] Female |     58,648       50.05      100.00
+----------------------------------------+-----------------------------------
+                                  Total |    117,190      100.00
+
+. tab sex, nolabel
+
+     Gender |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          1 |     58,542       49.95       49.95
+          2 |     58,648       50.05      100.00
+------------+-----------------------------------
+      Total |    117,190      100.00
+
+. rename sex gender
+
+. generate sex=0
+
+. replace sex=1 if gender==2
+(58,648 real changes made)
+
+. 
+. 
+. 
+. *Step 8: Assign mother and father household labor hours
+. gen mother_total = .
+(117,190 missing values generated)
+
+. gen father_total = .
+(117,190 missing values generated)
+
+. 
+. replace mother_total = total_hh_labor if sex == 1
+(58,648 real changes made)
+
+. replace mother_total = partner_total_hh_labor if sex == 0
+(58,542 real changes made)
+
+. 
+. replace father_total = total_hh_labor if sex == 0
+(58,542 real changes made)
+
+. replace father_total = partner_total_hh_labor if sex == 1
+(58,648 real changes made)
+
+. 
+. * Labor gap
+. gen labor_gap = mother_total - father_total
+
+. 
+. * Assign mother and father age
+. 
+. 
+. gen mother_age = .
+(117,190 missing values generated)
+
+. gen father_age = .
+(117,190 missing values generated)
+
+. 
+. replace mother_age = respondent_age if sex == 1
+(58,648 real changes made)
+
+. replace mother_age = partner_age     if sex == 0
+(58,542 real changes made)
+
+. 
+. replace father_age = respondent_age if sex == 0
+(58,542 real changes made)
+
+. replace father_age = partner_age     if sex == 1
+(58,648 real changes made)
+
+. 
+. * Assign education
+. gen mother_edu = .
+(117,190 missing values generated)
+
+. gen father_edu = .
+(117,190 missing values generated)
+
+. 
+. replace mother_edu = respondent_pgbilzeit if sex == 1
+(58,648 real changes made)
+
+. replace mother_edu = partner_pgbilzeit    if sex == 0
+(58,542 real changes made)
+
+. 
+. replace father_edu = respondent_pgbilzeit if sex == 0
+(58,542 real changes made)
+
+. replace father_edu = partner_pgbilzeit    if sex == 1
+(58,648 real changes made)
+
+. 
+. * Assign employment status
+. gen mother_empl = .
+(117,190 missing values generated)
+
+. gen father_empl = .
+(117,190 missing values generated)
+
+. 
+. replace mother_empl = respondent_pgemplst if sex == 1
+(58,648 real changes made)
+
+. replace mother_empl = partner_pgemplst    if sex == 0
+(58,542 real changes made)
+
+. 
+. replace father_empl = respondent_pgemplst if sex == 0
+(58,542 real changes made)
+
+. replace father_empl = partner_pgemplst    if sex == 1
+(58,648 real changes made)
+
+. 
+. * Assign migration background
+. gen mother_migback = .
+(117,190 missing values generated)
+
+. gen father_migback = .
+(117,190 missing values generated)
+
+. 
+. replace mother_migback = respondent_migback if sex == 1
+(58,648 real changes made)
+
+. replace mother_migback = partner_migback    if sex == 0
+(58,542 real changes made)
+
+. 
+. replace father_migback = respondent_migback if sex == 0
+(58,542 real changes made)
+
+. replace father_migback = partner_migback    if sex == 1
+(58,648 real changes made)
+
+. 
+. collapse (firstnm) pid partner_id  hghinc  has_daughter partner_total_hh_labo
+> r partner_migback partner_pgemplst partner_pgbilzeit partner_age respondent_m
+> igback respondent_pgemplst respondent_pgbilzeit respondent_age sex mother_tot
+> al father_total labor_gap mother_age father_age mother_edu father_edu mother_
+> empl father_empl mother_migback father_migback gender total_hh_labor , by(cid
+>  syear)
+
+. *-----------------------------------------------
+. * Step 4: Estimate main model
+. *-----------------------------------------------
+. * Main model: year fixed effects, clustered at household (cid) level
+. reghdfe labor_gap has_daughter ///
+>     mother_age mother_edu i.mother_empl i.mother_migback ///
+>     father_age father_edu i.father_empl i.father_migback ///
+>     hghinc, absorb(syear) cluster(cid) //noconstant
+(MWFE estimator converged in 1 iterations)
+
+HDFE Linear regression                            Number of obs   =     53,185
+Absorbing 1 HDFE group                            F(  20,  15293) =     383.86
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.3011
+                                                  Adj R-squared   =     0.3007
+                                                  Within R-sq.    =     0.2971
+Number of clusters (cid)     =     15,294         Root MSE        =    25.7625
+
+                               (Std. err. adjusted for 15,294 clusters in cid)
+------------------------------------------------------------------------------
+             |               Robust
+   labor_gap | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+has_daughter |    3.98256   .3452754    11.53   0.000     3.305779    4.659341
+  mother_age |   -.644029   .0376735   -17.10   0.000    -.7178735   -.5701844
+  mother_edu |  -.2182779   .0828109    -2.64   0.008    -.3805971   -.0559586
+             |
+ mother_empl |
+          2  |   15.16999   .4068032    37.29   0.000     14.37261    15.96737
+          3  |  -7.499673   1.832972    -4.09   0.000    -11.09252   -3.906829
+          4  |   26.48341   .6878666    38.50   0.000      25.1351    27.83171
+          5  |   35.87606   .5003192    71.71   0.000     34.89538    36.85675
+          6  |  -4.201267   8.686455    -0.48   0.629    -21.22775    12.82522
+             |
+mother_mig~k |
+          2  |  -.4698019   .6594414    -0.71   0.476    -1.762386    .8227818
+          3  |    2.34744   1.266429     1.85   0.064    -.1349111    4.829791
+             |
+  father_age |  -.0624563   .0376297    -1.66   0.097    -.1362151    .0113024
+  father_edu |   .3911193   .0768474     5.09   0.000     .2404892    .5417494
+             |
+ father_empl |
+          2  |  -8.304721   .9749978    -8.52   0.000    -10.21583    -6.39361
+          3  |  -11.06329    3.54468    -3.12   0.002    -18.01128   -4.115294
+          4  |  -13.80001    .843704   -16.36   0.000    -15.45377   -12.14625
+          5  |  -17.20919   .4629946   -37.17   0.000    -18.11671   -16.30166
+          6  |  -8.874368   14.01851    -0.63   0.527    -36.35231    18.60358
+             |
+father_mig~k |
+          2  |   1.776269   .6700812     2.65   0.008       .46283    3.089708
+          3  |   2.649124   1.234349     2.15   0.032     .2296528    5.068594
+             |
+      hghinc |   .0000555   .0000638     0.87   0.384    -.0000695    .0001805
+       _cons |   35.58194   1.425473    24.96   0.000     32.78784    38.37603
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+       syear |        10           0          10     |
+-----------------------------------------------------+
+
+. 
+.         * Extract the required statistics
+. 
+.                 * (i) coefficient estimate
+.                 local coefficient = _b[has_daughter]
+
+. 
+.                 * (ii) standard error
+.                 local se = _se[has_daughter]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "t"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 local p_value = _b[has_daughter] / _se[has_daughter]
+
+.                 local p_value = 2 * ttail(e(df_r), abs(`p_value'))
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation of directionality
+.                 scalar coef_has_daughter = _b[has_daughter]
+
+.                 local interpretation "positive coefficient is in line with hy
+> pothesis"
+
+. 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: 3.982560236004943
+
+.         di "Standard Error: `se'"
+Standard Error: .3452754055079711
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: t
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: 15293
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 20
+
+.         di "p-value: " `p_value'
+p-value: 1.185e-30
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 53185
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 16579
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h3_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/95_re
+    > sults/h3_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

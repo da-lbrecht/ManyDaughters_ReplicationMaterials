@@ -1,0 +1,601 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmpdrhaypbp.do 
+
+. do "5%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. 
+. * the following code automatically sets paths based on the project location o
+> n your system *local curdir = c(pwd)
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/5%-sample" // folder, in which the ori
+> ginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/5%-sample
+
+. global DATA "$ROOT/data/derived_confidential/5%-sample" // folder for dataset
+> s
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/5%-sample
+
+. global OUT "$ROOT/data/derived/5_results" // folder for output (results, tabl
+> es)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/5_results
+
+. 
+end of do-file
+
+. do "20250706_151522_01tafu_h2.do"
+
+. *****************************************************************************
+> ***
+. ****************** Do-File H2: #ManyDaughters Project ******************
+. *****************************************************************************
+> ***
+. 
+. * Authors: [REDACTED], [REDACTED]
+. 
+. /*H2. Having daughters leads to more left-leaning political preferences.
+> That is, denoting Y as a measure of left-leaning political preferences,
+> (Y for respondents with daughters) > (Y for respondents without daughters).
+> */
+. * ============================
+. * Setup * 
+. * ============================
+. 
+. * clear all
+. version 18.5 // version of stata we are using 
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. * INSTALL PACKAGES * [indicate all packages we make use of???]
+. * install all packages you need here, for example:
+. ssc install outreg2
+checking outreg2 consistency and verifying not already installed...
+all files already exist and are up to date.
+
+. ssc install revrs
+checking revrs consistency and verifying not already installed...
+all files already exist and are up to date.
+
+. ssc install fre
+checking fre consistency and verifying not already installed...
+all files already exist and are up to date.
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. /*
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> */
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA * 
+. 
+.         use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+.         * Merge ppathl with all datasets, that you deem relevant for your ana
+> lysis. (Tip: use keepusing() to specify which variables to keep from the usin
+> g dataset; the default is all.)
+.         keep cid pid hid syear parid partner sex gebjahr  
+
+.         
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches) 
+(variable pid was long, now double to accommodate using data's values)
+(variable cid was long, now double to accommodate using data's values)
+(variable gebjahr was int, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+. 
+.         * pl contains all variables from the individual questionnaire
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keepusing(plh0004 pmoni
+> n) keep(master matches)
+(label cid already defined)
+(label pid_EN already defined)
+(label cid_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         
+.         label language EN // change language of the labels to English
+
+. 
+.         save "$DATA/h2_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/5%-sample/h2_dataset.dta saved
+
+. 
+. 
+. * ============================
+. * Analysis
+. * ============================
+. 
+. use "$DATA/h2_dataset.dta", clear 
+
+. 
+. * FILTERS * 
+. 
+.         *Only keep participants who:
+.         *(1) have children
+.         *(2) have one child only (drop observations once second child arrives
+> ). Twins counted as 'having daughter' if at least both are girls.
+.         *(3) use last year of panel where we have full information 
+. 
+.                 *(1a) Keep only participants who have children:
+.                 fre kidgeb01
+
+kidgeb01 -- Year Of Birth 1st. Child
+------------------------------------------------------------------------------
+                                 |      Freq.    Percent      Valid       Cum.
+---------------------------------+--------------------------------------------
+Valid   -3   [-3] Answer         |          5       0.01       0.01       0.01
+             improbable          |                                            
+        -2   [-2] Does not apply |      10594      30.07      30.07      30.09
+        -1   [-1] No Answer      |         94       0.27       0.27      30.35
+        1928                     |          8       0.02       0.02      30.38
+        1932                     |          9       0.03       0.03      30.40
+        1934                     |          4       0.01       0.01      30.41
+        1935                     |         22       0.06       0.06      30.48
+        1936                     |          3       0.01       0.01      30.48
+        1937                     |         32       0.09       0.09      30.58
+        1938                     |          7       0.02       0.02      30.59
+        1941                     |         16       0.05       0.05      30.64
+        1943                     |         13       0.04       0.04      30.68
+        1944                     |         36       0.10       0.10      30.78
+        1945                     |         10       0.03       0.03      30.81
+        1946                     |         44       0.12       0.12      30.93
+        1947                     |         21       0.06       0.06      30.99
+        1948                     |         42       0.12       0.12      31.11
+        1949                     |         93       0.26       0.26      31.38
+        1950                     |         66       0.19       0.19      31.56
+        1951                     |         37       0.11       0.11      31.67
+        :                        |          :          :          :          :
+        2001                     |        506       1.44       1.44      82.15
+        2002                     |        410       1.16       1.16      83.32
+        2003                     |        504       1.43       1.43      84.75
+        2004                     |        502       1.43       1.43      86.17
+        2005                     |        420       1.19       1.19      87.37
+        2006                     |        553       1.57       1.57      88.93
+        2007                     |        766       2.17       2.17      91.11
+        2008                     |        376       1.07       1.07      92.18
+        2009                     |        501       1.42       1.42      93.60
+        2010                     |        417       1.18       1.18      94.78
+        2011                     |        287       0.81       0.81      95.60
+        2012                     |        238       0.68       0.68      96.27
+        2013                     |        237       0.67       0.67      96.95
+        2014                     |        190       0.54       0.54      97.48
+        2015                     |        221       0.63       0.63      98.11
+        2016                     |        185       0.53       0.53      98.64
+        2017                     |        126       0.36       0.36      99.00
+        2018                     |        212       0.60       0.60      99.60
+        2019                     |        133       0.38       0.38      99.97
+        2020                     |          9       0.03       0.03     100.00
+        Total                    |      35228     100.00     100.00           
+------------------------------------------------------------------------------
+
+.                 keep if kidgeb01 != -2  //these persons never have children. 
+(10,594 observations deleted)
+
+.                 drop if kidgeb01 < 0 //Also drop [-1] No Answer [-2] Does not
+>  apply [-3] Answer improbable
+(99 observations deleted)
+
+.                 
+. 
+.                 *Drop years before child1 was born
+.                 drop if syear < kidgeb01 
+(960 observations deleted)
+
+. 
+. 
+.                 *(1b) Keep only if sex of child is known 
+.                 drop if kidsex01 < 0 // missings 
+(38 observations deleted)
+
+. 
+.         
+.                 *(2) have one child only (dropped once second child arrives).
+>  Except if twins, then counted as 'having daughter' if both of them are girls
+>  
+. 
+.                 gen twins = 1 if kidgeb01==kidgeb02 & kidmon01==kidmon02 & ki
+> dgeb02 != -2 //month and year of birth same, and second child present. 
+(23,279 missing values generated)
+
+.                 drop if twins==1 & kidsex02 < 0 // if 2nd twins gender unknow
+> n 
+(0 observations deleted)
+
+.                 
+.                 drop if syear > kidgeb02 & twins !=1  //drop observations (su
+> rveyyears) once 2nd child is born (except first child is twin)
+(22,394 observations deleted)
+
+.                 drop if syear > kidgeb03 & twins ==1 //drop observations (sur
+> veyyears) once 3rd child is born (if first child is twin)
+(252 observations deleted)
+
+. 
+. 
+. * GENERATE VARIABLES * 
+. 
+.         *generate dummy variable for participants sex
+.         fre sex
+
+sex -- Gender
+------------------------------------------------------------------
+                     |      Freq.    Percent      Valid       Cum.
+---------------------+--------------------------------------------
+Valid   1 [1] Male   |        402      45.12      45.12      45.12
+        2 [2] Female |        489      54.88      54.88     100.00
+        Total        |        891     100.00     100.00           
+------------------------------------------------------------------
+
+.         gen d_sex = sex-1
+
+.         fre d_sex
+
+d_sex
+-----------------------------------------------------------
+              |      Freq.    Percent      Valid       Cum.
+--------------+--------------------------------------------
+Valid   0     |        402      45.12      45.12      45.12
+        1     |        489      54.88      54.88     100.00
+        Total |        891     100.00     100.00           
+-----------------------------------------------------------
+
+.         label variable d_sex "Sex of participants (0=Male, 1=Female)"
+
+. 
+.         *Generate dummy variable for whether participant`s child is a girl (1
+> ) or boy (0)
+.         gen d_daughter = 1 if kidsex01== 2 //girl
+(492 missing values generated)
+
+.         replace d_daughter=0 if kidsex01==1 //boy       
+(492 real changes made)
+
+.         drop if twins==1 & d_daughter==0 & kidsex02==2 //drop if first child 
+> is boy, but second twin is girl 
+(0 observations deleted)
+
+.         drop if twins==1 & d_daughter==1 & kidsex02==1 //drop if first child 
+> is girl, but second twin is boy 
+(6 observations deleted)
+
+.         label variable d_daughter "Sex of first child (0=son, 1=daughter)"
+
+.         fre d_daughter
+
+d_daughter -- Sex of first child (0=son, 1=daughter)
+-----------------------------------------------------------
+              |      Freq.    Percent      Valid       Cum.
+--------------+--------------------------------------------
+Valid   0     |        492      55.59      55.59      55.59
+        1     |        393      44.41      44.41     100.00
+        Total |        885     100.00     100.00           
+-----------------------------------------------------------
+
+.         
+. 
+.         
+.         *H2-specific variable(s) and sample selection: Left-leaning political
+>  preferences 
+. 
+.                 *Reverse code political preferences variable: 
+.                  gen leftist = plh0004  
+(84 missing values generated)
+
+.                  replace leftist = . if leftist<0
+(705 real changes made, 705 to missing)
+
+.                  revrs leftist
+
+.                  replace revleftist = revleftist-1
+(96 real changes made)
+
+.                  fre revleftist plh0004
+
+revleftist
+-----------------------------------------------------------
+              |      Freq.    Percent      Valid       Cum.
+--------------+--------------------------------------------
+Valid   0     |          2       0.23       2.08       2.08
+        1     |          1       0.11       1.04       3.12
+        2     |          1       0.11       1.04       4.17
+        3     |          4       0.45       4.17       8.33
+        4     |         11       1.24      11.46      19.79
+        5     |         41       4.63      42.71      62.50
+        6     |         15       1.69      15.62      78.12
+        7     |         13       1.47      13.54      91.67
+        8     |          6       0.68       6.25      97.92
+        10    |          2       0.23       2.08     100.00
+        Total |         96      10.85     100.00           
+Missing .     |        789      89.15                      
+Total         |        885     100.00                      
+-----------------------------------------------------------
+
+plh0004 -- Political attitude
+------------------------------------------------------------------------------
+                                 |      Freq.    Percent      Valid       Cum.
+---------------------------------+--------------------------------------------
+Valid   -8 [-8] Question this    |        690      77.97      86.14      86.14
+           year not part of      |                                            
+           survey                |                                            
+        -5 [-5] Not included in  |         10       1.13       1.25      87.39
+           this version of the   |                                            
+           questionnaire         |                                            
+        -1 [-1] No answer        |          5       0.56       0.62      88.01
+        0  [0] [de] 0 ganz links |          2       0.23       0.25      88.26
+        2  [2] [de] 2            |          6       0.68       0.75      89.01
+        3  [3] [de] 3            |         13       1.47       1.62      90.64
+        4  [4] [de] 4            |         15       1.69       1.87      92.51
+        5  [5] [de] 5            |         41       4.63       5.12      97.63
+        6  [6] [de] 6            |         11       1.24       1.37      99.00
+        7  [7] [de] 7            |          4       0.45       0.50      99.50
+        8  [8] [de] 8            |          1       0.11       0.12      99.63
+        9  [9] [de] 9            |          1       0.11       0.12      99.75
+        10 [10] [de] 10 ganz     |          2       0.23       0.25     100.00
+           rechts                |                                            
+        Total                    |        801      90.51     100.00           
+Missing .                        |         84       9.49                      
+Total                            |        885     100.00                      
+------------------------------------------------------------------------------
+
+.                  label variable revleftist "Political attitude 0=very right /
+>  10=very left"
+
+.                  drop leftist
+
+.                  keep if !missing(revleftist)
+(789 observations deleted)
+
+.         
+.                 *Take latest survey year available
+.                 bysort pid (syear): gen n = _n 
+
+.                 bysort pid: gen N = _N 
+
+.                 keep if n==N
+(11 observations deleted)
+
+. 
+. 
+. 
+. * HYPOTHESIS TEST FOR H2 *
+. 
+.         * We assume that a scale ranging from very right to very left (attitu
+> de_scale_01) is a good measure of right vs. left-leaning political preference
+> s (hypothesis 2), 
+.         * if having a daughter, the respondent is more likely to have left-le
+> aning political preferences (score higher on the leftist scale).
+.         * Accordingly, we run a linear OLS regression analysis with `revlefti
+> st' as the dependent variable and the dummy variable `d_daughter' as the inde
+> pendent variable
+.         
+. reg revleftist d_daughter  
+
+      Source |       SS           df       MS      Number of obs   =        85
+-------------+----------------------------------   F(1, 83)        =      1.20
+       Model |  2.97294118         1  2.97294118   Prob > F        =    0.2767
+    Residual |      205.78        83  2.47927711   R-squared       =    0.0142
+-------------+----------------------------------   Adj R-squared   =    0.0024
+       Total |  208.752941        84  2.48515406   Root MSE        =    1.5746
+
+------------------------------------------------------------------------------
+  revleftist | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  d_daughter |       -.38   .3470188    -1.10   0.277    -1.070206    .3102064
+       _cons |       5.38   .2226781    24.16   0.000     4.937102    5.822898
+------------------------------------------------------------------------------
+
+. reg revleftist d_daughter, cluster(hid) 
+
+Linear regression                               Number of obs     =         85
+                                                F(1, 54)          =       0.71
+                                                Prob > F          =     0.4030
+                                                R-squared         =     0.0142
+                                                Root MSE          =     1.5746
+
+                                   (Std. err. adjusted for 55 clusters in hid)
+------------------------------------------------------------------------------
+             |               Robust
+  revleftist | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  d_daughter |       -.38   .4508278    -0.84   0.403    -1.283855    .5238553
+       _cons |       5.38   .2000056    26.90   0.000     4.979013    5.780987
+------------------------------------------------------------------------------
+
+. 
+. 
+. 
+. * EXTRACT AND EXPORT RESULTS * 
+. 
+.         * Extract the required statistics
+. 
+.                 * (i) coefficient estimate
+.                 local coefficient = _b[d_daughter]
+
+. 
+.                 * (ii) standard error
+.                 local se = _se[d_daughter]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "t"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 local p_value = _b[d_daughter] / _se[d_daughter]
+
+.                 local p_value = 2 * ttail(e(df_r), abs(`p_value'))
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation based of directionality and p-value
+.                 local interpretation "positive coefficient is in line with hy
+> pothesis"
+
+.         
+. 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: -.38
+
+.         di "Standard Error: `se'"
+Standard Error: .4508277740459369
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: t
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: 54
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 1
+
+.         di "p-value: " `p_value'
+p-value: .40300584
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 85
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 85
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h2_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/5_res
+    > ults/h2_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

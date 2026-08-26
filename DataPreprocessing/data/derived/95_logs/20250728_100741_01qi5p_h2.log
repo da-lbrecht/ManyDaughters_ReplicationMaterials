@@ -1,0 +1,1864 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmpy1rfk2sl.do 
+
+. do "95%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. * the following code automatically sets paths based on the project location o
+> n your system *
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/95%-sample" // folder, in which the or
+> iginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/95%-sample
+
+. global DATA "$ROOT/data/derived_confidential/95%-sample" // folder for datase
+> ts
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/95%-sample
+
+. global OUT "$ROOT/data/derived/95_results" // folder for output (results, tab
+> les)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/95_results
+
+. 
+end of do-file
+
+. do "20250728_100741_01qi5p_h2.do"
+
+. *****************************************************************************
+> ***
+. ****************** Example Do-File H2: #ManyDaughters Project ***************
+> ***
+. *****************************************************************************
+> ***
+. 
+. * Authors: Tina Wang, David Albrecht
+. 
+. * ============================
+. * Setup * (Please adapt according to your needs)
+. * ============================
+. 
+. * clear all
+. * version 19 SE // indicate the version of stata you are using here
+. set maxvar 10000 // extend the maximum number of variables to 10,000 // Set b
+> y David Albrecht for reproducibility check
+
+
+. 
+. * INSTALL PACKAGES * (Please adapt according to your needs)
+. * install all packages you need here, for example:
+. ssc install outreg2
+checking outreg2 consistency and verifying not already installed...
+all files already exist and are up to date.
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. /*
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "C:/Users/ondra/Dropbox/Dokumenty/Věda/[REDACTED]/Many Daugh
+> ters/29.5.2025 DATA SOEP UPDATE/#ManyDaughters_RT_AnalysisPackage"
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> */
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA * (Please adapt according to your needs)
+. 
+.         use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. 
+.         * Merge ppathl with all datasets, that you deem relevant for your ana
+> lysis. (Tip: use keepusing() to specify which variables to keep from the usin
+> g dataset; the default is all.)
+. 
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches)
+(variable pid was long, now double to accommodate using data's values)
+(variable cid was long, now double to accommodate using data's values)
+(variable gebjahr was int, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * pgen contains user-friendly data on the individual level that are c
+> onsolidated from different sources
+.         merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         
+.                 * pl contains all variables from the individual questionnaire
+>  --> SHORTER VERSION, we keep only 1,500 first variables, removed directly in
+>  SPSS  *
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches)
+(variable inputdataset was str6, now str9 to accommodate using data's values)
+(label cid_EN already defined)
+(label pid_EN already defined)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         
+.         * hgen contains generated variables on household level from the house
+> hold interview; use for household net income
+.         merge m:1 hid syear using "$IN/hgen.dta", nogen keep(master matches) 
+> keepusing(hid syear hghinc)
+(label iyear already defined)
+(label iyear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. 
+.         label language EN // change language of the labels to English
+
+. 
+.         save "$DATA/h2_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h2_dataset.dta saved
+
+. 
+. * use "C:/Users/ondra/Dropbox/Dokumenty/Věda/[REDACTED]/Many Daughters/29.5.
+> 2025 DATA SOEP UPDATE/#ManyDaughters_RT_AnalysisPackage/data/derived/h2_datas
+> et.dta" *
+. 
+. * ============================
+. * Analysis
+. * ============================
+. 
+. 
+. * FILTERS * (Please adapt according to your needs)
+.  
+.  * N/A -> would limit already low number of observations. *
+. 
+. * GENERATE VARIABLES * (Please adapt according to your needs)
+.         
+.         
+.         * Number of Children *
+. * Generate variable counting all children with sex 1 or 2
+.         * Create a variable that is 1 if male or female, else 0, for each chi
+> ld
+. foreach var of varlist kidsex01-kidsex19 {
+  2.     gen temp_`var' = inlist(`var', 1, 2)
+  3. }
+
+. 
+. * Sum across all children to get the count
+. egen child_count = rowtotal(temp_kidsex*)
+
+. 
+. * Clean up temporary variables
+. drop temp_kidsex*
+
+. tab child_count
+
+child_count |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    216,541       32.65       32.65
+          1 |    123,851       18.68       51.33
+          2 |    193,039       29.11       80.44
+          3 |     84,464       12.74       93.18
+          4 |     28,409        4.28       97.46
+          5 |      9,811        1.48       98.94
+          6 |      3,783        0.57       99.51
+          7 |      1,789        0.27       99.78
+          8 |        772        0.12       99.90
+          9 |        283        0.04       99.94
+         10 |        147        0.02       99.96
+         11 |        146        0.02       99.99
+         12 |         82        0.01      100.00
+         13 |          5        0.00      100.00
+         14 |          1        0.00      100.00
+------------+-----------------------------------
+      Total |    663,123      100.00
+
+. * If all kidsex variables are missing or not 1/2, child_count will be 0
+. 
+.  label variable child_count "Number of Children"
+
+. tab2 plb0085 child_count
+
+-> tabulation of plb0085 by child_count  
+
+    Job Involves Hard |             Number of Children
+         Manual Labor |         0          1          2          3 |     Total
+----------------------+--------------------------------------------+----------
+[-8] Question this ye |   129,521     99,608    159,273     68,969 |   493,285 
+  [-2] Does not apply |     2,392      1,931      2,653      1,292 |     9,090 
+       [-1] No answer |        23         17         16         11 |        70 
+[1] [de] Trifft voll  |       533        404        657        277 |     1,966 
+[2] [de] Trifft teilw |     1,044        902      1,464        491 |     4,084 
+[3] [de] Trifft nicht |     1,561      1,379      2,229        623 |     5,995 
+----------------------+--------------------------------------------+----------
+                Total |   135,074    104,241    166,292     71,663 |   514,490 
+
+
+    Job Involves Hard |             Number of Children
+         Manual Labor |         4          5          6          7 |     Total
+----------------------+--------------------------------------------+----------
+[-8] Question this ye |    22,941      7,597      2,980      1,357 |   493,285 
+  [-2] Does not apply |       472        199         80         35 |     9,090 
+       [-1] No answer |         2          1          0          0 |        70 
+[1] [de] Trifft voll  |        67         18          8          2 |     1,966 
+[2] [de] Trifft teilw |       127         36         12          5 |     4,084 
+[3] [de] Trifft nicht |       159         35          7          0 |     5,995 
+----------------------+--------------------------------------------+----------
+                Total |    23,768      7,886      3,087      1,399 |   514,490 
+
+
+    Job Involves Hard |             Number of Children
+         Manual Labor |         8          9         10         11 |     Total
+----------------------+--------------------------------------------+----------
+[-8] Question this ye |       569        196        109         94 |   493,285 
+  [-2] Does not apply |        27          4          1          2 |     9,090 
+       [-1] No answer |         0          0          0          0 |        70 
+[1] [de] Trifft voll  |         0          0          0          0 |     1,966 
+[2] [de] Trifft teilw |         1          0          1          0 |     4,084 
+[3] [de] Trifft nicht |         1          0          0          0 |     5,995 
+----------------------+--------------------------------------------+----------
+                Total |       598        200        111         96 |   514,490 
+
+
+    Job Involves Hard |        Number of Children
+         Manual Labor |        12         13         14 |     Total
+----------------------+---------------------------------+----------
+[-8] Question this ye |        65          5          1 |   493,285 
+  [-2] Does not apply |         2          0          0 |     9,090 
+       [-1] No answer |         0          0          0 |        70 
+[1] [de] Trifft voll  |         0          0          0 |     1,966 
+[2] [de] Trifft teilw |         1          0          0 |     4,084 
+[3] [de] Trifft nicht |         1          0          0 |     5,995 
+----------------------+---------------------------------+----------
+                Total |        69          5          1 |   514,490 
+
+. 
+. * Having at least one Female Child * 
+. 
+. * Generate a variable indicating if at least one child is female (value 2) am
+> ong kidsex01 to kidsex19
+. * Initialize the indicator variable as 0
+. gen at_least_one_female = 0
+
+. 
+. * Set to 1 if any kidsex variable is 2 (female)
+. foreach var of varlist kidsex01-kidsex19 {
+  2.     replace at_least_one_female = 1 if `var' == 2 & at_least_one_female ==
+>  0
+  3. }
+(216,749 real changes made)
+(80,924 real changes made)
+(15,976 real changes made)
+(3,113 real changes made)
+(677 real changes made)
+(111 real changes made)
+(51 real changes made)
+(16 real changes made)
+(17 real changes made)
+(5 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. 
+. 
+. label variable at_least_one_female "Having at least one Female Child"
+
+. 
+. tab2 kidsex01 at_least_one_female if !missing(plb0085) 
+
+-> tabulation of kidsex01 by at_least_one_female if !missing(plb0085) 
+
+                      |  Having at least one
+                      |     Female Child
+       Sex 1st. Child |         0          1 |     Total
+----------------------+----------------------+----------
+  [-2] Does not apply |   134,714         27 |   134,741 
+       [-1] No Answer |       421        179 |       600 
+             [1] Male |   109,562     85,369 |   194,931 
+           [2] Female |         0    184,218 |   184,218 
+----------------------+----------------------+----------
+                Total |   244,697    269,793 |   514,490 
+
+. tab2 kidsex02 at_least_one_female if !missing(plb0085) 
+
+-> tabulation of kidsex02 by at_least_one_female if !missing(plb0085) 
+
+                      |  Having at least one
+                      |     Female Child
+       Sex 2nd. Child |         0          1 |     Total
+----------------------+----------------------+----------
+  [-2] Does not apply |   188,873     50,132 |   239,005 
+       [-1] No Answer |       218        162 |       380 
+             [1] Male |    55,606     84,028 |   139,634 
+           [2] Female |         0    135,471 |   135,471 
+----------------------+----------------------+----------
+                Total |   244,697    269,793 |   514,490 
+
+. tab2 kidsex03 at_least_one_female if !missing(plb0085) 
+
+-> tabulation of kidsex03 by at_least_one_female if !missing(plb0085) 
+
+                      |  Having at least one
+                      |     Female Child
+       Sex 3rd. Child |         0          1 |     Total
+----------------------+----------------------+----------
+  [-2] Does not apply |   230,898    174,447 |   405,345 
+       [-1] No Answer |        85        157 |       242 
+             [1] Male |    13,714     43,764 |    57,478 
+           [2] Female |         0     51,425 |    51,425 
+----------------------+----------------------+----------
+                Total |   244,697    269,793 |   514,490 
+
+. tab2 kidsex04 at_least_one_female if !missing(plb0085) 
+
+-> tabulation of kidsex04 by at_least_one_female if !missing(plb0085) 
+
+                      |  Having at least one
+                      |     Female Child
+       Sex 4th. Child |         0          1 |     Total
+----------------------+----------------------+----------
+  [-2] Does not apply |   242,010    235,127 |   477,137 
+       [-1] No Answer |        96         60 |       156 
+             [1] Male |     2,591     16,430 |    19,021 
+           [2] Female |         0     18,176 |    18,176 
+----------------------+----------------------+----------
+                Total |   244,697    269,793 |   514,490 
+
+. tab2 kidsex05 at_least_one_female if !missing(plb0085) 
+
+-> tabulation of kidsex05 by at_least_one_female if !missing(plb0085) 
+
+                      |  Having at least one
+                      |     Female Child
+       Sex 5th. Child |         0          1 |     Total
+----------------------+----------------------+----------
+  [-2] Does not apply |   244,204    256,758 |   500,962 
+       [-1] No Answer |        29         64 |        93 
+             [1] Male |       464      6,509 |     6,973 
+           [2] Female |         0      6,462 |     6,462 
+----------------------+----------------------+----------
+                Total |   244,697    269,793 |   514,490 
+
+. tab2 kidsex06 at_least_one_female if !missing(plb0085) 
+
+-> tabulation of kidsex06 by at_least_one_female if !missing(plb0085) 
+
+                      |  Having at least one
+                      |     Female Child
+       Sex 6th. Child |         0          1 |     Total
+----------------------+----------------------+----------
+  [-2] Does not apply |   244,637    264,244 |   508,881 
+       [-1] No Answer |         2         40 |        42 
+             [1] Male |        58      2,897 |     2,955 
+           [2] Female |         0      2,612 |     2,612 
+----------------------+----------------------+----------
+                Total |   244,697    269,793 |   514,490 
+
+. tab2 kidsex07 at_least_one_female if !missing(plb0085) 
+
+-> tabulation of kidsex07 by at_least_one_female if !missing(plb0085) 
+
+                      |  Having at least one
+                      |     Female Child
+       Sex 7th. Child |         0          1 |     Total
+----------------------+----------------------+----------
+  [-2] Does not apply |   244,685    267,292 |   511,977 
+       [-1] No Answer |         2         29 |        31 
+             [1] Male |        10      1,260 |     1,270 
+           [2] Female |         0      1,212 |     1,212 
+----------------------+----------------------+----------
+                Total |   244,697    269,793 |   514,490 
+
+. tab2 kidsex08 at_least_one_female if !missing(plb0085) 
+
+-> tabulation of kidsex08 by at_least_one_female if !missing(plb0085) 
+
+                      |  Having at least one
+                      |     Female Child
+       Sex 8th. Child |         0          1 |     Total
+----------------------+----------------------+----------
+  [-2] Does not apply |   244,695    268,679 |   513,374 
+       [-1] No Answer |         1         10 |        11 
+             [1] Male |         1        579 |       580 
+           [2] Female |         0        525 |       525 
+----------------------+----------------------+----------
+                Total |   244,697    269,793 |   514,490 
+
+. tab2 kidsex09 at_least_one_female if !missing(plb0085) 
+
+-> tabulation of kidsex09 by at_least_one_female if !missing(plb0085) 
+
+                      |  Having at least one
+                      |     Female Child
+       Sex 9th. Child |         0          1 |     Total
+----------------------+----------------------+----------
+  [-2] Does not apply |   244,695    269,218 |   513,913 
+       [-1] No Answer |         1          3 |         4 
+             [1] Male |         1        298 |       299 
+           [2] Female |         0        274 |       274 
+----------------------+----------------------+----------
+                Total |   244,697    269,793 |   514,490 
+
+. tab2 kidsex10 at_least_one_female if !missing(plb0085) 
+
+-> tabulation of kidsex10 by at_least_one_female if !missing(plb0085) 
+
+                      |  Having at least one
+                      |     Female Child
+      Sex 10th. Child |         0          1 |     Total
+----------------------+----------------------+----------
+  [-2] Does not apply |   244,696    269,439 |   514,135 
+       [-1] No Answer |         1          1 |         2 
+             [1] Male |         0        174 |       174 
+           [2] Female |         0        179 |       179 
+----------------------+----------------------+----------
+                Total |   244,697    269,793 |   514,490 
+
+. tab2 kidsex11 at_least_one_female if !missing(plb0085) 
+
+-> tabulation of kidsex11 by at_least_one_female if !missing(plb0085) 
+
+                      |  Having at least one
+                      |     Female Child
+      Sex 11th. Child |         0          1 |     Total
+----------------------+----------------------+----------
+  [-2] Does not apply |   244,696    269,582 |   514,278 
+       [-1] No Answer |         1          0 |         1 
+             [1] Male |         0         95 |        95 
+           [2] Female |         0        116 |       116 
+----------------------+----------------------+----------
+                Total |   244,697    269,793 |   514,490 
+
+. tab2 kidsex12 at_least_one_female if !missing(plb0085) 
+
+-> tabulation of kidsex12 by at_least_one_female if !missing(plb0085) 
+
+                      |  Having at least one
+                      |     Female Child
+      Sex 12th. Child |         0          1 |     Total
+----------------------+----------------------+----------
+  [-2] Does not apply |   244,697    269,673 |   514,370 
+             [1] Male |         0         40 |        40 
+           [2] Female |         0         80 |        80 
+----------------------+----------------------+----------
+                Total |   244,697    269,793 |   514,490 
+
+. tab2 kidsex13 at_least_one_female if !missing(plb0085) 
+
+-> tabulation of kidsex13 by at_least_one_female if !missing(plb0085) 
+
+                      |  Having at least one
+                      |     Female Child
+      Sex 13th. Child |         0          1 |     Total
+----------------------+----------------------+----------
+  [-2] Does not apply |   244,697    269,771 |   514,468 
+             [1] Male |         0         11 |        11 
+           [2] Female |         0         11 |        11 
+----------------------+----------------------+----------
+                Total |   244,697    269,793 |   514,490 
+
+. tab2 kidsex14 at_least_one_female if !missing(plb0085) 
+
+-> tabulation of kidsex14 by at_least_one_female if !missing(plb0085) 
+
+                      |  Having at least one
+                      |     Female Child
+      Sex 14th. Child |         0          1 |     Total
+----------------------+----------------------+----------
+  [-2] Does not apply |   244,697    269,777 |   514,474 
+             [1] Male |         0         14 |        14 
+           [2] Female |         0          2 |         2 
+----------------------+----------------------+----------
+                Total |   244,697    269,793 |   514,490 
+
+. tab2 kidsex15 at_least_one_female if !missing(plb0085) 
+
+-> tabulation of kidsex15 by at_least_one_female if !missing(plb0085) 
+
+                      |  Having at least one
+                      |     Female Child
+      Sex 15th. Child |         0          1 |     Total
+----------------------+----------------------+----------
+  [-2] Does not apply |   244,697    269,778 |   514,475 
+             [1] Male |         0          8 |         8 
+           [2] Female |         0          7 |         7 
+----------------------+----------------------+----------
+                Total |   244,697    269,793 |   514,490 
+
+. tab2 kidsex16 at_least_one_female if !missing(plb0085) 
+
+-> tabulation of kidsex16 by at_least_one_female if !missing(plb0085) 
+
+                      |  Having at least one
+                      |     Female Child
+      Sex 16th. Child |         0          1 |     Total
+----------------------+----------------------+----------
+  [-2] Does not apply |   244,697    269,779 |   514,476 
+             [1] Male |         0         14 |        14 
+----------------------+----------------------+----------
+                Total |   244,697    269,793 |   514,490 
+
+. tab2 kidsex17 at_least_one_female if !missing(plb0085) 
+
+-> tabulation of kidsex17 by at_least_one_female if !missing(plb0085) 
+
+                      |  Having at least one
+                      |     Female Child
+      Sex 17th. Child |         0          1 |     Total
+----------------------+----------------------+----------
+  [-2] Does not apply |   244,697    269,782 |   514,479 
+             [1] Male |         0          5 |         5 
+           [2] Female |         0          6 |         6 
+----------------------+----------------------+----------
+                Total |   244,697    269,793 |   514,490 
+
+. tab2 kidsex18 at_least_one_female if !missing(plb0085) 
+
+-> tabulation of kidsex18 by at_least_one_female if !missing(plb0085) 
+
+                      |  Having at least one
+                      |     Female Child
+      Sex 18th. Child |         0          1 |     Total
+----------------------+----------------------+----------
+  [-2] Does not apply |   244,697    269,788 |   514,485 
+           [2] Female |         0          5 |         5 
+----------------------+----------------------+----------
+                Total |   244,697    269,793 |   514,490 
+
+. tab2 kidsex19 at_least_one_female if !missing(plb0085) 
+
+-> tabulation of kidsex19 by at_least_one_female if !missing(plb0085) 
+
+                      |  Having at least one
+                      |     Female Child
+      Sex 19th. Child |         0          1 |     Total
+----------------------+----------------------+----------
+  [-2] Does not apply |   244,697    269,788 |   514,485 
+           [2] Female |         0          5 |         5 
+----------------------+----------------------+----------
+                Total |   244,697    269,793 |   514,490 
+
+. 
+. * Respondent gender *
+. tab sex
+
+                                 Gender |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+                 [-3] Answer improbable |         13        0.00        0.00
+                               [1] Male |    319,343       48.16       48.16
+                             [2] Female |    343,767       51.84      100.00
+----------------------------------------+-----------------------------------
+                                  Total |    663,123      100.00
+
+. tab sex, gen(sex)
+
+                                 Gender |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+                 [-3] Answer improbable |         13        0.00        0.00
+                               [1] Male |    319,343       48.16       48.16
+                             [2] Female |    343,767       51.84      100.00
+----------------------------------------+-----------------------------------
+                                  Total |    663,123      100.00
+
+. tab sex2
+
+   sex==[1] |
+       Male |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    343,780       51.84       51.84
+          1 |    319,343       48.16      100.00
+------------+-----------------------------------
+      Total |    663,123      100.00
+
+. label variable sex2 "Female"
+
+. 
+. * VARIABLE FEMALE - RENAME *
+. gen d_daughter = .
+(663,123 missing values generated)
+
+. replace d_daughter = at_least_one_female
+(663,123 real changes made)
+
+. label variable d_daughter "Having at least one Female Child"
+
+. 
+. 
+. * Respondent Years of Education *
+. tab pgbilzeit
+
+     Amount Of Education Or Training In |
+                                  Years |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+                    [-2] Does not apply |     18,787        3.61        3.61
+                         [-1] No answer |      9,737        1.87        5.49
+                                      7 |     14,454        2.78        8.27
+                                    8.5 |      1,429        0.27        8.54
+                                      9 |     55,260       10.63       19.17
+                                     10 |     15,076        2.90       22.07
+                                   10.5 |    102,486       19.72       41.79
+                                     11 |     24,007        4.62       46.41
+                                   11.5 |     76,089       14.64       61.05
+                                     12 |     56,326       10.84       71.88
+                                     13 |     26,574        5.11       76.99
+                                   13.5 |      6,525        1.26       78.25
+                                     14 |     10,040        1.93       80.18
+                                   14.5 |     12,366        2.38       82.56
+                                     15 |     20,625        3.97       86.53
+                                     16 |     16,277        3.13       89.66
+                                     17 |      1,636        0.31       89.97
+                                     18 |     52,119       10.03      100.00
+----------------------------------------+-----------------------------------
+                                  Total |    519,813      100.00
+
+. gen education_years = .
+(663,123 missing values generated)
+
+. replace education_years = pgbilzeit
+(519,813 real changes made)
+
+. replace education_years = . if inlist(pgbilzeit, -1, -2)
+(28,524 real changes made, 28,524 to missing)
+
+. tab education_years
+
+education_y |
+       ears |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          7 |     14,454        2.94        2.94
+        8.5 |      1,429        0.29        3.23
+          9 |     55,260       11.25       14.48
+         10 |     15,076        3.07       17.55
+       10.5 |    102,486       20.86       38.41
+         11 |     24,007        4.89       43.30
+       11.5 |     76,089       15.49       58.78
+         12 |     56,326       11.46       70.25
+         13 |     26,574        5.41       75.66
+       13.5 |      6,525        1.33       76.99
+         14 |     10,040        2.04       79.03
+       14.5 |     12,366        2.52       81.55
+         15 |     20,625        4.20       85.75
+         16 |     16,277        3.31       89.06
+         17 |      1,636        0.33       89.39
+         18 |     52,119       10.61      100.00
+------------+-----------------------------------
+      Total |    491,289      100.00
+
+. label variable education_years "Years of Education"
+
+. 
+. * Household Income *
+. tab hghinc if hghinc < 0
+
+     Monthly Household Net Income (EUR) |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+                                  -3000 |          1        0.00        0.00
+                                   -400 |          1        0.00        0.01
+                         [-3] Not valid |      2,185        6.97        6.97
+                    [-2] Does not apply |        547        1.74        8.72
+                         [-1] No answer |     28,625       91.28      100.00
+----------------------------------------+-----------------------------------
+                                  Total |     31,359      100.00
+
+. tabstat hghinc, stat(min sd max n)
+
+    Variable |       Min        SD       Max         N
+-------------+----------------------------------------
+      hghinc |     -3000  3790.965   1700000    583003
+------------------------------------------------------
+
+. gen household_income = .
+(663,123 missing values generated)
+
+. replace household_income = hghinc
+(583,003 real changes made)
+
+. replace household_income = . if inlist(hghinc, -1, -2, -3)
+(31,357 real changes made, 31,357 to missing)
+
+. label variable education_years "Household Income (EUR)"
+
+. tabstat household_income, stat(min sd max n)
+
+    Variable |       Min        SD       Max         N
+-------------+----------------------------------------
+household_~e |     -3000   3836.08   1700000    551646
+------------------------------------------------------
+
+. 
+. * Respondent age *
+. tab bioage
+
+            Age When Surveyed Biography |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+                    [-2] Does not apply |    209,222       31.55       31.55
+                                     16 |         61        0.01       31.56
+                                     17 |      7,705        1.16       32.72
+                                     18 |     13,243        2.00       34.72
+                                     19 |      7,007        1.06       35.78
+                                     20 |      7,733        1.17       36.94
+                                     21 |      7,854        1.18       38.13
+                                     22 |      7,894        1.19       39.32
+                                     23 |      8,233        1.24       40.56
+                                     24 |      8,553        1.29       41.85
+                                     25 |      7,914        1.19       43.04
+                                     26 |      8,470        1.28       44.32
+                                     27 |      8,744        1.32       45.64
+                                     28 |      9,402        1.42       47.06
+                                     29 |      9,570        1.44       48.50
+                                     30 |     10,289        1.55       50.05
+                                     31 |      9,908        1.49       51.54
+                                     32 |     10,388        1.57       53.11
+                                     33 |     10,519        1.59       54.70
+                                     34 |     10,641        1.60       56.30
+                                     35 |     10,338        1.56       57.86
+                                     36 |     11,151        1.68       59.54
+                                     37 |     10,582        1.60       61.14
+                                     38 |     10,757        1.62       62.76
+                                     39 |     10,883        1.64       64.40
+                                     40 |     10,411        1.57       65.97
+                                     41 |     10,209        1.54       67.51
+                                     42 |     10,523        1.59       69.10
+                                     43 |     10,774        1.62       70.72
+                                     44 |     10,075        1.52       72.24
+                                     45 |      9,617        1.45       73.69
+                                     46 |      9,715        1.47       75.16
+                                     47 |      9,222        1.39       76.55
+                                     48 |      8,341        1.26       77.81
+                                     49 |      7,779        1.17       78.98
+                                     50 |      7,747        1.17       80.15
+                                     51 |      7,631        1.15       81.30
+                                     52 |      7,095        1.07       82.37
+                                     53 |      7,073        1.07       83.43
+                                     54 |      6,476        0.98       84.41
+                                     55 |      5,952        0.90       85.31
+                                     56 |      5,788        0.87       86.18
+                                     57 |      5,656        0.85       87.03
+                                     58 |      5,408        0.82       87.85
+                                     59 |      5,492        0.83       88.68
+                                     60 |      6,155        0.93       89.61
+                                     61 |      5,977        0.90       90.51
+                                     62 |      5,306        0.80       91.31
+                                     63 |      5,533        0.83       92.14
+                                     64 |      4,741        0.71       92.86
+                                     65 |      4,566        0.69       93.55
+                                     66 |      4,127        0.62       94.17
+                                     67 |      4,450        0.67       94.84
+                                     68 |      3,368        0.51       95.35
+                                     69 |      3,136        0.47       95.82
+                                     70 |      3,310        0.50       96.32
+                                     71 |      2,879        0.43       96.75
+                                     72 |      3,093        0.47       97.22
+                                     73 |      2,709        0.41       97.63
+                                     74 |      2,111        0.32       97.95
+                                     75 |      2,200        0.33       98.28
+                                     76 |      1,797        0.27       98.55
+                                     77 |      1,521        0.23       98.78
+                                     78 |      1,560        0.24       99.01
+                                     79 |      1,058        0.16       99.17
+                                     80 |      1,144        0.17       99.35
+                                     81 |        953        0.14       99.49
+                                     82 |        649        0.10       99.59
+                                     83 |        504        0.08       99.66
+                                     84 |        474        0.07       99.74
+                                     85 |        382        0.06       99.79
+                                     86 |        367        0.06       99.85
+                                     87 |        312        0.05       99.90
+                                     88 |        146        0.02       99.92
+                                     89 |        133        0.02       99.94
+                                     90 |         91        0.01       99.95
+                                     91 |        126        0.02       99.97
+                                     92 |         52        0.01       99.98
+                                     93 |         85        0.01       99.99
+                                     94 |         35        0.01      100.00
+                                     95 |          2        0.00      100.00
+                                     96 |         15        0.00      100.00
+                                     97 |          8        0.00      100.00
+                                     99 |          3        0.00      100.00
+----------------------------------------+-----------------------------------
+                                  Total |    663,123      100.00
+
+. gen age = .
+(663,123 missing values generated)
+
+. replace age = bioage
+(663,123 real changes made)
+
+. replace age = . if inlist(bioage, -1, -2, -3)
+(209,222 real changes made, 209,222 to missing)
+
+. label variable age "Respondent Age"
+
+. tabstat age, stat(min sd max n)
+
+    Variable |       Min        SD       Max         N
+-------------+----------------------------------------
+         age |        16  15.92819        99    453901
+------------------------------------------------------
+
+. 
+. * Marital Status *
+. tab pgfamstd
+
+          Marital Status In Survey Year |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+[-5] Not Included In Questionnaire Vers |          8        0.00        0.00
+                         [-3] Not valid |      1,829        0.35        0.35
+                         [-1] No answer |        478        0.09        0.45
+                            [1] Married |    303,558       58.40       58.84
+             [2] Married, But Separated |     11,918        2.29       61.14
+                             [3] Single |    130,635       25.13       86.27
+                           [4] Divorced |     40,617        7.81       94.08
+[5] [de] Verwitwet / Lebenspartner/-in  |     28,648        5.51       99.59
+                [6] husband/wife abroad |      1,238        0.24       99.83
+[7] Registered Same-Sex Partnership, Li |        758        0.15       99.98
+[8] Registered Same-Sex Partnership, Li |        126        0.02      100.00
+----------------------------------------+-----------------------------------
+                                  Total |    519,813      100.00
+
+. replace pgfamstd = . if inlist(pgfamstd, -1, -2, -3, -4, -5, -6, -7, -8)
+(2,315 real changes made, 2,315 to missing)
+
+. tab pgfamstd , gen(pgfamstd)
+
+          Marital Status In Survey Year |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+                            [1] Married |    303,558       58.66       58.66
+             [2] Married, But Separated |     11,918        2.30       60.96
+                             [3] Single |    130,635       25.24       86.21
+                           [4] Divorced |     40,617        7.85       94.05
+[5] [de] Verwitwet / Lebenspartner/-in  |     28,648        5.54       99.59
+                [6] husband/wife abroad |      1,238        0.24       99.83
+[7] Registered Same-Sex Partnership, Li |        758        0.15       99.98
+[8] Registered Same-Sex Partnership, Li |        126        0.02      100.00
+----------------------------------------+-----------------------------------
+                                  Total |    517,498      100.00
+
+. 
+. 
+. tab at_least_one_female if !missing(plb0085)
+
+  Having at |
+  least one |
+     Female |
+      Child |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    244,697       47.56       47.56
+          1 |    269,793       52.44      100.00
+------------+-----------------------------------
+      Total |    514,490      100.00
+
+. * For our sample, the variable is clean, i.e., there are no missing values *
+. * Nationality *
+. * Remove missings, add a set of variables for the nationality of the responde
+> nt, controlling for the national and cultural values *
+. tab pgnation
+
+                         1. Nationality |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+                    [-2] Does not apply |          2        0.00        0.00
+                         [-1] No answer |         11        0.00        0.00
+                            [1] Germany |    452,576       87.07       87.07
+                             [2] Turkey |      9,611        1.85       88.92
+                      [3] Ex-Yugoslavia |      1,010        0.19       89.11
+                             [4] Greece |      2,811        0.54       89.65
+                              [5] Italy |      4,953        0.95       90.60
+                              [6] Spain |      1,275        0.25       90.85
+                           [10] Austria |      1,107        0.21       91.06
+                            [11] France |        539        0.10       91.17
+                           [13] Denmark |        173        0.03       91.20
+                     [14] Great Britain |        453        0.09       91.29
+                            [15] Sweden |         89        0.02       91.30
+                            [16] Norway |         37        0.01       91.31
+                           [17] Finland |         99        0.02       91.33
+                               [18] USA |        574        0.11       91.44
+                       [19] Switzerland |        206        0.04       91.48
+                             [20] Chile |         33        0.01       91.49
+                           [21] Romania |      1,928        0.37       91.86
+                            [22] Poland |      2,544        0.49       92.35
+                             [23] Korea |         26        0.01       92.35
+                              [24] Iran |        598        0.12       92.47
+                         [25] Indonesia |         65        0.01       92.48
+                           [26] Hungary |        520        0.10       92.58
+                           [27] Bolivia |         16        0.00       92.58
+                          [28] Portugal |        427        0.08       92.66
+                          [29] Bulgaria |        941        0.18       92.85
+                             [30] Syria |     11,995        2.31       95.15
+                    [31] Czech Republic |        232        0.04       95.20
+                            [32] Russia |      1,755        0.34       95.54
+                            [34] Mexico |         61        0.01       95.55
+                         [35] Argentina |         31        0.01       95.55
+                             [37] Benin |          3        0.00       95.55
+                       [38] Philippines |        106        0.02       95.57
+                            [39] Israel |         15        0.00       95.58
+                             [40] Japan |         77        0.01       95.59
+                         [41] Australia |         13        0.00       95.59
+                             [42] India |        297        0.06       95.65
+                       [43] Afghanistan |      2,820        0.54       96.19
+                          [44] Thailand |        200        0.04       96.23
+                           [45] Jamaica |         15        0.00       96.24
+                      [46] Saudi Arabia |          3        0.00       96.24
+                          [47] Ethiopia |         83        0.02       96.25
+                          [48] Columbia |         80        0.02       96.27
+                             [49] Ghana |        130        0.03       96.29
+                        [50] Bangladesh |         65        0.01       96.30
+                         [51] Venezuela |         20        0.00       96.31
+                           [52] Tunisia |        143        0.03       96.34
+                           [54] Nigeria |        350        0.07       96.40
+                            [55] Canada |         82        0.02       96.42
+                       [56] New Zealand |         25        0.00       96.42
+                          [57] Tanzania |          1        0.00       96.42
+                              [59] Cuba |         62        0.01       96.44
+                              [60] Iraq |      3,297        0.63       97.07
+                            [61] Brazil |        187        0.04       97.11
+                              [64] Peru |         46        0.01       97.12
+                         [65] Sri Lanka |        130        0.03       97.14
+                             [66] Nepal |         18        0.00       97.14
+                           [67] Morocco |        240        0.05       97.19
+                             [68] China |        117        0.02       97.21
+                           [71] Ireland |         41        0.01       97.22
+                          [73] Moldavia |         38        0.01       97.23
+                        [74] Kazakhstan |        386        0.07       97.30
+                           [75] Albania |        417        0.08       97.38
+                           [76] Lebanon |        280        0.05       97.44
+                        [77] Kyrgyzstan |         70        0.01       97.45
+                           [78] Ukraine |        929        0.18       97.63
+                           [79] Algeria |         46        0.01       97.64
+                        [80] Mozambique |          5        0.00       97.64
+                             [81] Egypt |         92        0.02       97.66
+                        [82] Tajikistan |         18        0.00       97.66
+                           [83] Vietnam |        129        0.02       97.68
+                           [84] Somalia |        385        0.07       97.76
+                          [85] Pakistan |        427        0.08       97.84
+                      [86] South Africa |         25        0.00       97.84
+                       [88] El Salvador |          5        0.00       97.85
+                           [89] Eritrea |      1,143        0.22       98.07
+                            [90] Jordan |         30        0.01       98.07
+                        [92] Costa Rica |          7        0.00       98.07
+                         [93] Singapore |          1        0.00       98.07
+                      [94] Burkina Faso |         10        0.00       98.08
+                            [95] Zambia |          1        0.00       98.08
+                           [96] Ecuador |          7        0.00       98.08
+                        [97] Uzbekistan |         32        0.01       98.08
+                    [98] No Nationality |        652        0.13       98.21
+                          [101] Estonia |          3        0.00       98.21
+                           [102] Angola |         24        0.00       98.21
+                           [103] Latvia |         73        0.01       98.23
+                          [105] Namibia |          7        0.00       98.23
+               [108] Dominican Republic |         14        0.00       98.23
+                        [109] Nicaragua |          1        0.00       98.23
+                            [110] Kenya |         39        0.01       98.24
+                            [111] Libya |         13        0.00       98.24
+                       [116] Luxembourg |         93        0.02       98.26
+                          [117] Belgium |        146        0.03       98.29
+                          [118] Holland |        714        0.14       98.43
+                          [119] Croatia |      1,648        0.32       98.74
+               [120] Bosnia-Herzegovina |      1,087        0.21       98.95
+                        [121] Macedonia |        669        0.13       99.08
+                         [122] Slovenia |        166        0.03       99.11
+                         [123] Slovakia |        179        0.03       99.15
+                         [124] Paraguay |          2        0.00       99.15
+                           [125] Guinea |         97        0.02       99.17
+                      [127] Ivory Coast |          6        0.00       99.17
+                         [128] Malaysia |         13        0.00       99.17
+                            [129] Samoa |         10        0.00       99.17
+                       [130] Azerbaijan |        225        0.04       99.21
+                       [131] Seychelles |          1        0.00       99.21
+                          [132] Belarus |        166        0.03       99.25
+                          [133] Uruguay |          2        0.00       99.25
+                          [134] Bahamas |          1        0.00       99.25
+                           [135] Uganda |         13        0.00       99.25
+                             [138] Mali |         11        0.00       99.25
+                         [139] Cameroon |         89        0.02       99.27
+                   [140] Kosovo-Albania |      1,298        0.25       99.52
+                          [141] Georgia |         99        0.02       99.54
+                            [142] Sudan |         29        0.01       99.54
+                            [143] Congo |         33        0.01       99.55
+                             [144] Togo |         62        0.01       99.56
+                         [145] Mongolia |         13        0.00       99.56
+                        [146] Lithuania |        151        0.03       99.59
+                             [147] Chad |         19        0.00       99.60
+                          [148] Armenia |        176        0.03       99.63
+                        [149] Kurdistan |         20        0.00       99.63
+                            [151] Yemen |         28        0.01       99.64
+                        [152] Palestine |        149        0.03       99.67
+                           [154] Taiwan |         35        0.01       99.67
+                     [155] Turkmenistan |          5        0.00       99.68
+                           [156] Africa |          1        0.00       99.68
+                     [158] Sierra Leone |          9        0.00       99.68
+                          [162] Senegal |          9        0.00       99.68
+   [164] Republic of Kabardino-Balkaria |          2        0.00       99.68
+                           [165] Serbia |      1,185        0.23       99.91
+                           [166] Gambia |         89        0.02       99.92
+                         [167] Honduras |          5        0.00       99.93
+                       [168] Montenegro |         63        0.01       99.94
+                         [169] Cambodia |          4        0.00       99.94
+                         [172] Caucasus |          1        0.00       99.94
+                         [173] Zimbabwe |         13        0.00       99.94
+                       [174] Madagascar |         10        0.00       99.94
+                           [178] Rwanda |          3        0.00       99.94
+                          [181] Myanmar |          1        0.00       99.94
+                            [183] Niger |         10        0.00       99.95
+                         [188] Chechnya |         40        0.01       99.95
+                       [195] Ingushetia |          7        0.00       99.96
+                           [196] Kosovo |        231        0.04      100.00
+[999] ethnic minorities (e.g. Yazidi, R |          2        0.00      100.00
+----------------------------------------+-----------------------------------
+                                  Total |    519,813      100.00
+
+. replace plb0085 = . if pgnation == -1 
+(9 real changes made, 9 to missing)
+
+. tab pgnation , gen(pgnation)
+
+                         1. Nationality |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+                    [-2] Does not apply |          2        0.00        0.00
+                         [-1] No answer |         11        0.00        0.00
+                            [1] Germany |    452,576       87.07       87.07
+                             [2] Turkey |      9,611        1.85       88.92
+                      [3] Ex-Yugoslavia |      1,010        0.19       89.11
+                             [4] Greece |      2,811        0.54       89.65
+                              [5] Italy |      4,953        0.95       90.60
+                              [6] Spain |      1,275        0.25       90.85
+                           [10] Austria |      1,107        0.21       91.06
+                            [11] France |        539        0.10       91.17
+                           [13] Denmark |        173        0.03       91.20
+                     [14] Great Britain |        453        0.09       91.29
+                            [15] Sweden |         89        0.02       91.30
+                            [16] Norway |         37        0.01       91.31
+                           [17] Finland |         99        0.02       91.33
+                               [18] USA |        574        0.11       91.44
+                       [19] Switzerland |        206        0.04       91.48
+                             [20] Chile |         33        0.01       91.49
+                           [21] Romania |      1,928        0.37       91.86
+                            [22] Poland |      2,544        0.49       92.35
+                             [23] Korea |         26        0.01       92.35
+                              [24] Iran |        598        0.12       92.47
+                         [25] Indonesia |         65        0.01       92.48
+                           [26] Hungary |        520        0.10       92.58
+                           [27] Bolivia |         16        0.00       92.58
+                          [28] Portugal |        427        0.08       92.66
+                          [29] Bulgaria |        941        0.18       92.85
+                             [30] Syria |     11,995        2.31       95.15
+                    [31] Czech Republic |        232        0.04       95.20
+                            [32] Russia |      1,755        0.34       95.54
+                            [34] Mexico |         61        0.01       95.55
+                         [35] Argentina |         31        0.01       95.55
+                             [37] Benin |          3        0.00       95.55
+                       [38] Philippines |        106        0.02       95.57
+                            [39] Israel |         15        0.00       95.58
+                             [40] Japan |         77        0.01       95.59
+                         [41] Australia |         13        0.00       95.59
+                             [42] India |        297        0.06       95.65
+                       [43] Afghanistan |      2,820        0.54       96.19
+                          [44] Thailand |        200        0.04       96.23
+                           [45] Jamaica |         15        0.00       96.24
+                      [46] Saudi Arabia |          3        0.00       96.24
+                          [47] Ethiopia |         83        0.02       96.25
+                          [48] Columbia |         80        0.02       96.27
+                             [49] Ghana |        130        0.03       96.29
+                        [50] Bangladesh |         65        0.01       96.30
+                         [51] Venezuela |         20        0.00       96.31
+                           [52] Tunisia |        143        0.03       96.34
+                           [54] Nigeria |        350        0.07       96.40
+                            [55] Canada |         82        0.02       96.42
+                       [56] New Zealand |         25        0.00       96.42
+                          [57] Tanzania |          1        0.00       96.42
+                              [59] Cuba |         62        0.01       96.44
+                              [60] Iraq |      3,297        0.63       97.07
+                            [61] Brazil |        187        0.04       97.11
+                              [64] Peru |         46        0.01       97.12
+                         [65] Sri Lanka |        130        0.03       97.14
+                             [66] Nepal |         18        0.00       97.14
+                           [67] Morocco |        240        0.05       97.19
+                             [68] China |        117        0.02       97.21
+                           [71] Ireland |         41        0.01       97.22
+                          [73] Moldavia |         38        0.01       97.23
+                        [74] Kazakhstan |        386        0.07       97.30
+                           [75] Albania |        417        0.08       97.38
+                           [76] Lebanon |        280        0.05       97.44
+                        [77] Kyrgyzstan |         70        0.01       97.45
+                           [78] Ukraine |        929        0.18       97.63
+                           [79] Algeria |         46        0.01       97.64
+                        [80] Mozambique |          5        0.00       97.64
+                             [81] Egypt |         92        0.02       97.66
+                        [82] Tajikistan |         18        0.00       97.66
+                           [83] Vietnam |        129        0.02       97.68
+                           [84] Somalia |        385        0.07       97.76
+                          [85] Pakistan |        427        0.08       97.84
+                      [86] South Africa |         25        0.00       97.84
+                       [88] El Salvador |          5        0.00       97.85
+                           [89] Eritrea |      1,143        0.22       98.07
+                            [90] Jordan |         30        0.01       98.07
+                        [92] Costa Rica |          7        0.00       98.07
+                         [93] Singapore |          1        0.00       98.07
+                      [94] Burkina Faso |         10        0.00       98.08
+                            [95] Zambia |          1        0.00       98.08
+                           [96] Ecuador |          7        0.00       98.08
+                        [97] Uzbekistan |         32        0.01       98.08
+                    [98] No Nationality |        652        0.13       98.21
+                          [101] Estonia |          3        0.00       98.21
+                           [102] Angola |         24        0.00       98.21
+                           [103] Latvia |         73        0.01       98.23
+                          [105] Namibia |          7        0.00       98.23
+               [108] Dominican Republic |         14        0.00       98.23
+                        [109] Nicaragua |          1        0.00       98.23
+                            [110] Kenya |         39        0.01       98.24
+                            [111] Libya |         13        0.00       98.24
+                       [116] Luxembourg |         93        0.02       98.26
+                          [117] Belgium |        146        0.03       98.29
+                          [118] Holland |        714        0.14       98.43
+                          [119] Croatia |      1,648        0.32       98.74
+               [120] Bosnia-Herzegovina |      1,087        0.21       98.95
+                        [121] Macedonia |        669        0.13       99.08
+                         [122] Slovenia |        166        0.03       99.11
+                         [123] Slovakia |        179        0.03       99.15
+                         [124] Paraguay |          2        0.00       99.15
+                           [125] Guinea |         97        0.02       99.17
+                      [127] Ivory Coast |          6        0.00       99.17
+                         [128] Malaysia |         13        0.00       99.17
+                            [129] Samoa |         10        0.00       99.17
+                       [130] Azerbaijan |        225        0.04       99.21
+                       [131] Seychelles |          1        0.00       99.21
+                          [132] Belarus |        166        0.03       99.25
+                          [133] Uruguay |          2        0.00       99.25
+                          [134] Bahamas |          1        0.00       99.25
+                           [135] Uganda |         13        0.00       99.25
+                             [138] Mali |         11        0.00       99.25
+                         [139] Cameroon |         89        0.02       99.27
+                   [140] Kosovo-Albania |      1,298        0.25       99.52
+                          [141] Georgia |         99        0.02       99.54
+                            [142] Sudan |         29        0.01       99.54
+                            [143] Congo |         33        0.01       99.55
+                             [144] Togo |         62        0.01       99.56
+                         [145] Mongolia |         13        0.00       99.56
+                        [146] Lithuania |        151        0.03       99.59
+                             [147] Chad |         19        0.00       99.60
+                          [148] Armenia |        176        0.03       99.63
+                        [149] Kurdistan |         20        0.00       99.63
+                            [151] Yemen |         28        0.01       99.64
+                        [152] Palestine |        149        0.03       99.67
+                           [154] Taiwan |         35        0.01       99.67
+                     [155] Turkmenistan |          5        0.00       99.68
+                           [156] Africa |          1        0.00       99.68
+                     [158] Sierra Leone |          9        0.00       99.68
+                          [162] Senegal |          9        0.00       99.68
+   [164] Republic of Kabardino-Balkaria |          2        0.00       99.68
+                           [165] Serbia |      1,185        0.23       99.91
+                           [166] Gambia |         89        0.02       99.92
+                         [167] Honduras |          5        0.00       99.93
+                       [168] Montenegro |         63        0.01       99.94
+                         [169] Cambodia |          4        0.00       99.94
+                         [172] Caucasus |          1        0.00       99.94
+                         [173] Zimbabwe |         13        0.00       99.94
+                       [174] Madagascar |         10        0.00       99.94
+                           [178] Rwanda |          3        0.00       99.94
+                          [181] Myanmar |          1        0.00       99.94
+                            [183] Niger |         10        0.00       99.95
+                         [188] Chechnya |         40        0.01       99.95
+                       [195] Ingushetia |          7        0.00       99.96
+                           [196] Kosovo |        231        0.04      100.00
+[999] ethnic minorities (e.g. Yazidi, R |          2        0.00      100.00
+----------------------------------------+-----------------------------------
+                                  Total |    519,813      100.00
+
+. tab pgnation, nolab
+
+         1. |
+Nationality |      Freq.     Percent        Cum.
+------------+-----------------------------------
+         -2 |          2        0.00        0.00
+         -1 |         11        0.00        0.00
+          1 |    452,576       87.07       87.07
+          2 |      9,611        1.85       88.92
+          3 |      1,010        0.19       89.11
+          4 |      2,811        0.54       89.65
+          5 |      4,953        0.95       90.60
+          6 |      1,275        0.25       90.85
+         10 |      1,107        0.21       91.06
+         11 |        539        0.10       91.17
+         13 |        173        0.03       91.20
+         14 |        453        0.09       91.29
+         15 |         89        0.02       91.30
+         16 |         37        0.01       91.31
+         17 |         99        0.02       91.33
+         18 |        574        0.11       91.44
+         19 |        206        0.04       91.48
+         20 |         33        0.01       91.49
+         21 |      1,928        0.37       91.86
+         22 |      2,544        0.49       92.35
+         23 |         26        0.01       92.35
+         24 |        598        0.12       92.47
+         25 |         65        0.01       92.48
+         26 |        520        0.10       92.58
+         27 |         16        0.00       92.58
+         28 |        427        0.08       92.66
+         29 |        941        0.18       92.85
+         30 |     11,995        2.31       95.15
+         31 |        232        0.04       95.20
+         32 |      1,755        0.34       95.54
+         34 |         61        0.01       95.55
+         35 |         31        0.01       95.55
+         37 |          3        0.00       95.55
+         38 |        106        0.02       95.57
+         39 |         15        0.00       95.58
+         40 |         77        0.01       95.59
+         41 |         13        0.00       95.59
+         42 |        297        0.06       95.65
+         43 |      2,820        0.54       96.19
+         44 |        200        0.04       96.23
+         45 |         15        0.00       96.24
+         46 |          3        0.00       96.24
+         47 |         83        0.02       96.25
+         48 |         80        0.02       96.27
+         49 |        130        0.03       96.29
+         50 |         65        0.01       96.30
+         51 |         20        0.00       96.31
+         52 |        143        0.03       96.34
+         54 |        350        0.07       96.40
+         55 |         82        0.02       96.42
+         56 |         25        0.00       96.42
+         57 |          1        0.00       96.42
+         59 |         62        0.01       96.44
+         60 |      3,297        0.63       97.07
+         61 |        187        0.04       97.11
+         64 |         46        0.01       97.12
+         65 |        130        0.03       97.14
+         66 |         18        0.00       97.14
+         67 |        240        0.05       97.19
+         68 |        117        0.02       97.21
+         71 |         41        0.01       97.22
+         73 |         38        0.01       97.23
+         74 |        386        0.07       97.30
+         75 |        417        0.08       97.38
+         76 |        280        0.05       97.44
+         77 |         70        0.01       97.45
+         78 |        929        0.18       97.63
+         79 |         46        0.01       97.64
+         80 |          5        0.00       97.64
+         81 |         92        0.02       97.66
+         82 |         18        0.00       97.66
+         83 |        129        0.02       97.68
+         84 |        385        0.07       97.76
+         85 |        427        0.08       97.84
+         86 |         25        0.00       97.84
+         88 |          5        0.00       97.85
+         89 |      1,143        0.22       98.07
+         90 |         30        0.01       98.07
+         92 |          7        0.00       98.07
+         93 |          1        0.00       98.07
+         94 |         10        0.00       98.08
+         95 |          1        0.00       98.08
+         96 |          7        0.00       98.08
+         97 |         32        0.01       98.08
+         98 |        652        0.13       98.21
+        101 |          3        0.00       98.21
+        102 |         24        0.00       98.21
+        103 |         73        0.01       98.23
+        105 |          7        0.00       98.23
+        108 |         14        0.00       98.23
+        109 |          1        0.00       98.23
+        110 |         39        0.01       98.24
+        111 |         13        0.00       98.24
+        116 |         93        0.02       98.26
+        117 |        146        0.03       98.29
+        118 |        714        0.14       98.43
+        119 |      1,648        0.32       98.74
+        120 |      1,087        0.21       98.95
+        121 |        669        0.13       99.08
+        122 |        166        0.03       99.11
+        123 |        179        0.03       99.15
+        124 |          2        0.00       99.15
+        125 |         97        0.02       99.17
+        127 |          6        0.00       99.17
+        128 |         13        0.00       99.17
+        129 |         10        0.00       99.17
+        130 |        225        0.04       99.21
+        131 |          1        0.00       99.21
+        132 |        166        0.03       99.25
+        133 |          2        0.00       99.25
+        134 |          1        0.00       99.25
+        135 |         13        0.00       99.25
+        138 |         11        0.00       99.25
+        139 |         89        0.02       99.27
+        140 |      1,298        0.25       99.52
+        141 |         99        0.02       99.54
+        142 |         29        0.01       99.54
+        143 |         33        0.01       99.55
+        144 |         62        0.01       99.56
+        145 |         13        0.00       99.56
+        146 |        151        0.03       99.59
+        147 |         19        0.00       99.60
+        148 |        176        0.03       99.63
+        149 |         20        0.00       99.63
+        151 |         28        0.01       99.64
+        152 |        149        0.03       99.67
+        154 |         35        0.01       99.67
+        155 |          5        0.00       99.68
+        156 |          1        0.00       99.68
+        158 |          9        0.00       99.68
+        162 |          9        0.00       99.68
+        164 |          2        0.00       99.68
+        165 |      1,185        0.23       99.91
+        166 |         89        0.02       99.92
+        167 |          5        0.00       99.93
+        168 |         63        0.01       99.94
+        169 |          4        0.00       99.94
+        172 |          1        0.00       99.94
+        173 |         13        0.00       99.94
+        174 |         10        0.00       99.94
+        178 |          3        0.00       99.94
+        181 |          1        0.00       99.94
+        183 |         10        0.00       99.95
+        188 |         40        0.01       99.95
+        195 |          7        0.00       99.96
+        196 |        231        0.04      100.00
+        999 |          2        0.00      100.00
+------------+-----------------------------------
+      Total |    519,813      100.00
+
+. replace pgnation = . if pgnation == -1 
+(11 real changes made, 11 to missing)
+
+. replace pgnation = . if pgnation == -2 
+(2 real changes made, 2 to missing)
+
+. replace pgnation = . if pgnation == -3 
+(0 real changes made)
+
+. replace pgnation = . if pgnation == -4 
+(0 real changes made)
+
+. replace pgnation = . if pgnation == -5 
+(0 real changes made)
+
+. replace pgnation = . if pgnation == -6
+(0 real changes made)
+
+. replace pgnation = . if pgnation == -7 
+(0 real changes made)
+
+. replace pgnation = . if pgnation == -8 
+(0 real changes made)
+
+. 
+. 
+. * H2: Having daughters leads to more left-leaning political preferences. *
+. * That is, denoting Y as a measure of left-leaning political preferences, *
+. * (Y for respondents with daughters) > (Y for respondents without daughters).
+>   *
+. * “Left-leaning political preferences”    *
+. 
+. * Dependent variable *
+. * Left-right slider has a long tradition in political science (e.g. Inglehart
+> , 2018 --> Inglehart, R. (2018). Culture shift in advanced industrial society
+> . Princeton University Press. *
+. * Party-based dummies are standard in the economics of voting. Congleton, R. 
+> D., Grofman, B. N., & Voigt, S. (Eds.). (2018). The Oxford Handbook of Public
+>  Choice, Volume 2. Oxford University Press. *
+. * Which party is that?” – categorical code for German parties. https://paneld
+> ata.org/soep-core/datasets/pl/plh0012_v6 *
+. * Party closeness dummy – 1 = SPD, Greens, Die Linke; 0 = CDU/CSU, FDP, AfD, 
+> none/other. *
+. 
+. gen party_closeness_dummy = .
+(663,123 missing values generated)
+
+. replace party_closeness_dummy = 1 if inlist(plh0012_v6, 1, 5, 6, 17)
+(104,856 real changes made)
+
+. replace party_closeness_dummy = . if inlist(plh0012_v6, -5, -4, -2, -1)
+(0 real changes made)
+
+. replace party_closeness_dummy = 0 if inlist(plh0012_v6, 2, 3, 4, 8, 27, 30, 3
+> 1, 0)
+(93,525 real changes made)
+
+. 
+. replace party_closeness_dummy = 1 if inlist(plh0012_v6, -1, -2)
+(278,514 real changes made)
+
+. tab party_closeness_dummy
+
+party_close |
+ ness_dummy |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |     93,525       19.61       19.61
+          1 |    383,370       80.39      100.00
+------------+-----------------------------------
+      Total |    476,895      100.00
+
+. label variable party_closeness_dummy "Prefer Left-Wing Party"
+
+. 
+. * Important moderator -  plh0007 - Generally speaking, how interested are you
+>  in politics? ( https://paneldata.org/soep-core/datasets/pl/plh0007 )*
+. * Scale 1-4 -> 1=very much, 4=not interested at all *
+. 
+. tab plh0007  
+
+                 Interesse fuer Politik |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+[-5] Not included in this version of th |     25,173        4.89        4.89
+                         [-1] No answer |      1,274        0.25        5.14
+                    [1] [de] Sehr stark |     41,068        7.98       13.12
+                         [2] [de] Stark |    144,414       28.07       41.19
+                [3] [de] Nicht so stark |    221,522       43.06       84.25
+              [4] [de] Ueberhaupt nicht |     81,039       15.75      100.00
+----------------------------------------+-----------------------------------
+                                  Total |    514,490      100.00
+
+. gen interest_in_politics = .
+(663,123 missing values generated)
+
+. replace interest_in_politics = plh0007 
+(514,490 real changes made)
+
+. replace interest_in_politics = . if inlist(plh0007, -9, -8, -7, -6, -5, -4, -
+> 2, -1)
+(26,447 real changes made, 26,447 to missing)
+
+. label variable interest_in_politics "Interest in Politics"
+
+. tab interest_in_politics
+
+Interest in |
+   Politics |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          1 |     41,068        8.41        8.41
+          2 |    144,414       29.59       38.01
+          3 |    221,522       45.39       83.40
+          4 |     81,039       16.60      100.00
+------------+-----------------------------------
+      Total |    488,043      100.00
+
+. 
+. 
+. * We would love to test the presence of the parents/children in the household
+> , searched for the SOEP relevant variable and the only relevant (which we do 
+> not have) was the bfkinhh – Member of Household. In this way we cannot contro
+> l for the situation if the respondents live with their children in common hou
+> sehold or not *
+.         
+. * HYPOTHESIS TEST FOR H2 * 
+. 
+. * As seen from the described variables, our model aims to test whether having
+>  daughters is more likely associated with left-wing way of voting behaviour *
+. * The analysis is moderated by the control variables and the general interest
+>  in politics. *
+. * The dependent variable is binary, meaning that the model aims to test wheth
+> er the respondents with daughters are more likely to vote for the selected le
+> ft-wing parties or not. *
+. 
+. 
+. * Correct Specification would be Logit/Probit, but the extraction and exporti
+> ng code is set up to export and local OLS results, which is a reason, why we 
+> decided to stay with the OLS linear model * 
+.         *logit party_closeness_dummy age sex2 education_years household_incom
+> e d_daughter interest_in_politics pgfamstd1 pgfamstd2 pgfamstd3 pgfamstd4 pgf
+> amstd5 pgfamstd6 pgfamstd7 pgfamstd8 pgnation2 pgnation3 pgnation4 pgnation5 
+> pgnation6 pgnation7 pgnation8 pgnation9 pgnation10 pgnation11 pgnation12 pgna
+> tion13 pgnation14 pgnation15 pgnation16 pgnation17 pgnation18 pgnation19 pgna
+> tion20 pgnation21 pgnation22 pgnation23 pgnation24 pgnation25 pgnation26 pgna
+> tion27 pgnation28 pgnation29 pgnation30 pgnation31 pgnation32 pgnation33 pgna
+> tion34 pgnation35 pgnation36 pgnation37 pgnation38 pgnation39 pgnation40 pgna
+> tion41 pgnation42 pgnation43 pgnation44 pgnation45 pgnation46 pgnation47 pgna
+> tion48 pgnation49 pgnation50 pgnation51 pgnation52 pgnation53 pgnation54 pgna
+> tion55 pgnation56 pgnation57 pgnation58 pgnation59 pgnation60 pgnation61 pgna
+> tion62 pgnation63 pgnation64 pgnation65 pgnation66 pgnation67 pgnation68 pgna
+> tion69 pgnation70 pgnation71 pgnation72 pgnation73 pgnation74 pgnation75 pgna
+> tion76 pgnation77 pgnation78 pgnation79 pgnation80 pgnation81 pgnation82 *
+.         
+.         reg party_closeness_dummy d_daughter interest_in_politics sex2 age ed
+> ucation_years household_income i.pgnation i.pgfamstd i.syear
+
+      Source |       SS           df       MS      Number of obs   =   315,782
+-------------+----------------------------------   F(171, 315610)  =    134.43
+       Model |  3518.66883       171  20.5770107   Prob > F        =    0.0000
+    Residual |  48311.4758   315,610  .153073337   R-squared       =    0.0679
+-------------+----------------------------------   Adj R-squared   =    0.0674
+       Total |  51830.1446   315,781  .164133196   Root MSE        =    .39125
+
+------------------------------------------------------------------------------
+party_clos~y | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  d_daughter |   .0071616   .0015067     4.75   0.000     .0042085    .0101146
+interest_i~s |   .0772802   .0009425    82.00   0.000     .0754329    .0791274
+        sex2 |  -.0200795   .0015362   -13.07   0.000    -.0230904   -.0170686
+         age |  -.0025787   .0000527   -48.97   0.000     -.002682   -.0024755
+education_~s |  -.0016502   .0002843    -5.80   0.000    -.0022074    -.001093
+household_~e |  -3.64e-06   1.51e-07   -24.16   0.000    -3.94e-06   -3.34e-06
+             |
+    pgnation |
+ [2] Turkey  |   .1118755   .0065355    17.12   0.000     .0990661    .1246848
+[3] Ex-Yu..  |   .1202946   .0183371     6.56   0.000     .0843545    .1562348
+ [4] Greece  |   .0877344   .0119897     7.32   0.000      .064235    .1112338
+  [5] Italy  |   .0951249   .0089083    10.68   0.000     .0776649    .1125848
+  [6] Spain  |   .0768232   .0165674     4.64   0.000     .0443517    .1092948
+[10] Aust..  |   .0983549    .013815     7.12   0.000     .0712778     .125432
+[11] France  |   .0795279   .0193867     4.10   0.000     .0415305    .1175253
+[13] Denm..  |   .1198583   .0318552     3.76   0.000      .057423    .1822936
+[14] Grea..  |   .1284173   .0222397     5.77   0.000     .0848282    .1720064
+[15] Sweden  |    .116179   .0493025     2.36   0.018     .0195475    .2128106
+[16] Norway  |   .1158229   .0739468     1.57   0.117    -.0291108    .2607566
+[17] Finl..  |    .251943   .0446039     5.65   0.000     .1645206    .3393655
+   [18] USA  |   .1491197   .0196815     7.58   0.000     .1105445    .1876948
+[19] Swit..  |   .1608352   .0305758     5.26   0.000     .1009076    .2207628
+ [20] Chile  |   .1906984   .0767417     2.48   0.013     .0402869    .3411098
+[21] Roma..  |   .0839419    .012141     6.91   0.000      .060146    .1077379
+[22] Poland  |   .0873155   .0106227     8.22   0.000     .0664952    .1081358
+ [23] Korea  |   .1504335    .089774     1.68   0.094     -.025521    .3263879
+  [24] Iran  |    .107047   .0249854     4.28   0.000     .0580764    .1560177
+[25] Indo..  |   .1459731   .0564909     2.58   0.010     .0352524    .2566937
+[26] Hung..  |   .1011733   .0192224     5.26   0.000     .0634979    .1388487
+[27] Boli..  |   .1840148   .1179778     1.56   0.119    -.0472184    .4152479
+[28] Port..  |   .1247825    .024203     5.16   0.000     .0773452    .1722197
+[29] Bulg..  |   .0921295   .0149573     6.16   0.000     .0628135    .1214454
+ [30] Syria  |   .0422172   .0063416     6.66   0.000     .0297878    .0546465
+[31] Czec..  |   -.045913   .0326313    -1.41   0.159    -.1098694    .0180434
+[32] Russia  |   .0916963   .0143525     6.39   0.000     .0635658    .1198268
+[34] Mexico  |   .1886546   .0611166     3.09   0.002     .0688678    .3084413
+[35] Arge..  |   .1082094   .0798819     1.35   0.176    -.0483569    .2647757
+ [37] Benin  |   .0914987   .3912607     0.23   0.815    -.6753611    .8583585
+[38] Phil..  |   .0825496   .0443141     1.86   0.062    -.0043047     .169404
+[39] Israel  |   .1803261   .1237386     1.46   0.145    -.0621981    .4228502
+ [40] Japan  |   .1161579   .0485399     2.39   0.017     .0210211    .2112946
+[41] Aust..  |   .2349592    .112968     2.08   0.038     .0135451    .4563733
+ [42] India  |    .141609   .0292197     4.85   0.000     .0843393    .1988787
+[43] Afgh..  |    .044754   .0130411     3.43   0.001     .0191938    .0703143
+[44] Thai..  |   .0388989   .0337002     1.15   0.248    -.0271527    .1049504
+[45] Jama..  |   .1091242   .1129587     0.97   0.334    -.1122717      .33052
+[46] Saud..  |   .3223205   .3912623     0.82   0.410    -.4445425    1.089183
+[47] Ethi..  |   .0227804   .0726986     0.31   0.754    -.1197067    .1652676
+[48] Colu..  |    .167349   .0577018     2.90   0.004      .054255    .2804429
+ [49] Ghana  |   .1247046   .0458167     2.72   0.006     .0349052    .2145041
+[50] Bang..  |   .1015467    .062675     1.62   0.105    -.0212946     .224388
+[51] Vene..  |   .1271243   .1237426     1.03   0.304    -.1154077    .3696563
+[52] Tuni..  |   .0749522   .0387744     1.93   0.053    -.0010445     .150949
+[54] Nige..  |   .0103237   .0399732     0.26   0.796    -.0680227    .0886701
+[55] Canada  |   .0601894   .0485379     1.24   0.215    -.0349434    .1553223
+[56] New ..  |  -.0298679   .1085282    -0.28   0.783      -.24258    .1828442
+[57] Tanz..  |    .058255   .3912626     0.15   0.882    -.7086085    .8251185
+  [59] Cuba  |   .1197841   .0714444     1.68   0.094    -.0202448     .259813
+  [60] Iraq  |   .0219788   .0119987     1.83   0.067    -.0015384    .0454959
+[61] Brazil  |   .0898271   .0330919     2.71   0.007     .0249678    .1546863
+  [64] Peru  |   .0599734   .0702901     0.85   0.394    -.0777932      .19774
+[65] Sri ..  |   .0689227    .053267     1.29   0.196    -.0354791    .1733246
+ [66] Nepal  |   .1012901   .1478967     0.68   0.493    -.1885832    .3911634
+[67] Moro..  |   .0936626   .0350312     2.67   0.008     .0250025    .1623228
+ [68] China  |   .1433833   .0440392     3.26   0.001     .0570676     .229699
+[71] Irel..  |  -.0832805   .0714452    -1.17   0.244     -.223311      .05675
+[73] Mold..  |  -.0059287    .123749    -0.05   0.962    -.2484733    .2366158
+[74] Kaza..  |   .1260802    .032742     3.85   0.000     .0619067    .1902536
+[75] Alba..  |   .0926389   .0265438     3.49   0.000     .0406139    .1446639
+[76] Leba..  |   .1302903   .0346169     3.76   0.000     .0624423    .1981384
+[77] Kyrg..  |   .0297064    .073949     0.40   0.688    -.1152315    .1746444
+[78] Ukra..  |   .0754774   .0201267     3.75   0.000     .0360297    .1149251
+[79] Alge..  |   .1301931   .0834289     1.56   0.119    -.0333252    .2937114
+[80] Moza..  |    .230087   .1956397     1.18   0.240    -.1533612    .6135351
+ [81] Egypt  |   .0118542   .0537661     0.22   0.826    -.0935259    .1172342
+[82] Taji..  |  -.3063177   .1597488    -1.92   0.055    -.6194208    .0067855
+[83] Viet..  |   .0014323   .0434911     0.03   0.974    -.0838089    .0866736
+[84] Soma..  |   .0036307   .0384229     0.09   0.925    -.0716771    .0789386
+[85] Paki..  |   .0336773   .0291534     1.16   0.248    -.0234625    .0908171
+[86] Sout..  |   .1597615   .1129799     1.41   0.157    -.0616759    .3811988
+[89] Erit..  |   -.034971   .0196174    -1.78   0.075    -.0734206    .0034786
+[90] Jordan  |  -.1335157   .1304306    -1.02   0.306     -.389156    .1221245
+[92] Cost..  |  -.4142406   .1479246    -2.80   0.005    -.7041685   -.1243126
+[93] Sing..  |   .1340162   .3912616     0.34   0.732    -.6328454    .9008778
+[94] Burk..  |   .0790832   .2258988     0.35   0.726    -.3636721    .5218384
+[95] Zambia  |   .1213565   .3912603     0.31   0.756    -.6455024    .8882155
+[96] Ecua..  |   .1463453   .2259002     0.65   0.517    -.2964128    .5891033
+[97] Uzbe..  |   .1613549   .1304355     1.24   0.216     -.094295    .4170047
+[98] No N..  |   .0820202    .023359     3.51   0.000     .0362372    .1278031
+[101] Est..  |   .1020977   .2766686     0.37   0.712     -.440165    .6443603
+[102] Ang..  |   .1939644   .2766754     0.70   0.483    -.3483115    .7362403
+[103] Lat..  |   .0256745   .0596927     0.43   0.667    -.0913216    .1426705
+[105] Nam..  |    .115195   .3912607     0.29   0.768    -.6516648    .8820548
+[108] Dom..  |   .1105906   .1045775     1.06   0.290    -.0943783    .3155596
+[109] Nic..  |   .1258979   .3912616     0.32   0.748    -.6409636    .8927594
+[110] Kenya  |  -.1305171   .0726689    -1.80   0.072    -.2729461    .0119119
+[111] Libya  |   .0787787   .1749895     0.45   0.653    -.2641957    .4217531
+[116] Lux..  |   .2554808   .0611106     4.18   0.000     .1357057    .3752558
+[117] Bel..  |  -.1000715   .0371464    -2.69   0.007    -.1728775   -.0272656
+[118] Hol..  |  -.0226034   .0165425    -1.37   0.172    -.0550262    .0098194
+[119] Cro..  |   .0851751   .0135892     6.27   0.000     .0585406    .1118096
+[120] Bos..  |   .1441193   .0165663     8.70   0.000     .1116498    .1765887
+[121] Mac..  |   .0771872   .0255615     3.02   0.003     .0270874    .1272869
+[122] Slo..  |   .1491133   .0383861     3.88   0.000     .0738777    .2243488
+[123] Slo..  |   .1122513   .0354565     3.17   0.002     .0427576     .181745
+[125] Gui..  |  -.0270624   .1085351    -0.25   0.803    -.2397881    .1856632
+[128] Mal..  |   .1674182    .138342     1.21   0.226    -.1037282    .4385646
+[129] Samoa  |   .0999879   .1383482     0.72   0.470    -.1711706    .3711465
+[130] Aze..  |    .126139   .0458098     2.75   0.006     .0363532    .2159249
+[132] Bel..  |   .0688867   .0403712     1.71   0.088    -.0102397    .1480131
+[133] Uru..  |   .4151706    .276666     1.50   0.133    -.1270868    .9574281
+[134] Bah..  |   .0482733   .3912626     0.12   0.902    -.7185903    .8151369
+[135] Uga..  |   .1509357   .1383367     1.09   0.275    -.1202003    .4220718
+ [138] Mali  |  -.0328088   .1478968    -0.22   0.824    -.3226823    .2570647
+[139] Cam..  |   .1081452   .0577142     1.87   0.061     -.004973    .2212634
+[140] Kos..  |   .1007053   .0199737     5.04   0.000     .0615575    .1398531
+[141] Geo..  |   .1565684   .0570907     2.74   0.006     .0446722    .2684646
+[142] Sudan  |   .1283045   .1304336     0.98   0.325    -.1273417    .3839507
+[143] Congo  |   .2101013   .1085252     1.94   0.053    -.0026051    .4228076
+ [144] Togo  |   .1707265   .0949037     1.80   0.072     -.015282     .356735
+[145] Mon..  |   .1707485   .1956361     0.87   0.383    -.2126926    .5541897
+[146] Lit..  |   .0986523   .0376877     2.62   0.009     .0247855    .1725191
+ [147] Chad  |   .2628043   .1129645     2.33   0.020     .0413972    .4842114
+[148] Arm..  |   .0900672     .05096     1.77   0.077    -.0098129    .1899474
+[149] Kur..  |   .1746638   .1956415     0.89   0.372    -.2087879    .5581154
+[151] Yemen  |   .1463598   .1046796     1.40   0.162    -.0588093    .3515289
+[152] Pal..  |   .0734409    .048959     1.50   0.134    -.0225173    .1693991
+[154] Tai..  |   .1503744   .0834266     1.80   0.071    -.0131394    .3138882
+[155] Tur..  |   .1575265   .2258959     0.70   0.486    -.2852231    .6002761
+[156] Afr..  |   .3274768   .3912656     0.84   0.403    -.4393927    1.094346
+[158] Sie..  |   .1964432   .2766613     0.71   0.478    -.3458052    .7386915
+[162] Sen..  |  -.1384499   .1956526    -0.71   0.479    -.5219234    .2450237
+[164] Rep..  |   .1879992   .3912593     0.48   0.631    -.5788579    .9548564
+[165] Ser..  |   .0960988   .0175738     5.47   0.000     .0616547    .1305429
+[166] Gam..  |   -.046628   .0816065    -0.57   0.568    -.2065744    .1133183
+[167] Hon..  |   .3427061   .2766645     1.24   0.215    -.1995485    .8849606
+[168] Mon..  |   .0846104    .078271     1.08   0.280    -.0687986    .2380194
+[169] Cam..  |   .0701876   .1956425     0.36   0.720    -.3132661    .4536413
+[172] Cau..  |   .1628618    .391258     0.42   0.677    -.6039927    .9297164
+[173] Zim..  |   .1080729   .1085348     1.00   0.319    -.1046522    .3207981
+[174] Mad..  |   .0785185    .159762     0.49   0.623    -.2346104    .3916474
+[178] Rwa..  |    .021106   .3912877     0.05   0.957    -.7458066    .7880187
+[183] Niger  |   .1802016   .1956371     0.92   0.357    -.2032415    .5636448
+[188] Che..  |  -.1820805   .0978387    -1.86   0.063    -.3738416    .0096806
+[195] Ing..  |  -.0560243   .1749879    -0.32   0.749    -.3989957     .286947
+[196] Kos..  |   .0576873   .0384561     1.50   0.134    -.0176855    .1330602
+             |
+    pgfamstd |
+[2] Marri..  |   .0612585   .0045642    13.42   0.000     .0523127    .0702043
+ [3] Single  |   .0388847   .0021387    18.18   0.000      .034693    .0430765
+[4] Divor..  |   .0773046   .0024764    31.22   0.000     .0724508    .0821583
+[5] [de] ..  |   .0102323   .0029304     3.49   0.000     .0044887    .0159759
+[6] husba..  |    .040369   .0209312     1.93   0.054    -.0006556    .0813936
+[7] Regis..  |   .0785472   .0172684     4.55   0.000     .0447016    .1123928
+[8] Regis..  |  -.0151016   .0471419    -0.32   0.749    -.1074985    .0772953
+             |
+       syear |
+       2001  |    .008327   .0048625     1.71   0.087    -.0012034    .0178574
+       2002  |  -.0078058   .0047804    -1.63   0.102    -.0171752    .0015637
+       2003  |  -.0354647   .0048324    -7.34   0.000    -.0449359   -.0259934
+       2004  |  -.0196407   .0048606    -4.04   0.000    -.0291674   -.0101139
+       2005  |  -.0162909   .0049346    -3.30   0.001    -.0259625   -.0066193
+       2006  |  -.0271696   .0048442    -5.61   0.000    -.0366641    -.017675
+       2007  |  -.0046305   .0048858    -0.95   0.343    -.0142065    .0049455
+       2008  |  -.0183737   .0049716    -3.70   0.000    -.0281178   -.0086295
+       2009  |  -.0184504   .0049272    -3.74   0.000    -.0281076   -.0087932
+       2010  |  -.0165273   .0045049    -3.67   0.000    -.0253567   -.0076979
+       2011  |   .0165322   .0047863     3.45   0.001     .0071513    .0259132
+       2012  |   .0207957     .00477     4.36   0.000     .0114466    .0301448
+       2013  |   .0005624   .0048613     0.12   0.908    -.0089656    .0100904
+       2014  |  -.0121448   .0045888    -2.65   0.008    -.0211387    -.003151
+       2015  |   -.000983   .0045795    -0.21   0.830    -.0099587    .0079926
+       2016  |  -.0045375   .0046807    -0.97   0.332    -.0137115    .0046365
+       2017  |   -.001969    .004469    -0.44   0.660     -.010728      .00679
+       2018  |  -.0105119   .0044758    -2.35   0.019    -.0192844   -.0017394
+       2019  |  -.0089093   .0045526    -1.96   0.050    -.0178322    .0000136
+       2020  |  -.0062299   .0044968    -1.39   0.166    -.0150435    .0025837
+             |
+       _cons |   .7175476   .0068417   104.88   0.000     .7041381    .7309571
+------------------------------------------------------------------------------
+
+.         
+. 
+. * EXTRACT AND EXPORT RESULTS * (Please check whether the suggested code autom
+> atically picks up the correct statistics for your chosen regression analysis 
+> and adapt if needed)
+. 
+.         * Extract the required statistics
+. 
+.         * (i) Coefficient estimate
+. local coefficient = _b[d_daughter]
+
+. 
+. * (ii) Standard error
+. local se = _se[d_daughter]
+
+. 
+. * (iii) Family of the test statistic (e.g. z, t, F, Chi²)
+. local test_stat_family "t"
+
+. 
+. * (iv) Residual and model degrees of freedom (DFs) if applicable
+. local df_residual = e(df_r)
+
+. local df_model = e(df_m)
+
+. 
+. * (v) p-value
+. local tstat = _b[d_daughter] / _se[d_daughter]
+
+. local p_value = 2 * ttail(e(df_r), abs(`tstat'))
+
+. 
+. * (vi) Number of observations
+. local num_obs = e(N)
+
+. 
+. * (vii) Number of participants
+. quietly levelsof pid if e(sample), local(participants)
+
+. local num_participants : word count `participants'
+
+. 
+. * (viii) Interpretation of directionality
+. local interpretation "positive coefficient is in line with hypothesis"
+
+. 
+. * Display the saved statistics
+. di "Coefficient: `coefficient'"
+Coefficient: .0071615626769141
+
+. di "Standard Error: `se'"
+Standard Error: .001506665868904
+
+. di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: t
+
+. di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: 315610
+
+. di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 171
+
+. di "p-value: `p_value'"
+p-value: 2.00258519328e-06
+
+. di "Number of observations: `num_obs'"
+Number of observations: 315782
+
+. di "Number of participants: `num_participants'"
+Number of participants: 53984
+
+. di "Interpretation of directionality: `interpretation'"
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+
+. 
+. * Export results to csv 
+. file open myfile using "$OUT/h2_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/95_re
+    > sults/h2_results.csv not found)
+
+. file write myfile "coefficient,se,family,residual_df,model_df,p_value,num_obs
+> ,num_participants,interpretation" _n
+
+. file write myfile "`coefficient',`se',`test_stat_family',`df_residual',`df_mo
+> del',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+. file close myfile
+
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

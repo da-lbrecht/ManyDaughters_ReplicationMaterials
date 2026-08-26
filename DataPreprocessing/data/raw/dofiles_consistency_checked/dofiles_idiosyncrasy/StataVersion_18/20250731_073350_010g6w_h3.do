@@ -1,0 +1,190 @@
+********************************************************************************
+****************** Example Do-File H3: #ManyDaughters Project ******************
+********************************************************************************
+
+* Authors: Tina Wang, David Albrecht, [REDACTED]
+
+* ============================
+* Setup * (Please adapt according to your needs)
+* ============================
+
+* clear all
+version 18 // indicate the version of stata you are using here
+set maxvar 10000 // extend the maximum number of variables to 10,000
+
+* INSTALL PACKAGES * (Please adapt according to your needs)
+* install all packages you need here, for example:
+ssc install outreg2
+
+* CONFIGURE FILE PATHS * (Please do not change)
+/*
+* the following code automatically sets paths based on where you saved the distributed file-package on your system *
+if strpos("`c(pwd)'", "code") {
+    global ROOT "`c(pwd)'/.."
+}
+else {
+    global ROOT "`c(pwd)'"
+}
+global IN "$ROOT/data/raw" // folder, in which the original datasets are stored
+global DATA "$ROOT/data/derived" // folder for datasets
+global OUT "$ROOT/out" // folder for output (results, tables)
+
+*/
+
+* ============================
+* Data Preparation * 
+* ============================
+
+* LOAD AND MERGE DATA * (Please adapt according to your needs)
+
+	use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+
+	* Merge ppathl with all datasets, that you deem relevant for your analysis. (Tip: use keepusing() to specify which variables to keep from the using dataset; the default is all.)
+
+	* biobirth contains information on fertility history
+	merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches) keepusing(gebjahr)
+	* pgen contains user-friendly data on the individual level that are consolidated from different sources
+	// merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches)
+	* pl contains all variables from the individual questionnaire
+	merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches) keepusing(pld0026 pli0044_h)
+	* hgen contains generated variables on household level from the household interview; use for household net income
+	// merge m:1 hid syear using "$IN/hgen.dta", nogen keep(master matches) keepusing(hid syear hghinc)
+
+	label language EN // change language of the labels to English
+
+	save "$DATA/h3_dataset.dta", replace // save merged dataset
+
+
+* ============================
+* Analysis
+* ============================
+
+* FILTERS * (Please adapt according to your needs)
+ 
+	* Only keep participants from private households
+	keep if inlist(pop,1,2)
+	
+	* onlc keep people with partner responses in soep
+	drop if parid == -2
+	
+	keep pid parid partner syear gebjahr pop pld0026 pli0044_h
+	
+	* only keep people 18 and older
+	drop if syear - gebjahr < 18
+	
+	* cleanup
+	drop gebjahr pop partner
+
+
+* GENERATE VARIABLES * (Please adapt according to your needs)
+
+	* create indicators for having daugthers
+	gen has_daughters = .
+	replace has_daughters = 0 if pld0026 == -2
+	replace has_daughters = 1 if pld0026 > 0
+	
+	* carry forward daugher indicator
+	sort pid syear
+	by pid: gen d_filled = has_daughters
+	by pid: replace d_filled = d_filled[_n-1] if missing(d_filled)
+	drop has_daughters
+	rename d_filled has_daughters
+	
+	drop pld0026
+	drop if has_daughters == .
+	
+* build partner dataset
+
+	tempfile partners
+	preserve
+		drop parid
+		rename pid parid
+		rename pli0044_h p_pli0044_h
+		rename has_daughters p_has_daughters
+		save "`partners'"
+	restore
+	
+	* merge partner file in
+	merge 1:1 syear parid using "`partners'", keep(1 3) nogenerate
+	
+	* keep only one directionality
+	keep if pid < parid
+	
+	* generate absolute difference in hours
+	gen dif_pli0044_h = abs(pli0044_h - p_pli0044_h)
+	
+	* drop missing
+	drop if missing(dif_pli0044_h)
+
+	* restrict the sample to only those partner pairs where both have daughters
+	drop if has_daughters != p_has_daughters
+	
+	* cleanup
+	drop pli0044_h p_pli0044_h p_has_daughters
+	
+	* dep var
+	gen h3_dep_var = dif_pli0044_h
+		
+
+* HYPOTHESIS TEST FOR H3 * (Please adapt according to your needs)
+
+	* Random effects panel GLS regression with standard errors clustered on the pair level. 
+	* We regress the dependent variable on an indicator for having at least one daughter.
+
+	xtset pid syear
+	xtreg h3_dep_var has_daughters, vce(cluster pid) 
+
+
+* EXTRACT AND EXPORT RESULTS * (Please check whether the suggested code automatically picks up the correct statistics for your chosen regression analysis and adapt if needed)
+
+	* Extract the required statistics
+
+		* (i) coefficient estimate
+		local coefficient = _b[has_daughters]
+
+		* (ii) standard error
+		local se = _se[has_daughters]
+
+		* (iii) family of the test statistic (e.g. z, t, F, Chi²)
+		local test_stat_family = "z"
+
+		* (iv) residual and model degrees of freedom (DFs) if applicable
+		local df_residual = e(df_r)
+		local df_model = e(df_m)
+
+		* (v) p-value
+		local z_value = _b[has_daughters] / _se[has_daughters]
+		local p_value = 2 * normal(-abs(`z_value'))
+
+		* (vi) number of observations
+		local num_obs = e(N)
+
+		* (vii) number of participants
+		quietly levelsof pid if e(sample), local(participants)
+		local num_participants : word count `participants'
+
+		* (viii) interpretation of directionality
+		scalar coef_d_daughter = _b[has_daughters]
+		local interpretation "negative coefficient is in line with hypothesis"
+
+	// Display the saved statistics
+	di "Coefficient: `coefficient'"
+	di "Standard Error: `se'"
+	di "Test Statistic Family: `test_stat_family'"
+	di "Residual Degrees of Freedom: `df_residual'"
+	di "Model Degrees of Freedom: `df_model'"
+	di "p-value: " `p_value'
+	di "Number of observations: " `num_obs'
+	di	"Number of participants: " `num_participants'
+	di "Interpretation of directionality: " "`interpretation'"
+
+	* Export results to csv 
+	file open myfile using "$OUT/h3_results.csv", write replace
+	file write myfile "coefficient,se,family,residual_df,model_df,p_value,num_obs,num_participants,interpretation" _n
+	file write myfile "`coefficient', `se', `test_stat_family', `df_residual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+	file close myfile
+
+
+********************************************************************************
+
+exit

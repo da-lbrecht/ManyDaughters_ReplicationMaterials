@@ -1,0 +1,3412 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmpy18ik4du.do 
+
+. do "95%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. * the following code automatically sets paths based on the project location o
+> n your system *
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/95%-sample" // folder, in which the or
+> iginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/95%-sample
+
+. global DATA "$ROOT/data/derived_confidential/95%-sample" // folder for datase
+> ts
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/95%-sample
+
+. global OUT "$ROOT/data/derived/95_results" // folder for output (results, tab
+> les)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/95_results
+
+. 
+end of do-file
+
+. do "20250716_142555_01mzd7_h2.do"
+
+. *****************************************************************************
+> ***
+. ****************** Do-File H2: #ManyDaughters Project ******************
+. *****************************************************************************
+> ***
+. 
+. * Authors: Tina Wang, David Albrecht
+. 
+. * RT: C. Distler, I. Sauer
+. 
+. * ============================
+. * Setup *
+. * ============================
+. 
+. *clear all
+. version 17 // indicate the version of stata you are using here
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. * INSTALL PACKAGES * 
+. * install all packages you need here, for example:
+. 
+. * ssc install outreg2
+. /*
+> * CONFIGURE FILE PATHS * (Please do not change)
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> 
+> 
+> * Unfortunately the original template for the paths with c(pwd) doesn not wor
+> k for us. We had to adjust.
+> * The original c(pwd) is preserved and should work externally.
+> 
+> if  ("`c(username)'" == "saueri009") {
+>         global ROOT "Z:\isauer\#ManyDaughters\SOEP\#ManyDaughters_RT_Analysis
+> Package"
+> }
+> 
+>         
+> if  ("`c(username)'" != "saueri009") {
+>                 
+>                 if strpos("`c(pwd)'", "code") {
+>                         global ROOT "`c(pwd)'/.."
+>                 }
+>                 else {
+>                         global ROOT "`c(pwd)'"
+>                 }
+> }
+> 
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> *show all current globals
+> macro list
+> */
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. 
+. * LOAD AND MERGE DATA * (Please adapt according to your needs)
+. 
+.         use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. 
+.         * Merge ppathl with all datasets, that you deem relevant for your ana
+> lysis. (Tip: use keepusing() to specify which variables to keep from the usin
+> g dataset; the default is all.)
+. 
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches) ke
+> epusing(kid* sumkids)
+(variable pid was long, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * pgen contains user-friendly data on the individual level that are c
+> onsolidated from different sources
+.         merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches) 
+> keepusing( pgpbbil* pgfamstd pgmonth)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * pl contains all variables from the individual questionnaire
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches) ke
+> epusing(plh0004 )
+(label cid_EN already defined)
+(label pid_EN already defined)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * hgen contains generated variables on household level from the house
+> hold interview; use for household net income
+. 
+.         label language EN // change language of the labels to English
+
+. 
+.         
+. 
+.         * Example: only keep participants from private households
+.         keep if inlist(pop,1,2)
+(89,279 observations deleted)
+
+. 
+.         *recode missing vrom negative values to stata missing notation
+.         mvdecode _all, mv(-1 = .a \ -2 = .b \ -3 = .c \ -4 = .d \ -5 = .e \ -
+> 6 = .f \ -7 = .g \ -8 = .h )
+       parid: 208169 missing values generated
+         sex: 13 missing values generated
+     gebjahr: 4 missing values generated
+     sampreg: 80 missing values generated
+       nett1: 2 missing values generated
+     casemat: 573644 missing values generated
+     todjahr: 542936 missing values generated
+     todinfo: 542936 missing values generated
+    immiyear: 479970 missing values generated
+     corigin: 358 missing values generated
+    gebmonat: 10529 missing values generated
+     loc1989: 89877 missing values generated
+     locinfo: 19451 missing values generated
+ birthregion: 302978 missing values generated
+birthregio~w: 312324 missing values generated
+    arefback: 686 missing values generated
+    arefinfo: 686 missing values generated
+       rv_id: 445006 missing values generated
+      piyear: 1374 missing values generated
+    kidpnr01: 298209 missing values generated
+    kidpnr02: 364061 missing values generated
+    kidpnr03: 487538 missing values generated
+    kidpnr04: 544161 missing values generated
+    kidpnr05: 562903 missing values generated
+    kidpnr06: 569296 missing values generated
+    kidpnr07: 571835 missing values generated
+    kidpnr08: 572977 missing values generated
+    kidpnr09: 573320 missing values generated
+    kidpnr10: 573501 missing values generated
+    kidpnr11: 573620 missing values generated
+    kidpnr12: 573736 missing values generated
+    kidpnr13: 573828 missing values generated
+    kidpnr14: 573834 missing values generated
+    kidpnr15: 573832 missing values generated
+    kidpnr16: 573832 missing values generated
+    kidpnr17: 573835 missing values generated
+    kidpnr18: 573841 missing values generated
+    kidpnr19: 573841 missing values generated
+    kidgeb01: 183599 missing values generated
+    kidgeb02: 290955 missing values generated
+    kidgeb03: 461774 missing values generated
+    kidgeb04: 535455 missing values generated
+    kidgeb05: 559892 missing values generated
+    kidgeb06: 568070 missing values generated
+    kidgeb07: 571239 missing values generated
+    kidgeb08: 572680 missing values generated
+    kidgeb09: 573235 missing values generated
+    kidgeb10: 573460 missing values generated
+    kidgeb11: 573607 missing values generated
+    kidgeb12: 573720 missing values generated
+    kidgeb13: 573824 missing values generated
+    kidgeb14: 573831 missing values generated
+    kidgeb15: 573832 missing values generated
+    kidgeb16: 573832 missing values generated
+    kidgeb17: 573835 missing values generated
+    kidgeb18: 573841 missing values generated
+    kidgeb19: 573841 missing values generated
+    kidsex01: 183521 missing values generated
+    kidsex02: 291056 missing values generated
+    kidsex03: 461857 missing values generated
+    kidsex04: 535492 missing values generated
+    kidsex05: 559900 missing values generated
+    kidsex06: 568045 missing values generated
+    kidsex07: 571225 missing values generated
+    kidsex08: 572668 missing values generated
+    kidsex09: 573226 missing values generated
+    kidsex10: 573458 missing values generated
+    kidsex11: 573607 missing values generated
+    kidsex12: 573720 missing values generated
+    kidsex13: 573824 missing values generated
+    kidsex14: 573831 missing values generated
+    kidsex15: 573832 missing values generated
+    kidsex16: 573832 missing values generated
+    kidsex17: 573835 missing values generated
+    kidsex18: 573841 missing values generated
+    kidsex19: 573841 missing values generated
+    kidmon01: 321628 missing values generated
+    kidmon02: 378473 missing values generated
+    kidmon03: 492501 missing values generated
+    kidmon04: 545793 missing values generated
+    kidmon05: 563508 missing values generated
+    kidmon06: 569544 missing values generated
+    kidmon07: 571942 missing values generated
+    kidmon08: 572999 missing values generated
+    kidmon09: 573345 missing values generated
+    kidmon11: 573643 missing values generated
+    kidmon10: 573532 missing values generated
+    kidmon12: 573737 missing values generated
+    kidmon13: 573829 missing values generated
+    kidmon14: 573835 missing values generated
+    kidmon15: 573833 missing values generated
+    kidmon16: 573833 missing values generated
+    kidmon17: 573835 missing values generated
+    kidmon18: 573841 missing values generated
+    kidmon19: 573841 missing values generated
+    pgfamstd: 2222 missing values generated
+   pgpbbil01: 191057 missing values generated
+   pgpbbil02: 400760 missing values generated
+   pgpbbil03: 390524 missing values generated
+    pgpbbilo: 448426 missing values generated
+    pgpbbila: 474020 missing values generated
+     plh0004: 420580 missing values generated
+
+.         
+.         
+.         
+.         * GENERATE VARIABLES * 
+.         
+.         *********************************************************************
+> *******
+. 
+.         *********************************************************************
+> *******
+.         *generate age variable
+.         gen age  = syear - gebjahr + 1  
+(4 missing values generated)
+
+.         la var age "Age" //(2 Decim.)
+
+. 
+.         
+.         *********************************************************************
+> *******
+.         gen mig = 0  // migback
+
+.         replace mig = 1 if inlist(migback,2,3) //  direct or indirect migrati
+> on background
+(133,475 real changes made)
+
+.         lab var mig "=1 if direct or indirect migration background" //(2 Deci
+> m.)
+
+. 
+.         *********************************************************************
+> *******
+.         * *generate categorical education variable
+.         gen educ = .    
+(573,844 missing values generated)
+
+.         replace educ = 1 if  pgpbbil03 == 1 
+(87,038 real changes made)
+
+.         *Vocational training
+.         replace educ = 2 if inrange(pgpbbil01,1,6) 
+(320,665 real changes made)
+
+.         replace educ = 2 if inrange(pgpbbilo, 1,4)      //Berufsbildung im Os
+> ten
+(2,121 real changes made)
+
+.         replace educ = 2 if inlist(pgpbbila, 1,2,3,5,6,8,11,12,13,15,16,18)  
+> // Berufliche Bildung im Ausland
+(3,052 real changes made)
+
+.         * University degree
+.         replace educ = 3 if inrange(pgpbbil02,1, 9)
+(110,890 real changes made)
+
+.         replace educ = 3 if inlist(pgpbbila,4,7,9,14,17,19)
+(1 real change made)
+
+.         
+.         replace educ = 4 if missing(educ)
+(96,647 real changes made)
+
+.         
+.         #delimit;
+delimiter now ;
+.                 lab define voc_lab
+>                 1  "No vocational training"             //no voc_i
+>                 2  "Vocational training"                //voc_i
+>                 3  "University degree" 
+>                 4  "Missing", replace   //uni_i
+>         ;
+
+.         #delimit cr
+delimiter now cr
+.         lab val educ voc_lab
+
+.         la var educ "Education"
+
+.         tab educ,m
+
+             Education |      Freq.     Percent        Cum.
+-----------------------+-----------------------------------
+No vocational training |     84,281       14.69       14.69
+   Vocational training |    282,025       49.15       63.83
+     University degree |    110,891       19.32       83.16
+               Missing |     96,647       16.84      100.00
+-----------------------+-----------------------------------
+                 Total |    573,844      100.00
+
+.         
+.         
+.         
+.         *********************************************************************
+> *******
+.         * generate East-West indicator 
+.         gen east = .
+(573,844 missing values generated)
+
+.         replace east = 1 if sampreg == 2
+(123,945 real changes made)
+
+.         replace east = 0 if sampreg == 1
+(449,819 real changes made)
+
+.         replace east = 2 if missing(east)
+(80 real changes made)
+
+.         #delimit;
+delimiter now ;
+.                 lab define east_lab
+>                 0  "West"               //no voc_i
+>                 1  "East"               //voc_i
+>                 2  "Missing", replace   //uni_i
+>         ;
+
+.         #delimit cr
+delimiter now cr
+.         lab val east east_lab
+
+.         la var east "East"
+
+.         tab east,m
+
+       East |      Freq.     Percent        Cum.
+------------+-----------------------------------
+       West |    449,819       78.39       78.39
+       East |    123,945       21.60       99.99
+    Missing |         80        0.01      100.00
+------------+-----------------------------------
+      Total |    573,844      100.00
+
+.         
+.         *********************************************************************
+> *******
+.         *Dummy variable indicating females
+.         gen female = 1 if sex == 2
+(274,615 missing values generated)
+
+.         replace female = 0 if sex == 1
+(274,602 real changes made)
+
+.         
+.         #delimit;
+delimiter now ;
+.                 lab define female_lab
+>                 0  "Male"               
+>                 1  "Female"
+>                 2   "Missing", replace  
+>         ;
+
+.         #delimit cr
+delimiter now cr
+.         lab val female female_lab
+
+.         
+.         la var female "Female" 
+
+.         
+.         
+.         *********************************************************************
+> *******
+.         * Political preferences
+.         
+.         *********************************************************************
+> *******
+.         * variable for leftist political attitudes based on reversed scaled p
+> lh0004
+.         
+.         rename plh0004 polit 
+
+.         tab polit, m
+
+                     Political attitude |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+                  [0] [de] 0 ganz links |      1,172        0.20        0.20
+                             [1] [de] 1 |      1,365        0.24        0.44
+                             [2] [de] 2 |      5,583        0.97        1.42
+                             [3] [de] 3 |     10,618        1.85        3.27
+                             [4] [de] 4 |     10,784        1.88        5.14
+                             [5] [de] 5 |     37,450        6.53       11.67
+                             [6] [de] 6 |      8,577        1.49       13.17
+                             [7] [de] 7 |      6,059        1.06       14.22
+                             [8] [de] 8 |      3,127        0.54       14.77
+                             [9] [de] 9 |        626        0.11       14.88
+               [10] [de] 10 ganz rechts |        530        0.09       14.97
+                                      . |     67,373       11.74       26.71
+                                     .a |      4,156        0.72       27.43
+                                     .e |      3,183        0.55       27.99
+                                     .h |    413,241       72.01      100.00
+----------------------------------------+-----------------------------------
+                                  Total |    573,844      100.00
+
+.         *reverse scale
+.         recode polit (0=10) (1=9) (2=8) (3=7) (4=6) (5=5) (6=4) (7=3)  (8=2) 
+>  (9=1)  (10=0)
+(48,441 changes made to polit)
+
+.         
+.         #delimit;
+delimiter now ;
+.                 lab define polit_lab
+>                 0  "0"
+>                 1  "1"                                  
+>                 2  "2"                  
+>                 3  "3"                  
+>                 4  "4"
+>                 5  "5" 
+>                 6  "6"
+>                 7  "7"
+>                 8  "8"
+>                 9  "9"
+>                 10 "10", replace                        
+>         ;
+
+.         #delimit cr
+delimiter now cr
+.         lab val polit polit_lab
+
+.         la var polit "Political preferences (0 right - 10 left)"
+
+.         
+.         *Normalization to a [0,1] scale and reverse scaled
+.         gen polit_index = (polit - 0)/(10-0)
+(487,953 missing values generated)
+
+.         la var polit_index "Political preferences (0 right - 1 left)"
+
+.         
+.         sum polit_index
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+ polit_index |     85,891    .5289425    .1642343          0          1
+
+.         hist polit_index
+(bin=49, start=0, width=.02040816)
+
+. 
+.         
+.         
+.         *********************************************************************
+> *******
+.         * Generate dummy variable for whether participant has at least one da
+> ughter (1) or not (0) for each year
+.         * having a daughter (In the PAP as d_i)
+.         * Generate a variable that indicates for each survey year whether one
+>  has at least a daughter 
+.         * kid dataset is not in long, therfore format it into panel structure
+>  manually.
+.         
+.                 
+.         qui sum syear
+
+.         * min max span of years
+.         scalar min_years = r(min)
+
+.         scalar max_years = r(max)
+
+.         scalar list 
+ max_years =       2020
+ min_years =       2000
+
+.  
+.         *create empty variable for each year separately
+.         cap drop d_daughter_* d_son_*
+
+.         foreach i of numlist `=min_years'(1)`=max_years' {
+  2.                         display in red "Daughter: `i'" 
+  3.                         gen     d_daughter_`i' = .
+  4.                         lab var d_daughter_`i' "Daughter in `i'"
+  5.                         
+.                         gen     d_son_`i' = .
+  6.                         lab var d_son_`i' "Son in `i'"  
+  7.         }
+Daughter: 2000
+(573,844 missing values generated)
+(573,844 missing values generated)
+Daughter: 2001
+(573,844 missing values generated)
+(573,844 missing values generated)
+Daughter: 2002
+(573,844 missing values generated)
+(573,844 missing values generated)
+Daughter: 2003
+(573,844 missing values generated)
+(573,844 missing values generated)
+Daughter: 2004
+(573,844 missing values generated)
+(573,844 missing values generated)
+Daughter: 2005
+(573,844 missing values generated)
+(573,844 missing values generated)
+Daughter: 2006
+(573,844 missing values generated)
+(573,844 missing values generated)
+Daughter: 2007
+(573,844 missing values generated)
+(573,844 missing values generated)
+Daughter: 2008
+(573,844 missing values generated)
+(573,844 missing values generated)
+Daughter: 2009
+(573,844 missing values generated)
+(573,844 missing values generated)
+Daughter: 2010
+(573,844 missing values generated)
+(573,844 missing values generated)
+Daughter: 2011
+(573,844 missing values generated)
+(573,844 missing values generated)
+Daughter: 2012
+(573,844 missing values generated)
+(573,844 missing values generated)
+Daughter: 2013
+(573,844 missing values generated)
+(573,844 missing values generated)
+Daughter: 2014
+(573,844 missing values generated)
+(573,844 missing values generated)
+Daughter: 2015
+(573,844 missing values generated)
+(573,844 missing values generated)
+Daughter: 2016
+(573,844 missing values generated)
+(573,844 missing values generated)
+Daughter: 2017
+(573,844 missing values generated)
+(573,844 missing values generated)
+Daughter: 2018
+(573,844 missing values generated)
+(573,844 missing values generated)
+Daughter: 2019
+(573,844 missing values generated)
+(573,844 missing values generated)
+Daughter: 2020
+(573,844 missing values generated)
+(573,844 missing values generated)
+
+.         
+.         * delete 0 from the variable name for child birth date, sex, etc. 
+.         foreach i of numlist 1(1)9 {
+  2.                         display in red "Child: `i'" 
+  3.                         
+.                         rename kidpnr0`i' kidpnr`i'
+  4.                         rename kidgeb0`i' kidgeb`i'   
+  5.                         rename kidmon0`i' kidmon`i'
+  6.                         rename kidsex0`i' kidsex`i' 
+  7.                 }
+Child: 1
+Child: 2
+Child: 3
+Child: 4
+Child: 5
+Child: 6
+Child: 7
+Child: 8
+Child: 9
+
+.         
+.                 sort pid syear 
+
+. 
+.         * interview month in stata data format
+.         cap drop interview_y_m
+
+.         gen interview_y_m=ym(syear,pgmonth)   if !missing(syear) & !missing(p
+> gmonth) 
+(62,122 missing values generated)
+
+.         
+.         foreach i of numlist 1(1)19 {
+  2.                         display in red "Child: `i'" 
+  3.                         gen birth_y_m_kid`i'=ym(kidgeb`i',kidmon`i')   if 
+> !missing(kidgeb`i') & !missing(kidmon`i')             
+  4.         }
+Child: 1
+(321,628 missing values generated)
+Child: 2
+(378,473 missing values generated)
+Child: 3
+(492,501 missing values generated)
+Child: 4
+(545,793 missing values generated)
+Child: 5
+(563,508 missing values generated)
+Child: 6
+(569,544 missing values generated)
+Child: 7
+(571,942 missing values generated)
+Child: 8
+(572,999 missing values generated)
+Child: 9
+(573,345 missing values generated)
+Child: 10
+(573,532 missing values generated)
+Child: 11
+(573,643 missing values generated)
+Child: 12
+(573,737 missing values generated)
+Child: 13
+(573,829 missing values generated)
+Child: 14
+(573,835 missing values generated)
+Child: 15
+(573,833 missing values generated)
+Child: 16
+(573,833 missing values generated)
+Child: 17
+(573,835 missing values generated)
+Child: 18
+(573,841 missing values generated)
+Child: 19
+(573,841 missing values generated)
+
+.         
+.         * indicate for every daughter/son year combination if the child is fe
+> male 
+.         * (Childbirth before Interview in respective year)
+.         foreach y of numlist `=min_years'(1)`=max_years' {
+  2.                 foreach i of numlist 1(1)19 {
+  3.                         display in red "Child: `i'" 
+  4.                          
+.                         * daughters
+.                         replace d_daughter_`y' = 1 if kidsex`i' == 2  & syear
+>  == `y' &    birth_y_m_kid`i' <= interview_y_m  & !missing(birth_y_m_kid`i') 
+> & !missing(interview_y_m)
+  5.                         *sons
+.                         replace      d_son_`y' = 1 if kidsex`i' == 1  & syear
+>  == `y' &    birth_y_m_kid`i' <= interview_y_m  & !missing(birth_y_m_kid`i') 
+> & !missing(interview_y_m)
+  6.                 }
+  7.         }
+Child: 1
+(3,761 real changes made)
+(4,104 real changes made)
+Child: 2
+(1,590 real changes made)
+(1,689 real changes made)
+Child: 3
+(393 real changes made)
+(436 real changes made)
+Child: 4
+(109 real changes made)
+(109 real changes made)
+Child: 5
+(31 real changes made)
+(35 real changes made)
+Child: 6
+(7 real changes made)
+(18 real changes made)
+Child: 7
+(1 real change made)
+(1 real change made)
+Child: 8
+(3 real changes made)
+(3 real changes made)
+Child: 9
+(1 real change made)
+(3 real changes made)
+Child: 10
+(1 real change made)
+(0 real changes made)
+Child: 11
+(1 real change made)
+(0 real changes made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(0 real changes made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(3,785 real changes made)
+(4,153 real changes made)
+Child: 2
+(1,617 real changes made)
+(1,689 real changes made)
+Child: 3
+(383 real changes made)
+(447 real changes made)
+Child: 4
+(106 real changes made)
+(104 real changes made)
+Child: 5
+(33 real changes made)
+(37 real changes made)
+Child: 6
+(7 real changes made)
+(16 real changes made)
+Child: 7
+(1 real change made)
+(3 real changes made)
+Child: 8
+(3 real changes made)
+(3 real changes made)
+Child: 9
+(1 real change made)
+(2 real changes made)
+Child: 10
+(1 real change made)
+(0 real changes made)
+Child: 11
+(1 real change made)
+(0 real changes made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(0 real changes made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(4,075 real changes made)
+(4,644 real changes made)
+Child: 2
+(1,812 real changes made)
+(1,866 real changes made)
+Child: 3
+(435 real changes made)
+(487 real changes made)
+Child: 4
+(116 real changes made)
+(115 real changes made)
+Child: 5
+(27 real changes made)
+(39 real changes made)
+Child: 6
+(7 real changes made)
+(18 real changes made)
+Child: 7
+(1 real change made)
+(2 real changes made)
+Child: 8
+(3 real changes made)
+(3 real changes made)
+Child: 9
+(1 real change made)
+(2 real changes made)
+Child: 10
+(0 real changes made)
+(0 real changes made)
+Child: 11
+(1 real change made)
+(0 real changes made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(0 real changes made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(4,070 real changes made)
+(4,509 real changes made)
+Child: 2
+(1,782 real changes made)
+(1,843 real changes made)
+Child: 3
+(424 real changes made)
+(472 real changes made)
+Child: 4
+(114 real changes made)
+(111 real changes made)
+Child: 5
+(26 real changes made)
+(34 real changes made)
+Child: 6
+(7 real changes made)
+(18 real changes made)
+Child: 7
+(1 real change made)
+(1 real change made)
+Child: 8
+(3 real changes made)
+(3 real changes made)
+Child: 9
+(1 real change made)
+(2 real changes made)
+Child: 10
+(0 real changes made)
+(0 real changes made)
+Child: 11
+(1 real change made)
+(0 real changes made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(0 real changes made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(3,964 real changes made)
+(4,421 real changes made)
+Child: 2
+(1,735 real changes made)
+(1,800 real changes made)
+Child: 3
+(411 real changes made)
+(467 real changes made)
+Child: 4
+(112 real changes made)
+(106 real changes made)
+Child: 5
+(25 real changes made)
+(31 real changes made)
+Child: 6
+(7 real changes made)
+(18 real changes made)
+Child: 7
+(1 real change made)
+(1 real change made)
+Child: 8
+(4 real changes made)
+(3 real changes made)
+Child: 9
+(1 real change made)
+(2 real changes made)
+Child: 10
+(0 real changes made)
+(0 real changes made)
+Child: 11
+(1 real change made)
+(0 real changes made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(0 real changes made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(3,911 real changes made)
+(4,229 real changes made)
+Child: 2
+(1,681 real changes made)
+(1,759 real changes made)
+Child: 3
+(382 real changes made)
+(446 real changes made)
+Child: 4
+(104 real changes made)
+(94 real changes made)
+Child: 5
+(24 real changes made)
+(27 real changes made)
+Child: 6
+(7 real changes made)
+(17 real changes made)
+Child: 7
+(1 real change made)
+(1 real change made)
+Child: 8
+(4 real changes made)
+(3 real changes made)
+Child: 9
+(1 real change made)
+(2 real changes made)
+Child: 10
+(0 real changes made)
+(0 real changes made)
+Child: 11
+(1 real change made)
+(0 real changes made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(0 real changes made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(3,963 real changes made)
+(4,287 real changes made)
+Child: 2
+(1,720 real changes made)
+(1,752 real changes made)
+Child: 3
+(380 real changes made)
+(451 real changes made)
+Child: 4
+(115 real changes made)
+(91 real changes made)
+Child: 5
+(28 real changes made)
+(30 real changes made)
+Child: 6
+(9 real changes made)
+(17 real changes made)
+Child: 7
+(1 real change made)
+(1 real change made)
+Child: 8
+(2 real changes made)
+(4 real changes made)
+Child: 9
+(1 real change made)
+(1 real change made)
+Child: 10
+(2 real changes made)
+(0 real changes made)
+Child: 11
+(1 real change made)
+(0 real changes made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(0 real changes made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(3,848 real changes made)
+(4,127 real changes made)
+Child: 2
+(1,659 real changes made)
+(1,691 real changes made)
+Child: 3
+(368 real changes made)
+(448 real changes made)
+Child: 4
+(109 real changes made)
+(80 real changes made)
+Child: 5
+(26 real changes made)
+(30 real changes made)
+Child: 6
+(9 real changes made)
+(15 real changes made)
+Child: 7
+(1 real change made)
+(1 real change made)
+Child: 8
+(2 real changes made)
+(4 real changes made)
+Child: 9
+(1 real change made)
+(1 real change made)
+Child: 10
+(0 real changes made)
+(0 real changes made)
+Child: 11
+(1 real change made)
+(0 real changes made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(0 real changes made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(3,645 real changes made)
+(3,917 real changes made)
+Child: 2
+(1,586 real changes made)
+(1,578 real changes made)
+Child: 3
+(346 real changes made)
+(431 real changes made)
+Child: 4
+(106 real changes made)
+(74 real changes made)
+Child: 5
+(19 real changes made)
+(28 real changes made)
+Child: 6
+(10 real changes made)
+(14 real changes made)
+Child: 7
+(1 real change made)
+(1 real change made)
+Child: 8
+(1 real change made)
+(2 real changes made)
+Child: 9
+(1 real change made)
+(1 real change made)
+Child: 10
+(0 real changes made)
+(0 real changes made)
+Child: 11
+(0 real changes made)
+(0 real changes made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(0 real changes made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(3,556 real changes made)
+(3,835 real changes made)
+Child: 2
+(1,531 real changes made)
+(1,589 real changes made)
+Child: 3
+(367 real changes made)
+(417 real changes made)
+Child: 4
+(98 real changes made)
+(77 real changes made)
+Child: 5
+(19 real changes made)
+(30 real changes made)
+Child: 6
+(7 real changes made)
+(12 real changes made)
+Child: 7
+(1 real change made)
+(1 real change made)
+Child: 8
+(0 real changes made)
+(3 real changes made)
+Child: 9
+(1 real change made)
+(1 real change made)
+Child: 10
+(0 real changes made)
+(0 real changes made)
+Child: 11
+(0 real changes made)
+(0 real changes made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(0 real changes made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(6,450 real changes made)
+(6,897 real changes made)
+Child: 2
+(2,630 real changes made)
+(2,717 real changes made)
+Child: 3
+(666 real changes made)
+(722 real changes made)
+Child: 4
+(164 real changes made)
+(139 real changes made)
+Child: 5
+(41 real changes made)
+(57 real changes made)
+Child: 6
+(12 real changes made)
+(15 real changes made)
+Child: 7
+(4 real changes made)
+(2 real changes made)
+Child: 8
+(0 real changes made)
+(2 real changes made)
+Child: 9
+(2 real changes made)
+(0 real changes made)
+Child: 10
+(0 real changes made)
+(0 real changes made)
+Child: 11
+(0 real changes made)
+(0 real changes made)
+Child: 12
+(1 real change made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(0 real changes made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(6,571 real changes made)
+(6,987 real changes made)
+Child: 2
+(2,769 real changes made)
+(2,816 real changes made)
+Child: 3
+(769 real changes made)
+(838 real changes made)
+Child: 4
+(175 real changes made)
+(170 real changes made)
+Child: 5
+(43 real changes made)
+(61 real changes made)
+Child: 6
+(13 real changes made)
+(17 real changes made)
+Child: 7
+(4 real changes made)
+(3 real changes made)
+Child: 8
+(2 real changes made)
+(1 real change made)
+Child: 9
+(1 real change made)
+(1 real change made)
+Child: 10
+(0 real changes made)
+(0 real changes made)
+Child: 11
+(0 real changes made)
+(0 real changes made)
+Child: 12
+(1 real change made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(0 real changes made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(6,195 real changes made)
+(6,515 real changes made)
+Child: 2
+(2,722 real changes made)
+(2,743 real changes made)
+Child: 3
+(715 real changes made)
+(798 real changes made)
+Child: 4
+(174 real changes made)
+(164 real changes made)
+Child: 5
+(39 real changes made)
+(56 real changes made)
+Child: 6
+(10 real changes made)
+(14 real changes made)
+Child: 7
+(6 real changes made)
+(3 real changes made)
+Child: 8
+(1 real change made)
+(1 real change made)
+Child: 9
+(1 real change made)
+(0 real changes made)
+Child: 10
+(0 real changes made)
+(0 real changes made)
+Child: 11
+(0 real changes made)
+(0 real changes made)
+Child: 12
+(1 real change made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(0 real changes made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(6,815 real changes made)
+(7,126 real changes made)
+Child: 2
+(2,868 real changes made)
+(2,911 real changes made)
+Child: 3
+(743 real changes made)
+(822 real changes made)
+Child: 4
+(175 real changes made)
+(172 real changes made)
+Child: 5
+(45 real changes made)
+(64 real changes made)
+Child: 6
+(9 real changes made)
+(13 real changes made)
+Child: 7
+(6 real changes made)
+(3 real changes made)
+Child: 8
+(2 real changes made)
+(0 real changes made)
+Child: 9
+(1 real change made)
+(0 real changes made)
+Child: 10
+(0 real changes made)
+(0 real changes made)
+Child: 11
+(0 real changes made)
+(0 real changes made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(0 real changes made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(6,134 real changes made)
+(6,396 real changes made)
+Child: 2
+(2,585 real changes made)
+(2,655 real changes made)
+Child: 3
+(656 real changes made)
+(734 real changes made)
+Child: 4
+(155 real changes made)
+(161 real changes made)
+Child: 5
+(41 real changes made)
+(52 real changes made)
+Child: 6
+(7 real changes made)
+(13 real changes made)
+Child: 7
+(4 real changes made)
+(3 real changes made)
+Child: 8
+(1 real change made)
+(0 real changes made)
+Child: 9
+(0 real changes made)
+(0 real changes made)
+Child: 10
+(0 real changes made)
+(0 real changes made)
+Child: 11
+(0 real changes made)
+(0 real changes made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(0 real changes made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(6,067 real changes made)
+(6,195 real changes made)
+Child: 2
+(2,546 real changes made)
+(2,608 real changes made)
+Child: 3
+(659 real changes made)
+(710 real changes made)
+Child: 4
+(162 real changes made)
+(159 real changes made)
+Child: 5
+(44 real changes made)
+(47 real changes made)
+Child: 6
+(7 real changes made)
+(10 real changes made)
+Child: 7
+(4 real changes made)
+(4 real changes made)
+Child: 8
+(1 real change made)
+(0 real changes made)
+Child: 9
+(0 real changes made)
+(2 real changes made)
+Child: 10
+(0 real changes made)
+(0 real changes made)
+Child: 11
+(1 real change made)
+(0 real changes made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(1 real change made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(6,284 real changes made)
+(6,559 real changes made)
+Child: 2
+(2,726 real changes made)
+(2,753 real changes made)
+Child: 3
+(751 real changes made)
+(812 real changes made)
+Child: 4
+(204 real changes made)
+(200 real changes made)
+Child: 5
+(57 real changes made)
+(68 real changes made)
+Child: 6
+(19 real changes made)
+(21 real changes made)
+Child: 7
+(7 real changes made)
+(8 real changes made)
+Child: 8
+(3 real changes made)
+(0 real changes made)
+Child: 9
+(6 real changes made)
+(6 real changes made)
+Child: 10
+(0 real changes made)
+(4 real changes made)
+Child: 11
+(2 real changes made)
+(1 real change made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(1 real change made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(1 real change made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(1 real change made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(6,761 real changes made)
+(7,183 real changes made)
+Child: 2
+(2,982 real changes made)
+(3,063 real changes made)
+Child: 3
+(825 real changes made)
+(899 real changes made)
+Child: 4
+(238 real changes made)
+(258 real changes made)
+Child: 5
+(71 real changes made)
+(87 real changes made)
+Child: 6
+(18 real changes made)
+(27 real changes made)
+Child: 7
+(17 real changes made)
+(16 real changes made)
+Child: 8
+(10 real changes made)
+(4 real changes made)
+Child: 9
+(4 real changes made)
+(5 real changes made)
+Child: 10
+(1 real change made)
+(5 real changes made)
+Child: 11
+(2 real changes made)
+(0 real changes made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(1 real change made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(6,517 real changes made)
+(6,811 real changes made)
+Child: 2
+(2,799 real changes made)
+(2,952 real changes made)
+Child: 3
+(823 real changes made)
+(857 real changes made)
+Child: 4
+(241 real changes made)
+(248 real changes made)
+Child: 5
+(71 real changes made)
+(98 real changes made)
+Child: 6
+(19 real changes made)
+(25 real changes made)
+Child: 7
+(17 real changes made)
+(16 real changes made)
+Child: 8
+(10 real changes made)
+(6 real changes made)
+Child: 9
+(4 real changes made)
+(3 real changes made)
+Child: 10
+(3 real changes made)
+(5 real changes made)
+Child: 11
+(1 real change made)
+(2 real changes made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(1 real change made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(1 real change made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(1 real change made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(6,163 real changes made)
+(6,499 real changes made)
+Child: 2
+(2,720 real changes made)
+(2,835 real changes made)
+Child: 3
+(800 real changes made)
+(838 real changes made)
+Child: 4
+(231 real changes made)
+(251 real changes made)
+Child: 5
+(71 real changes made)
+(85 real changes made)
+Child: 6
+(18 real changes made)
+(22 real changes made)
+Child: 7
+(14 real changes made)
+(18 real changes made)
+Child: 8
+(6 real changes made)
+(6 real changes made)
+Child: 9
+(2 real changes made)
+(1 real change made)
+Child: 10
+(2 real changes made)
+(3 real changes made)
+Child: 11
+(2 real changes made)
+(1 real change made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(1 real change made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(1 real change made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(1 real change made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(6,132 real changes made)
+(6,375 real changes made)
+Child: 2
+(2,633 real changes made)
+(2,745 real changes made)
+Child: 3
+(760 real changes made)
+(822 real changes made)
+Child: 4
+(218 real changes made)
+(252 real changes made)
+Child: 5
+(68 real changes made)
+(77 real changes made)
+Child: 6
+(20 real changes made)
+(20 real changes made)
+Child: 7
+(13 real changes made)
+(11 real changes made)
+Child: 8
+(5 real changes made)
+(7 real changes made)
+Child: 9
+(2 real changes made)
+(2 real changes made)
+Child: 10
+(3 real changes made)
+(3 real changes made)
+Child: 11
+(2 real changes made)
+(1 real change made)
+Child: 12
+(1 real change made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(1 real change made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+
+.         
+.         * for the case where birth month is noch available but the birth was 
+> definitely in the year before the interview based on year of birth.
+.         foreach y of numlist `=min_years'(1)`=max_years' {
+  2.                 foreach i of numlist 1(1)19 {
+  3.                         display in red "Child: `i'" 
+  4.                         * indicate for every daughter/son year combination
+>  if the child is female/male (Childbirth before Interview in respective year 
+.                         * fill in the missings based only on years not interv
+> iew months) 
+.                         
+.                         * daughters
+.                         replace d_daughter_`y' = 1 if kidsex`i' == 2  & syear
+>  == `y' &    kidgeb`i' <= syear  & !missing(kidgeb`i') & missing(d_daughter_`
+> y')
+  5.                         * sons
+.                         replace      d_son_`y' = 1 if kidsex`i' == 1  & syear
+>  == `y' &    kidgeb`i' <= syear  & !missing(kidgeb`i') & missing(d_son_`y')
+  6.                 }
+  7.         }
+Child: 1
+(3,251 real changes made)
+(3,423 real changes made)
+Child: 2
+(1,183 real changes made)
+(1,120 real changes made)
+Child: 3
+(193 real changes made)
+(203 real changes made)
+Child: 4
+(38 real changes made)
+(42 real changes made)
+Child: 5
+(8 real changes made)
+(6 real changes made)
+Child: 6
+(0 real changes made)
+(0 real changes made)
+Child: 7
+(1 real change made)
+(0 real changes made)
+Child: 8
+(0 real changes made)
+(0 real changes made)
+Child: 9
+(0 real changes made)
+(0 real changes made)
+Child: 10
+(0 real changes made)
+(0 real changes made)
+Child: 11
+(0 real changes made)
+(1 real change made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(0 real changes made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(2,820 real changes made)
+(2,947 real changes made)
+Child: 2
+(1,044 real changes made)
+(966 real changes made)
+Child: 3
+(168 real changes made)
+(171 real changes made)
+Child: 4
+(34 real changes made)
+(31 real changes made)
+Child: 5
+(8 real changes made)
+(7 real changes made)
+Child: 6
+(0 real changes made)
+(0 real changes made)
+Child: 7
+(1 real change made)
+(0 real changes made)
+Child: 8
+(0 real changes made)
+(0 real changes made)
+Child: 9
+(0 real changes made)
+(0 real changes made)
+Child: 10
+(0 real changes made)
+(0 real changes made)
+Child: 11
+(0 real changes made)
+(1 real change made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(0 real changes made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(2,917 real changes made)
+(2,960 real changes made)
+Child: 2
+(1,093 real changes made)
+(995 real changes made)
+Child: 3
+(165 real changes made)
+(175 real changes made)
+Child: 4
+(30 real changes made)
+(28 real changes made)
+Child: 5
+(8 real changes made)
+(4 real changes made)
+Child: 6
+(0 real changes made)
+(0 real changes made)
+Child: 7
+(1 real change made)
+(0 real changes made)
+Child: 8
+(0 real changes made)
+(0 real changes made)
+Child: 9
+(0 real changes made)
+(0 real changes made)
+Child: 10
+(0 real changes made)
+(0 real changes made)
+Child: 11
+(0 real changes made)
+(1 real change made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(0 real changes made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(2,637 real changes made)
+(2,631 real changes made)
+Child: 2
+(968 real changes made)
+(888 real changes made)
+Child: 3
+(151 real changes made)
+(159 real changes made)
+Child: 4
+(35 real changes made)
+(25 real changes made)
+Child: 5
+(9 real changes made)
+(5 real changes made)
+Child: 6
+(0 real changes made)
+(0 real changes made)
+Child: 7
+(1 real change made)
+(0 real changes made)
+Child: 8
+(0 real changes made)
+(0 real changes made)
+Child: 9
+(0 real changes made)
+(0 real changes made)
+Child: 10
+(0 real changes made)
+(0 real changes made)
+Child: 11
+(0 real changes made)
+(1 real change made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(0 real changes made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(2,536 real changes made)
+(2,540 real changes made)
+Child: 2
+(944 real changes made)
+(850 real changes made)
+Child: 3
+(141 real changes made)
+(162 real changes made)
+Child: 4
+(26 real changes made)
+(21 real changes made)
+Child: 5
+(8 real changes made)
+(4 real changes made)
+Child: 6
+(0 real changes made)
+(0 real changes made)
+Child: 7
+(1 real change made)
+(0 real changes made)
+Child: 8
+(0 real changes made)
+(0 real changes made)
+Child: 9
+(0 real changes made)
+(0 real changes made)
+Child: 10
+(0 real changes made)
+(0 real changes made)
+Child: 11
+(0 real changes made)
+(1 real change made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(0 real changes made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(2,378 real changes made)
+(2,412 real changes made)
+Child: 2
+(902 real changes made)
+(801 real changes made)
+Child: 3
+(136 real changes made)
+(142 real changes made)
+Child: 4
+(26 real changes made)
+(20 real changes made)
+Child: 5
+(8 real changes made)
+(4 real changes made)
+Child: 6
+(0 real changes made)
+(0 real changes made)
+Child: 7
+(1 real change made)
+(0 real changes made)
+Child: 8
+(0 real changes made)
+(0 real changes made)
+Child: 9
+(0 real changes made)
+(0 real changes made)
+Child: 10
+(0 real changes made)
+(0 real changes made)
+Child: 11
+(0 real changes made)
+(0 real changes made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(0 real changes made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(2,712 real changes made)
+(2,874 real changes made)
+Child: 2
+(1,073 real changes made)
+(907 real changes made)
+Child: 3
+(150 real changes made)
+(162 real changes made)
+Child: 4
+(26 real changes made)
+(24 real changes made)
+Child: 5
+(6 real changes made)
+(4 real changes made)
+Child: 6
+(0 real changes made)
+(0 real changes made)
+Child: 7
+(1 real change made)
+(0 real changes made)
+Child: 8
+(0 real changes made)
+(0 real changes made)
+Child: 9
+(0 real changes made)
+(0 real changes made)
+Child: 10
+(0 real changes made)
+(0 real changes made)
+Child: 11
+(0 real changes made)
+(0 real changes made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(0 real changes made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(2,549 real changes made)
+(2,647 real changes made)
+Child: 2
+(1,000 real changes made)
+(858 real changes made)
+Child: 3
+(141 real changes made)
+(147 real changes made)
+Child: 4
+(25 real changes made)
+(22 real changes made)
+Child: 5
+(7 real changes made)
+(4 real changes made)
+Child: 6
+(0 real changes made)
+(0 real changes made)
+Child: 7
+(1 real change made)
+(0 real changes made)
+Child: 8
+(0 real changes made)
+(0 real changes made)
+Child: 9
+(0 real changes made)
+(0 real changes made)
+Child: 10
+(0 real changes made)
+(0 real changes made)
+Child: 11
+(0 real changes made)
+(0 real changes made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(0 real changes made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(2,390 real changes made)
+(2,498 real changes made)
+Child: 2
+(935 real changes made)
+(816 real changes made)
+Child: 3
+(139 real changes made)
+(135 real changes made)
+Child: 4
+(24 real changes made)
+(22 real changes made)
+Child: 5
+(5 real changes made)
+(4 real changes made)
+Child: 6
+(0 real changes made)
+(0 real changes made)
+Child: 7
+(1 real change made)
+(0 real changes made)
+Child: 8
+(0 real changes made)
+(0 real changes made)
+Child: 9
+(0 real changes made)
+(0 real changes made)
+Child: 10
+(0 real changes made)
+(0 real changes made)
+Child: 11
+(0 real changes made)
+(0 real changes made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(0 real changes made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(2,778 real changes made)
+(2,899 real changes made)
+Child: 2
+(1,060 real changes made)
+(948 real changes made)
+Child: 3
+(174 real changes made)
+(154 real changes made)
+Child: 4
+(26 real changes made)
+(23 real changes made)
+Child: 5
+(4 real changes made)
+(4 real changes made)
+Child: 6
+(1 real change made)
+(0 real changes made)
+Child: 7
+(1 real change made)
+(0 real changes made)
+Child: 8
+(0 real changes made)
+(0 real changes made)
+Child: 9
+(0 real changes made)
+(0 real changes made)
+Child: 10
+(0 real changes made)
+(0 real changes made)
+Child: 11
+(0 real changes made)
+(0 real changes made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(0 real changes made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(2,769 real changes made)
+(2,803 real changes made)
+Child: 2
+(1,066 real changes made)
+(938 real changes made)
+Child: 3
+(164 real changes made)
+(151 real changes made)
+Child: 4
+(37 real changes made)
+(22 real changes made)
+Child: 5
+(4 real changes made)
+(6 real changes made)
+Child: 6
+(1 real change made)
+(0 real changes made)
+Child: 7
+(1 real change made)
+(0 real changes made)
+Child: 8
+(0 real changes made)
+(0 real changes made)
+Child: 9
+(0 real changes made)
+(0 real changes made)
+Child: 10
+(0 real changes made)
+(0 real changes made)
+Child: 11
+(0 real changes made)
+(0 real changes made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(0 real changes made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(3,326 real changes made)
+(3,429 real changes made)
+Child: 2
+(1,260 real changes made)
+(1,135 real changes made)
+Child: 3
+(218 real changes made)
+(204 real changes made)
+Child: 4
+(45 real changes made)
+(31 real changes made)
+Child: 5
+(6 real changes made)
+(5 real changes made)
+Child: 6
+(0 real changes made)
+(0 real changes made)
+Child: 7
+(2 real changes made)
+(0 real changes made)
+Child: 8
+(0 real changes made)
+(0 real changes made)
+Child: 9
+(0 real changes made)
+(0 real changes made)
+Child: 10
+(0 real changes made)
+(0 real changes made)
+Child: 11
+(0 real changes made)
+(0 real changes made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(0 real changes made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(3,474 real changes made)
+(3,603 real changes made)
+Child: 2
+(1,303 real changes made)
+(1,178 real changes made)
+Child: 3
+(224 real changes made)
+(215 real changes made)
+Child: 4
+(45 real changes made)
+(28 real changes made)
+Child: 5
+(5 real changes made)
+(6 real changes made)
+Child: 6
+(0 real changes made)
+(0 real changes made)
+Child: 7
+(2 real changes made)
+(0 real changes made)
+Child: 8
+(0 real changes made)
+(0 real changes made)
+Child: 9
+(0 real changes made)
+(0 real changes made)
+Child: 10
+(0 real changes made)
+(0 real changes made)
+Child: 11
+(0 real changes made)
+(0 real changes made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(0 real changes made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(3,506 real changes made)
+(3,672 real changes made)
+Child: 2
+(1,335 real changes made)
+(1,203 real changes made)
+Child: 3
+(235 real changes made)
+(223 real changes made)
+Child: 4
+(42 real changes made)
+(35 real changes made)
+Child: 5
+(7 real changes made)
+(2 real changes made)
+Child: 6
+(0 real changes made)
+(0 real changes made)
+Child: 7
+(2 real changes made)
+(0 real changes made)
+Child: 8
+(0 real changes made)
+(0 real changes made)
+Child: 9
+(0 real changes made)
+(0 real changes made)
+Child: 10
+(0 real changes made)
+(0 real changes made)
+Child: 11
+(0 real changes made)
+(0 real changes made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(0 real changes made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(3,135 real changes made)
+(3,241 real changes made)
+Child: 2
+(1,186 real changes made)
+(1,051 real changes made)
+Child: 3
+(218 real changes made)
+(196 real changes made)
+Child: 4
+(43 real changes made)
+(33 real changes made)
+Child: 5
+(5 real changes made)
+(4 real changes made)
+Child: 6
+(2 real changes made)
+(0 real changes made)
+Child: 7
+(1 real change made)
+(0 real changes made)
+Child: 8
+(0 real changes made)
+(0 real changes made)
+Child: 9
+(0 real changes made)
+(0 real changes made)
+Child: 10
+(0 real changes made)
+(0 real changes made)
+Child: 11
+(0 real changes made)
+(0 real changes made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(0 real changes made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(3,111 real changes made)
+(3,164 real changes made)
+Child: 2
+(1,102 real changes made)
+(1,021 real changes made)
+Child: 3
+(199 real changes made)
+(187 real changes made)
+Child: 4
+(39 real changes made)
+(29 real changes made)
+Child: 5
+(5 real changes made)
+(5 real changes made)
+Child: 6
+(1 real change made)
+(0 real changes made)
+Child: 7
+(1 real change made)
+(0 real changes made)
+Child: 8
+(0 real changes made)
+(0 real changes made)
+Child: 9
+(0 real changes made)
+(0 real changes made)
+Child: 10
+(0 real changes made)
+(0 real changes made)
+Child: 11
+(0 real changes made)
+(0 real changes made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(0 real changes made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(3,147 real changes made)
+(3,300 real changes made)
+Child: 2
+(1,163 real changes made)
+(1,059 real changes made)
+Child: 3
+(252 real changes made)
+(228 real changes made)
+Child: 4
+(51 real changes made)
+(43 real changes made)
+Child: 5
+(11 real changes made)
+(7 real changes made)
+Child: 6
+(3 real changes made)
+(3 real changes made)
+Child: 7
+(1 real change made)
+(2 real changes made)
+Child: 8
+(0 real changes made)
+(1 real change made)
+Child: 9
+(1 real change made)
+(0 real changes made)
+Child: 10
+(0 real changes made)
+(1 real change made)
+Child: 11
+(0 real changes made)
+(0 real changes made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(0 real changes made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(3,495 real changes made)
+(3,562 real changes made)
+Child: 2
+(1,296 real changes made)
+(1,208 real changes made)
+Child: 3
+(261 real changes made)
+(238 real changes made)
+Child: 4
+(50 real changes made)
+(53 real changes made)
+Child: 5
+(17 real changes made)
+(21 real changes made)
+Child: 6
+(3 real changes made)
+(3 real changes made)
+Child: 7
+(1 real change made)
+(2 real changes made)
+Child: 8
+(0 real changes made)
+(0 real changes made)
+Child: 9
+(1 real change made)
+(2 real changes made)
+Child: 10
+(1 real change made)
+(2 real changes made)
+Child: 11
+(0 real changes made)
+(1 real change made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(0 real changes made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(3,396 real changes made)
+(3,533 real changes made)
+Child: 2
+(1,253 real changes made)
+(1,161 real changes made)
+Child: 3
+(266 real changes made)
+(230 real changes made)
+Child: 4
+(48 real changes made)
+(53 real changes made)
+Child: 5
+(15 real changes made)
+(15 real changes made)
+Child: 6
+(3 real changes made)
+(4 real changes made)
+Child: 7
+(2 real changes made)
+(3 real changes made)
+Child: 8
+(0 real changes made)
+(1 real change made)
+Child: 9
+(1 real change made)
+(2 real changes made)
+Child: 10
+(0 real changes made)
+(1 real change made)
+Child: 11
+(0 real changes made)
+(0 real changes made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(0 real changes made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(3,697 real changes made)
+(3,832 real changes made)
+Child: 2
+(1,406 real changes made)
+(1,253 real changes made)
+Child: 3
+(278 real changes made)
+(253 real changes made)
+Child: 4
+(55 real changes made)
+(53 real changes made)
+Child: 5
+(12 real changes made)
+(16 real changes made)
+Child: 6
+(2 real changes made)
+(3 real changes made)
+Child: 7
+(3 real changes made)
+(3 real changes made)
+Child: 8
+(0 real changes made)
+(0 real changes made)
+Child: 9
+(0 real changes made)
+(0 real changes made)
+Child: 10
+(0 real changes made)
+(2 real changes made)
+Child: 11
+(0 real changes made)
+(0 real changes made)
+Child: 12
+(0 real changes made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(0 real changes made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+Child: 1
+(3,353 real changes made)
+(3,534 real changes made)
+Child: 2
+(1,295 real changes made)
+(1,150 real changes made)
+Child: 3
+(251 real changes made)
+(242 real changes made)
+Child: 4
+(57 real changes made)
+(49 real changes made)
+Child: 5
+(11 real changes made)
+(12 real changes made)
+Child: 6
+(4 real changes made)
+(3 real changes made)
+Child: 7
+(1 real change made)
+(5 real changes made)
+Child: 8
+(0 real changes made)
+(1 real change made)
+Child: 9
+(0 real changes made)
+(0 real changes made)
+Child: 10
+(0 real changes made)
+(2 real changes made)
+Child: 11
+(0 real changes made)
+(1 real change made)
+Child: 12
+(1 real change made)
+(0 real changes made)
+Child: 13
+(0 real changes made)
+(0 real changes made)
+Child: 14
+(0 real changes made)
+(0 real changes made)
+Child: 15
+(0 real changes made)
+(0 real changes made)
+Child: 16
+(0 real changes made)
+(0 real changes made)
+Child: 17
+(0 real changes made)
+(0 real changes made)
+Child: 18
+(0 real changes made)
+(0 real changes made)
+Child: 19
+(0 real changes made)
+(0 real changes made)
+
+.         
+. 
+.         * The main minimum one daughter and minimum one son indicators
+.         * minimum one daughter
+.         egen d_daughter=rowtotal(d_daughter_*)
+
+.         *minimum one son
+.         egen d_son=rowtotal(d_son_*)
+
+.                 
+.         lab var d_daughter "at least one daughter in year t"
+
+.         lab var d_daughter "at least one son in year t"
+
+.         
+.         
+.         * e.g. 
+.         * br  pid syear kidsex1 kidsex2 kidgeb1 kidgeb2 kidmon1  kidmon2  bir
+> th_y_m_kid1 birth_y_m_kid2 interview_y_m d_daughter  d_son sumkids 
+.         
+. 
+.                 
+.         * FILTERS * 
+.         
+.         *********************************************************************
+> *******
+.         * clean the final sample
+.         
+.         *keep only observations with GE_index not missing
+.         keep if !missing(polit_index)
+(487,953 observations deleted)
+
+.         
+.                 
+.         * Political preferences only in 2018 in the survey / keep only 2018
+.         keep  if inlist(syear, 2005, 2009, 2014, 2019)
+(0 observations deleted)
+
+.         
+.         
+.                 
+.         *keep only thouse who at some point became parents 
+.         keep if !missing(sumkids) & sumkids>0
+(23,064 observations deleted)
+
+. 
+.         * keep only relevant variables 
+.         keep polit_index pid syear d_daughter  age mig educ east female  
+
+.         
+. 
+.         save "$DATA/h2_dataset.dta", replace // save the merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h2_dataset.dta saved
+
+.         
+.         
+.         
+. * ============================
+. * Analysis
+. * ============================
+. 
+. 
+.         
+.         xtset pid syear
+
+Panel variable: pid (unbalanced)
+ Time variable: syear, 2005 to 2019, but with gaps
+         Delta: 1 unit
+
+. 
+. 
+. * HYPOTHESIS TEST FOR H2 * 
+. 
+.         * We estimate a linear fixed effects model. Thus we analyze individua
+> l within 
+.         * variation in political preferences after becoming a parent to a dau
+> ghter.
+. 
+.         * polit_index is measure of left-leaning political preferences normal
+> ized to [0,1]
+.         * 0 stands for the rightest, and 1 for the leftist preference on the 
+> scale.
+.         * We regress the preferences onto the age, migration background, voca
+> tional
+.         * education, East German affiliation, and sex of an individual for th
+> e sake 
+.         * of completeness. However, the estimates of constant variables will 
+> be 
+.         * omitted in the FE estimation. We use individual level cluster stand
+> ard errors. 
+.         
+.         xtreg polit_index i.d_daughter c.age i.mig i.educ i.east i.female i.s
+> year, fe vce(cluster pid)
+note: 1.mig omitted because of collinearity.
+note: 2.east omitted because of collinearity.
+note: 1.female omitted because of collinearity.
+note: 2019.syear omitted because of collinearity.
+
+Fixed-effects (within) regression               Number of obs     =     62,825
+Group variable: pid                             Number of groups  =     33,645
+
+R-squared:                                      Obs per group:
+     Within  = 0.0003                                         min =          1
+     Between = 0.0011                                         avg =        1.9
+     Overall = 0.0015                                         max =          4
+
+                                                F(8, 33644)       =       1.19
+corr(u_i, Xb) = 0.0155                          Prob > F          =     0.2986
+
+                               (Std. err. adjusted for 33,645 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+ polit_index | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+1.d_daughter |    .004973    .005084     0.98   0.328    -.0049918    .0149379
+         age |  -.0000375   .0001473    -0.25   0.799    -.0003262    .0002513
+       1.mig |          0  (omitted)
+             |
+        educ |
+Vocationa..  |  -.0066176   .0128073    -0.52   0.605    -.0317204    .0184851
+Universit..  |  -.0009446   .0133511    -0.07   0.944    -.0271133     .025224
+    Missing  |  -.0036204   .0133816    -0.27   0.787    -.0298488    .0226079
+             |
+        east |
+       East  |  -.0008718   .0094738    -0.09   0.927    -.0194409    .0176973
+    Missing  |          0  (omitted)
+             |
+      female |
+     Female  |          0  (omitted)
+             |
+       syear |
+       2009  |   .0018257   .0014262     1.28   0.201    -.0009698    .0046211
+       2014  |  -.0025149   .0013017    -1.93   0.053    -.0050662    .0000364
+       2019  |          0  (omitted)
+             |
+       _cons |   .5294919   .0132114    40.08   0.000     .5035971    .5553866
+-------------+----------------------------------------------------------------
+     sigma_u |  .14795921
+     sigma_e |  .11568724
+         rho |  .62059926   (fraction of variance due to u_i)
+------------------------------------------------------------------------------
+
+.         
+. * EXTRACT AND EXPORT RESULTS * 
+. 
+.         * Extract the required statistics
+. 
+.                 * (i) coefficient estimate
+.                 local coefficient = _b[1.d_daughter]
+
+. 
+.                 * (ii) standard error
+.                 local se = _se[1.d_daughter]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "t"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 local p_value = _b[1.d_daughter] / _se[1.d_daughter]
+
+.                 local p_value = 2 * ttail(e(df_r), abs(`p_value'))
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation of directionality
+.                 local interpretation "positive coefficient is in line with hy
+> pothesis"
+
+. 
+. 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: .0049730187449407
+
+.         di "Standard Error: `se'"
+Standard Error: .0050840261415579
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: t
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: 33644
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 7
+
+.         di "p-value: " `p_value'
+p-value: .32799953
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 62825
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 33645
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h2_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/95_re
+    > sults/h2_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

@@ -1,0 +1,867 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmpbe83u_3o.do 
+
+. do "95%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. * the following code automatically sets paths based on the project location o
+> n your system *
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/95%-sample" // folder, in which the or
+> iginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/95%-sample
+
+. global DATA "$ROOT/data/derived_confidential/95%-sample" // folder for datase
+> ts
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/95%-sample
+
+. global OUT "$ROOT/data/derived/95_results" // folder for output (results, tab
+> les)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/95_results
+
+. 
+end of do-file
+
+. do "20250807_085017_0168sb_h3.do"
+
+. *****************************************************************************
+> ***
+. ********************** Do-File H3: #ManyDaughters Project (RT 0168sb) *******
+> ***
+. *****************************************************************************
+> ***
+. 
+. * Authors: [REDACTED], [REDACTED] 
+. * (based on the example do file by Tina Wang and David Albrecht)
+. 
+. * ============================
+. * Setup *
+. * ============================
+. 
+. //clear all
+. version 16.1               // indicate the version of Stata you are using her
+> e
+
+. set maxvar 10000           // extend the maximum number of variables to 10,00
+> 0
+
+
+. set type double
+
+. 
+. /*
+> * CONFIGURE FILE PATHS * (Please do not change)
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN   "$ROOT/data/raw"     // folder with the original datasets
+> global DATA "$ROOT/data/derived" // folder for derived datasets
+> global OUT  "$ROOT/out"          // folder for output (results, tables)
+> */
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. use "$IN/ppathl.dta", clear                                // start with ppat
+> hl
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. keep cid pid hid syear parid partner sex gebjahr sampreg pop todjahr immiyear
+>  ///
+>      germborn corigin migback miginfo sexor birthregion birthregion_ew arefba
+> ck phrf ///
+>      phrf0 phrf1 piyear
+
+. 
+. merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. 
+. drop pgstib pgjobch pgisco88 pgisco08 pgisei08 pgisei88 pgkldb92 pgkldb2010 /
+> //
+>      pgmps08 pgmps92 pgsiops88 pgsiops08 pgegp88 pgegp08 pgerljob pgausb ///
+>      pgerwzeit pgbetr pgjobend pgisced97 pgisced11 pgcasmin pgbilzeit ///
+>      pgpsbilo pgpbbilo pgpsbila pgpbbila pgfield pgdegree pgtrainb pgtraina /
+> //
+>      pgtraind pgtrainc pgfdt_f pgbilztch pgbilztev pgpicoriga pgpicorigb ///
+>      pgpicorigc pgsndtyp1 pgsndtyp2 pghonor1 pghonor2 pghonor3 ///
+>      pgimpsnd3 pgimpsnd2 pgsndtyp3 pgsndjob2 pgsndjob3 pgimpsnd1 ///
+>      pgsndjob1 pgmode inputdataset
+
+. 
+. merge m:1 hid syear using "$IN/hgen.dta", nogen keep(master matches) ///
+>     keepusing(hid syear hghinc)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. 
+. merge m:1 pid using "$IN/bioparen.dta",   nogen keep(master matches)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. merge m:1 hid syear using "$IN/hl.dta",    nogen keep(master matches)
+(label iyear already defined)
+(label iyear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. merge 1:1 pid syear using "$IN/biol.dta",  nogen keep(master matches)
+(variable inputdataset was str6, now str8 to accommodate using data's values)
+(label intid_EN already defined)
+(label iyear_EN already defined)
+(label instrument_EN already defined)
+(label tranche_EN already defined)
+(label syear_EN already defined)
+(label cid_EN already defined)
+(label hid_EN already defined)
+(label intid already defined)
+(label iyear already defined)
+(label instrument already defined)
+(label tranche already defined)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. merge m:1 pid using "$IN/biobirth.dta",   nogen keep(master matches)
+(variable pid was long, now double to accommodate using data's values)
+(variable cid was long, now double to accommodate using data's values)
+(variable gebjahr was int, now double to accommodate using data's values)
+(variable bioyear was float, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+(label pid_EN already defined)
+(label cid_EN already defined)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. merge 1:1 pid syear using "$IN/pl.dta",    nogen keep(master matches)
+(variable inputdataset was str8, now str9 to accommodate using data's values)
+(label instrument_EN already defined)
+(label intid_EN already defined)
+(label iyear_EN already defined)
+(label p_buh11_EN already defined)
+(label p_buh10_EN already defined)
+(label p_buh9_EN already defined)
+(label p_buh8_EN already defined)
+(label p_buh7_EN already defined)
+(label p_buh6_EN already defined)
+(label p_buh5_EN already defined)
+(label p_buh4_EN already defined)
+(label p_buh3_EN already defined)
+(label p_buh2_EN already defined)
+(label p_buh1_EN already defined)
+(label p_anker_EN already defined)
+(label syear_EN already defined)
+(label pnr_EN already defined)
+(label cid_EN already defined)
+(label hid_EN already defined)
+(label pid_EN already defined)
+(label instrument already defined)
+(label intid already defined)
+(label iyear already defined)
+(label p_buh11 already defined)
+(label p_buh10 already defined)
+(label p_buh9 already defined)
+(label p_buh8 already defined)
+(label p_buh7 already defined)
+(label p_buh6 already defined)
+(label p_buh5 already defined)
+(label p_buh4 already defined)
+(label p_buh3 already defined)
+(label p_buh2 already defined)
+(label p_buh1 already defined)
+(label p_anker already defined)
+(label pnr already defined)
+(label cid already defined)
+(label hid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. 
+. * Recode ‘not applicable’ (-2) in the child vars as valid non-missing
+. forvalues i = 1/19 {
+  2.     local yy : display %02.0f `i'
+  3.     recode kidsex`yy'  (-2 = 3)
+  4.     recode kidgeb`yy'  (-2 = 1)
+  5. }
+(216,116 changes made to kidsex01)
+(216,061 changes made to kidgeb01)
+(340,019 changes made to kidsex02)
+(339,945 changes made to kidgeb02)
+(533,107 changes made to kidsex03)
+(533,070 changes made to kidgeb03)
+(617,724 changes made to kidsex04)
+(617,707 changes made to kidgeb04)
+(646,208 changes made to kidsex05)
+(646,208 changes made to kidgeb05)
+(656,060 changes made to kidsex06)
+(656,060 changes made to kidgeb06)
+(659,855 changes made to kidsex07)
+(659,855 changes made to kidgeb07)
+(661,641 changes made to kidsex08)
+(661,641 changes made to kidgeb08)
+(662,333 changes made to kidsex09)
+(662,333 changes made to kidgeb09)
+(662,641 changes made to kidsex10)
+(662,641 changes made to kidgeb10)
+(662,834 changes made to kidsex11)
+(662,834 changes made to kidgeb11)
+(662,982 changes made to kidsex12)
+(662,982 changes made to kidgeb12)
+(663,094 changes made to kidsex13)
+(663,094 changes made to kidgeb13)
+(663,103 changes made to kidsex14)
+(663,103 changes made to kidgeb14)
+(663,104 changes made to kidsex15)
+(663,104 changes made to kidgeb15)
+(663,107 changes made to kidsex16)
+(663,107 changes made to kidgeb16)
+(663,112 changes made to kidsex17)
+(663,112 changes made to kidgeb17)
+(663,118 changes made to kidsex18)
+(663,118 changes made to kidgeb18)
+(663,118 changes made to kidsex19)
+(663,118 changes made to kidgeb19)
+
+. 
+. label language EN
+
+. 
+. save "$DATA/h3_dataset.dta", replace
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h3_dataset.dta saved
+
+. 
+. 
+. * ============================
+. * Data manipulation *
+. * ============================
+. 
+. * Age at interview in 2018
+. gen byte age_at_int = cond(gebjahr > 0, 2018 - gebjahr, .)
+(8 missing values generated)
+
+. 
+. * Only keep respondent's at least 18 years old at time of interview
+. keep if age_at_int >= 18
+(8,355 observations deleted)
+
+. 
+. * Private households only
+. keep if inlist(pop, 1, 2)
+(88,947 observations deleted)
+
+. drop pop
+
+. 
+. * Parents with at least one biological child
+. keep if sumkids > 0
+(174,987 observations deleted)
+
+. 
+. * Flag having at least one daughter born before the interview year
+. gen byte having_daughter = 0
+
+. forvalues i = 1/19 {
+  2.     local yy: display %02.0f `i'
+  3.     replace having_daughter = 1 if kidsex`yy' == 2 & kidgeb`yy' < syear
+  4. }
+(179,463 real changes made)
+(65,685 real changes made)
+(12,414 real changes made)
+(2,381 real changes made)
+(509 real changes made)
+(90 real changes made)
+(41 real changes made)
+(10 real changes made)
+(16 real changes made)
+(3 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. drop kidsex* kidgeb*
+
+. 
+. * Household chore attitudes scale: recode negatives to missing
+. replace plh0308_v2 = . if plh0308_v2 < 0
+(358,102 real changes made, 358,102 to missing)
+
+. 
+. * Recode marital status to missing if invalid (<0)
+. replace pgfamstd = . if pgfamstd < 0
+(1,619 real changes made, 1,619 to missing)
+
+. 
+. * Impute 2018 religious_affil from other years if matching 2019
+. tempfile tmp
+
+. preserve
+
+. 
+. keep plh0258_v9 plh0258_v10 plh0258_v11 pid syear
+
+. rename plh0258_v9 religious_affil
+
+. 
+. reshape wide religious_affil plh0258_v10 plh0258_v11, i(pid) j(syear)
+(j = 2000 2001 2002 2003 2004 2005 2006 2007 2008 2009 2010 2011 2012 2013 2014
+>  2015 2016 2017 2018 2019 2020)
+
+Data                               Long   ->   Wide
+-----------------------------------------------------------------------------
+Number of observations          390,834   ->   55,257      
+Number of variables                   5   ->   64          
+j variable (21 values)            syear   ->   (dropped)
+xij variables:
+                        religious_affil   ->   religious_affil2000 religious_af
+> fil2001 ... religious_affil2020
+                            plh0258_v10   ->   plh0258_v102000 plh0258_v102001 
+> ... plh0258_v102020
+                            plh0258_v11   ->   plh0258_v112000 plh0258_v112001 
+> ... plh0258_v112020
+-----------------------------------------------------------------------------
+
+. 
+. foreach yr in 2013 2014 2015 2016 2017 {
+  2.     replace religious_affil2018 = religious_affil2019    ///
+>         if !missing(religious_affil`yr')                  ///
+>            & !missing(religious_affil2019)               ///
+>            & religious_affil`yr' == religious_affil2019
+  3. 
+.     replace religious_affil2018 = 4                       ///
+>         if !missing(plh0258_v11`yr')                      ///
+>            & !missing(plh0258_v112019)                   ///
+>            & plh0258_v11`yr' == plh0258_v112019           ///
+>            & plh0258_v112019 > 0
+  4. 
+.     replace religious_affil2018 = 7                       ///
+>         if !missing(plh0258_v10`yr')                      ///
+>            & !missing(plh0258_v102019)                   ///
+>            & plh0258_v10`yr' == plh0258_v102019           ///
+>            & plh0258_v102019 > 0
+  5. }
+(765 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(55 real changes made)
+(243 real changes made)
+(873 real changes made)
+(0 real changes made)
+(0 real changes made)
+(594 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. 
+. drop plh0258_v1*
+
+. reshape long religious_affil, i(pid) j(syear)
+(j = 2000 2001 2002 2003 2004 2005 2006 2007 2008 2009 2010 2011 2012 2013 2014
+>  2015 2016 2017 2018 2019 2020)
+
+Data                               Wide   ->   Long
+-----------------------------------------------------------------------------
+Number of observations           55,257   ->   1,160,397   
+Number of variables                  22   ->   3           
+j variable (21 values)                    ->   syear
+xij variables:
+religious_affil2000 religious_affil2001 ... religious_affil2020->religious_affi
+> l
+-----------------------------------------------------------------------------
+
+. 
+. save `tmp'
+file C:\Users\DALBRE~1\AppData\Local\Temp\ST_38e0_000002.tmp saved as .dta
+    format
+
+. restore
+
+. merge 1:1 pid syear using `tmp'
+(label syear_EN already defined)
+(label pid_EN already defined)
+(label plh0258_v9 already defined)
+(label plh0258_v9_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                       769,563
+        from master                         0  (_merge==1)
+        from using                    769,563  (_merge==2)
+
+    Matched                           390,834  (_merge==3)
+    -----------------------------------------
+
+. 
+. * Collapse employment status into four categories
+. gen byte erwerb = ///
+>     cond(plb0022_h == 9,                        1,  ///
+>     cond(inlist(plb0022_h, 3,4,5,6,7,8,10,11),  2,  ///
+>     cond(plb0022_h == 2,                        3,  ///
+>     cond(plb0022_h == 1,                        4,  .))))
+(784,876 missing values generated)
+
+. drop plb0022_h
+
+. 
+. drop if pli0046 < 0
+(37,244 observations deleted)
+
+. 
+. bysort cid: gen pp_in_hh = _N
+
+. 
+. drop if pp_in_hh < 2
+(3,558 observations deleted)
+
+. 
+. egen total_ccare = total(pp_in_hh), by(cid)
+
+. 
+. gen share_ccare = pli0046/total_ccare
+(784,853 missing values generated)
+
+. 
+. gen dev_share_ccare = abs(share_ccare-1/pp_in_hh)*100
+(784,853 missing values generated)
+
+. 
+. * Rename sex variable
+. rename sex female
+
+. 
+. * Label employment
+. label define erwerb_lab ///
+>     1 "[1] Nicht erwerbstaetig"                     ///
+>     2 "[2] Nichtreguläre Erwerbs- und Dienstphasen" ///
+>     3 "[3] Teilzeit"                                ///
+>     4 "[4] Vollzeit"
+
+. label values erwerb erwerb_lab
+
+. 
+. * replace invalid incomes with missing
+. replace hghinc = . if hghinc < 0
+(16,705 real changes made, 16,705 to missing)
+
+. 
+. * replace invalid family status with missing
+. replace pld0131_v1 = . if pld0131_v1 < 0
+(53,299 real changes made, 53,299 to missing)
+
+. 
+. * replace invalid school leaving degrees
+. replace pgpsbil = . if pgpsbil < 0 
+(4,796 real changes made, 4,796 to missing)
+
+. 
+. * replace negaitve values for gender
+. replace female = . if female < 0
+(4 real changes made, 4 to missing)
+
+. 
+. * replace negaitve values for migration
+. replace migback = . if migback < 0
+(0 real changes made)
+
+. 
+. * Keep only 2018 data
+. keep if syear == 2018
+(1,064,848 observations deleted)
+
+. 
+. * Missingness check for candidate covariates
+. quietly count
+
+. local totalcount = r(N)
+
+. 
+. local numvars corigin fprofedu mprofedu locchildh nums numb religious_affil
+
+. local remvars
+
+. 
+. foreach var in `numvars' {
+  2.     quietly count if `var' >= 0 & `var' != .
+  3.     local varcount = r(N)
+  4.     if `varcount'/`totalcount' < 0.1 {
+  5.         drop `var'
+  6.         local remvars `remvars' `var'
+  7.     }
+  8. }
+
+. 
+. local keepvars
+
+. foreach var in `numvars' {
+  2.     if !inlist("`var'", "`remvars'") {
+  3.         local keepvars `keepvars' `var'
+  4.     }
+  5. }
+
+. local numvars `keepvars'
+
+. 
+. foreach var in `numvars' {
+  2.     replace `var' = . if `var' < 0
+  3. }
+(3 real changes made, 3 to missing)
+(1,457 real changes made, 1,457 to missing)
+(1,518 real changes made, 1,518 to missing)
+(2,945 real changes made, 2,945 to missing)
+(4,656 real changes made, 4,656 to missing)
+(4,656 real changes made, 4,656 to missing)
+
+. 
+. 
+. * ============================
+. * HYPOTHESIS TEST FOR H3 *
+. * ============================
+. *
+. * Estimate whether having at least one daughter predicts more egalitarian
+. * attitudes regarding the division of household labour, using data from priva
+> te
+. * household respondents with children in 2018.
+. *
+. * Model specification:
+. *   - Outcome: dev_share_ccare (deviation from equal division of care for per
+> sons)
+. *   - Key predictor: having_daughter (1 if any daughter born before interview
+>  year)
+. *   - Prespecified covariates:
+. *       • sumkids            = total number of biological children
+. *       • hghinc             = monthly household net income (EUR)
+. *       • female             = respondent’s sex (2 =female, 1 =male)
+. *       • age_at_int         = age at time of interview (2018)
+. *       • erwerb             = employment status (1–4 categories)
+. *               • pld0131_v1           = family status
+. *       • migback            = migration background indicator
+. *       • sampreg            = geographic region of sample (east/west)
+. *       • pgpsbil            = school-leaving degree
+. *
+. * We supplement these controls with a LASSO-based, data-driven selection
+. * implemented via dsregress. The selected variables (from `numvars`) are
+. * stored in e(controls_sel) — duplicates are automatically dropped by Stata.
+. *
+. * The forward-selection can pick from the following list of variables:
+. *       • corigin            = Country of origin (country of birth) of the re
+> spondent (ISO numeric country codes)
+. *       • fprofedu           = Father’s highest completed professional educat
+> ion
+. *       • mprofedu           = Mother’s highest completed professional educat
+> ion
+. *       • locchildh          = Place where respondent was raised to age 15; 
+. *                                                          1=Large city, 2=Me
+> dium city, 3=Small city, 4=Countryside
+. *       • nums               = Number of sisters reported by respondent
+. *       • numb               = Number of brothers reported by respondent
+. *       • religious_affil    = Imputed religious affiliation for 2018
+. *
+. * Inference approach:
+. *   • Step 1: LASSO to identify additional relevant covariates
+. *   • Step 2: OLS regression including both prespecified and LASSO selected
+. *             controls, with robust standard errors to mitigate collinearity
+. *             and heteroskedasticity concerns.
+. 
+. 
+. * Step 1: LASSO-based selection of controls
+. version 16.0: dsregress dev_share_ccare having_daughter, ///
+>     controls((sumkids hghinc i.female age_at_int i.erwerb i.pld0131_v1 i.migb
+> ack ///
+>         sampreg i.pgpsbil) `numvars') rseed(10101)
+
+Estimating lasso for dev_share_ccare using plugin
+Estimating lasso for having_daughter using plugin
+
+Double-selection linear model         Number of obs               =     13,987
+                                      Number of controls          =         34
+                                      Number of selected controls =         29
+                                      Wald chi2(1)                =       0.66
+                                      Prob > chi2                 =     0.4179
+
+------------------------------------------------------------------------------
+             |               Robust
+dev_share_~e | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+having_dau~r |  -.1225978   .1513341    -0.81   0.418    -.4192073    .1740117
+------------------------------------------------------------------------------
+Note: Chi-squared test is a Wald test of the coefficients of the variables
+      of interest jointly equal to zero. Lassos select controls for model
+      estimation. Type lassoinfo to see number of selected variables in each
+      lasso.
+
+.         
+. local sel `e(controls_sel)'
+
+. 
+. local common ""
+
+. foreach v of local sel {
+  2.     // only keep v if it appears (as a whole word) in numvars
+.     if strpos(" `numvars' ", " `v' ") {
+  3.         local common "`common' `v'"
+  4.     }
+  5. }
+
+. 
+. * Step 2: OLS regression with all controls and robust SEs
+. reg dev_share_ccare having_daughter sumkids hghinc i.female ///
+>     age_at_int i.pld0131_v1 i.erwerb i.migback sampreg i.pgpsbil `common', //
+> /
+>     vce(cluster cid)
+
+Linear regression                               Number of obs     =     15,243
+                                                F(26, 9542)       =      32.74
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.0716
+                                                Root MSE          =     7.6953
+
+                                (Std. err. adjusted for 9,543 clusters in cid)
+------------------------------------------------------------------------------
+             |               Robust
+dev_share_~e | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+having_dau~r |  -.0770808   .1596361    -0.48   0.629    -.3900015    .2358399
+     sumkids |  -.2765297   .0694004    -3.98   0.000    -.4125693   -.1404902
+      hghinc |  -.0001978   .0000381    -5.19   0.000    -.0002725   -.0001231
+             |
+      female |
+ [2] Female  |   .0899934   .1294549     0.70   0.487    -.1637658    .3437526
+  age_at_int |  -.0385817   .0070262    -5.49   0.000    -.0523546   -.0248088
+             |
+  pld0131_v1 |
+[2] [de] ..  |   2.158539   .5064496     4.26   0.000      1.16579    3.151287
+[3] [de] ..  |   2.368323   .3296073     7.19   0.000     1.722222    3.014423
+[4] [de] ..  |   3.472962   .2562872    13.55   0.000     2.970585     3.97534
+[5] [de] ..  |   2.644536   .3132167     8.44   0.000     2.030565    3.258508
+[6] [de] ..  |  -.4655159   1.677602    -0.28   0.781    -3.753973    2.822941
+[7] [de] ..  |   10.26711   3.385624     3.03   0.002     3.630571    16.90366
+             |
+      erwerb |
+[2] Nicht..  |   .1125821   .2775672     0.41   0.685    -.4315086    .6566727
+[3] Teilz..  |   .0792175   .2202463     0.36   0.719    -.3525121    .5109471
+[4] Vollz..  |  -.0748905    .202942    -0.37   0.712       -.4727     .322919
+             |
+     migback |
+[2] direc..  |    .638989   .2932559     2.18   0.029     .0641452    1.213833
+[3] indir..  |   .7777763   .4404251     1.77   0.077    -.0855505    1.641103
+             |
+     sampreg |   .0879469   .2021726     0.44   0.664    -.3083543    .4842482
+             |
+     pgpsbil |
+[2] Inter..  |   .6311438   .1842463     3.43   0.001     .2699819    .9923058
+[3] Techn..  |   .6718412   .2814538     2.39   0.017      .120132     1.22355
+[4] Upper..  |    .805068   .2083135     3.86   0.000     .3967293    1.213407
+[5] Other..  |   2.397299   .3342576     7.17   0.000     1.742083    3.052515
+[6] Dropo..  |   3.237612    .669287     4.84   0.000     1.925667    4.549557
+[7] No Sc..  |  -8.241128   1.168316    -7.05   0.000    -10.53128   -5.950979
+             |
+    fprofedu |  -.0667513   .0100831    -6.62   0.000    -.0865163   -.0469862
+   locchildh |  -.2841424   .0608442    -4.67   0.000    -.4034099   -.1648749
+    mprofedu |  -.0376051    .009618    -3.91   0.000    -.0564585   -.0187517
+       _cons |   11.99403   .6858812    17.49   0.000     10.64956    13.33851
+------------------------------------------------------------------------------
+
+. 
+. 
+. * ============================
+. * EXTRACT AND EXPORT RESULTS *
+. * ============================
+. 
+.     * (i)  Coefficient
+.     local coefficient: display %12.8f _b[having_daughter]
+
+. 
+.     * (ii) Standard error
+.     local se: display %12.8f _se[having_daughter]
+
+. 
+.     * (iii) Test statistic family
+.     local test_stat_family = "t"
+
+. 
+.     * (iv) Residual & model degrees of freedom
+.     local df_residual = e(df_r)
+
+.     local df_model    = e(df_m)
+
+. 
+.     * (v) p-value
+.     local p_value: display %12.8f _b[having_daughter] / _se[having_daughter]
+
+.     local p_value: display %12.8f 2 * ttail(e(df_r), abs(`p_value'))
+
+. 
+.     * (vi) Number of observations
+.     local num_obs = e(N)
+
+. 
+.     * (vii) Number of participants
+.     quietly levelsof pid if e(sample), local(participants)
+
+.     local num_participants : word count `participants'
+
+. 
+.     * (viii) Directionality interpretation
+.     local interpretation "negative coefficient is in line with hypothesis"
+
+. 
+.     // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient:  -0.07708079
+
+.         di "Standard Error: `se'"
+Standard Error:   0.15963611
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: t
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: 9542
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 26
+
+.         di "p-value: " `p_value'
+p-value: .62921113
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 15243
+
+.         di "Number of participants: " `num_participants'
+Number of participants: 15243
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: negative coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h3_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/95_re
+    > sults/h3_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

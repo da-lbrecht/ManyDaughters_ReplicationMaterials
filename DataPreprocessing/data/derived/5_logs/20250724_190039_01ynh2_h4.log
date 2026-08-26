@@ -1,0 +1,681 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmpe1t59taw.do 
+
+. do "5%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. 
+. * the following code automatically sets paths based on the project location o
+> n your system *local curdir = c(pwd)
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/5%-sample" // folder, in which the ori
+> ginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/5%-sample
+
+. global DATA "$ROOT/data/derived_confidential/5%-sample" // folder for dataset
+> s
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/5%-sample
+
+. global OUT "$ROOT/data/derived/5_results" // folder for output (results, tabl
+> es)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/5_results
+
+. 
+end of do-file
+
+. do "20250724_190039_01ynh2_h4.do"
+
+. *****************************************************************************
+> ***
+. ****************** Do-File H4: #ManyDaughters Project ******************
+. *****************************************************************************
+> ***
+. 
+. * Authors: [REDACTED], [REDACTED]
+. 
+. * ============================
+. * SETUP * 
+. * ============================
+. 
+. * clear all
+. version 18 // indicate the version of stata you are using here
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. 
+. * CONFIGURE FILE PATHS * 
+. /*
+> 
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> */
+. 
+. * ============================
+. * DATA PREPARATION * 
+. * ============================
+. 
+. ***Which Variables do we need from which dataset:
+. *pl: plj0621 plj0622 plj0623 plj0624 plj0625 plj0620 ple0010_h plj0010 pld013
+> 3 plj0122_h plh0258_h
+. *biol: lb0285 lb0380 lb0381
+. *biobirth: kidpnr01-kidpnr19 kidsex01-kidsex19 sumkids 
+. *ppathl: sex
+. *pgen: pgpsbil pglabnet  
+. *hl: hlc0005_h
+. 
+. 
+. ***inclusion criteria:
+. *only 2016
+. *at least one child lb0285 > 0
+. 
+. 
+. * LOAD AND MERGE DATA * 
+. 
+.         use "$IN/ppathl.dta", clear 
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+.         keep sex pid hid syear corigin
+
+.         
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches) ke
+> epusing(pid kidsex01-kidsex19 sumkids )
+(variable pid was long, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * biol 
+.         merge 1:1 pid syear using "$IN/biol.dta", nogen keep(master matches) 
+> keepusing(pid hid lb0285)
+(label cid already defined)
+(label pid_EN already defined)
+(label cid_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * pgen contains user-friendly data on the individual level that are c
+> onsolidated from different sources
+.         merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches) 
+> keepusing(pid hid syear pgpsbil pglabnet pgbilzeit)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * pl contains all variables from the individual questionnaire
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches) ke
+> epusing(pid hid syear plj0621 plj0622 plj0623 ///
+>                 plj0624 plj0625 plj0620 plj0010 pld0133 plj0122_h plh0258_h p
+> ld0131_v1 pld0132_h ple0010_h)
+(label hid already defined)
+(label cid already defined)
+(label pnr already defined)
+(label p_anker already defined)
+(label p_buh1 already defined)
+(label p_buh2 already defined)
+(label p_buh3 already defined)
+(label p_buh4 already defined)
+(label p_buh5 already defined)
+(label p_buh6 already defined)
+(label p_buh7 already defined)
+(label p_buh8 already defined)
+(label p_buh9 already defined)
+(label p_buh10 already defined)
+(label p_buh11 already defined)
+(label iyear already defined)
+(label intid already defined)
+(label instrument already defined)
+(label pid_EN already defined)
+(label hid_EN already defined)
+(label cid_EN already defined)
+(label pnr_EN already defined)
+(label syear_EN already defined)
+(label p_anker_EN already defined)
+(label p_buh1_EN already defined)
+(label p_buh2_EN already defined)
+(label p_buh3_EN already defined)
+(label p_buh4_EN already defined)
+(label p_buh5_EN already defined)
+(label p_buh6_EN already defined)
+(label p_buh7_EN already defined)
+(label p_buh8_EN already defined)
+(label p_buh9_EN already defined)
+(label p_buh10_EN already defined)
+(label p_buh11_EN already defined)
+(label iyear_EN already defined)
+(label intid_EN already defined)
+(label instrument_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * hl contains variables on household level
+.         merge m:1 hid syear using "$IN/hl.dta", nogen keep(master matches) ke
+> epusing(hid syear hlc0005_h)
+(label cid already defined)
+(label instrument already defined)
+(label iyear already defined)
+(label intid already defined)
+(label tranche already defined)
+(label hid_EN already defined)
+(label cid_EN already defined)
+(label syear_EN already defined)
+(label instrument_EN already defined)
+(label iyear_EN already defined)
+(label intid_EN already defined)
+(label tranche_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+. 
+.         label language EN // change language of the labels to English
+
+. 
+.         save "$DATA/h4_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/5%-sample/h4_dataset.dta saved
+
+. 
+. * ============================
+. * INCLUSION CRITERIA
+. * ============================
+. 
+. **Survey Year 2016 and having children 
+.         keep if syear == 2016 & lb0285 > 0      
+(33,375 observations deleted)
+
+.         
+. * ============================
+. * DATA MANAGEMENT
+. * ============================
+. 
+. *------------------------------------------------------
+. *** DEPENDENT VARIABLE: attitudes toward gender equality
+. *------------------------------------------------------
+. 
+.         **recode missing values 
+.         recode plj0620 plj0621 plj0622 plj0623 plj0624 plj0625 (-1 = .) (-2 =
+>  .) (-3 = .) (-4 = .) (-5 = .) (-6 = .) (-7 = .) (-8 = .) (-9 = .)
+(1,246 changes made to plj0620)
+(1,243 changes made to plj0621)
+(1,244 changes made to plj0622)
+(1,246 changes made to plj0623)
+(1,246 changes made to plj0624)
+(1,242 changes made to plj0625)
+
+.         
+.         **recode: plj0623 plj0624 plj0625
+.         recode plj0623 plj0624 plj0625 (1=7) (2=6) (3=5) (5=3) (6=2) (7=1)
+(118 changes made to plj0623)
+(125 changes made to plj0624)
+(118 changes made to plj0625)
+
+.         label define scale_recoded ///
+>                 1       "[1] [de] 1=Stimme voll zu, (Skale 1-7) recoded " ///
+>                 2       "[2] [de] 2 auf Skala 0-7 recoded" ///
+>                 3       "[3] [de] 3 auf Skala 0-7 recoded" ///
+>                 4       "[4] [de] 4 auf Skala 0-7 recoded" ///
+>                 5       "[5] [de] 5 auf Skala 0-7 recoded" ///
+>                 6       "[6] [de] 6 auf Skala 0-7 recoded" ///
+>                 7       "[7] [de] 7=Stimme überhaupt nicht zu, (Skale 1-7) re
+> coded " ///
+>                 , replace
+
+.         label values plj0623 plj0624 plj0625 scale_recoded
+
+. 
+.         **z-standardize - index - z-standardize
+.         foreach var of varlist plj0620 plj0621 plj0622 plj0623 plj0624 plj062
+> 5 {
+  2.                 egen z_`var' = std(`var')
+  3.                 }
+(1,723 missing values generated)
+(1,720 missing values generated)
+(1,721 missing values generated)
+(1,723 missing values generated)
+(1,723 missing values generated)
+(1,719 missing values generated)
+
+. 
+.         gen attitude_gender_equality = (z_plj0620 + z_plj0621 + z_plj0622 + z
+> _plj0623 + z_plj0624 + z_plj0625) / 6
+(1,732 missing values generated)
+
+.         
+.         egen z_attitude_gender_equality = std(attitude_gender_equality)
+(1,732 missing values generated)
+
+.         
+.         
+. *------------------------------------------------------ 
+. ***INDEPENDENT VARIABLE: Having Daughter 
+. *------------------------------------------------------
+.                 
+.         **kidsex == 2 means daughter 
+.         gen having_daughter = 0 
+
+.         replace having_daughter = 1 if kidsex01 == 2 | kidsex02 == 2 | kidsex
+> 03 == 2 | ///
+>                 kidsex04 == 2 | kidsex05 == 2 | kidsex06 == 2 | kidsex07 == 2
+>  | ///
+>                 kidsex08 == 2 | kidsex09 == 2 | kidsex10 == 2 | kidsex11 == 2
+>  | kidsex12 == 2 | ///
+>                 kidsex13 == 2 | kidsex14 == 2 | kidsex15 == 2 | kidsex16 == 2
+>  | kidsex17 == 2 | ///
+>                 kidsex18 == 2 | kidsex19 == 2 
+(1,007 real changes made)
+
+. 
+. *------------------------------------------------------
+. ***CONTROLS     
+. *------------------------------------------------------
+. 
+. *INFO: Contrary to the PAP, we excluded the variables 'education of father' (
+> lb0380) and 'education of mother' (lb0381), as both variables had only empty 
+> values in 2016. We attempted to use lb0091_h and lb0092_h as alternatives, bu
+> t these variables had insufficient observations. Consequently, we have decide
+> d not to use these variables in our analysis.
+. 
+. 
+. *------------------------------------------------------
+. * RELIGIOUS: create variable religious
+. *------------------------------------------------------
+.         
+.         gen religious = .
+(1,853 missing values generated)
+
+.         replace religious = 1 if inlist(plh0258_h, 1,2,3,4,5,7,8,9,10,11,12)
+(135 real changes made)
+
+.         replace religious = 0 if plh0258_h == 6
+(7 real changes made)
+
+.         bysort pid (syear): replace religious = religious[_n-1] if missing(re
+> ligious)
+(0 real changes made)
+
+. 
+.         
+. *------------------------------------------------------ 
+. * GENDER: recode sex
+. *------------------------------------------------------
+. 
+.         recode sex (1=0) (2=1)
+(1,853 changes made to sex)
+
+.         label define sex ///
+>                 0       "[0] male " ///
+>                 1       "[1] female" ///
+>                 , replace
+
+.         label values sex sex 
+
+.         
+. 
+. *------------------------------------------------------
+. * ORIGIN: born in Germany - corigin 
+. *------------------------------------------------------
+. 
+.         gen born_germany = .
+(1,853 missing values generated)
+
+.         replace born_germany = 1 if corigin == 1
+(1,303 real changes made)
+
+.         replace born_germany = 0 if corigin > 1
+(550 real changes made)
+
+.         
+.         
+. *------------------------------------------------------ 
+. * EDUCATION: own education - pgpsbil 
+. *------------------------------------------------------
+. *INFO: An issue pertained to the variable pgpsbil within category 5 (other de
+> gree), which encompassed a substantial number of observations. The interpreta
+> tion of this category proved to be unfeasible.
+. *Therefore, an alternative is employed in the form of the variable pgbilzeit 
+> (years of education).
+. 
+.         recode pgbilzeit (-1 = .) (-2 = .) (-3 = .) (-4 = .) (-5 = .) (-6 = .
+> ) (-7 = .) (-8 = .) (-9 = .) 
+(105 changes made to pgbilzeit)
+
+.         
+.         
+. *------------------------------------------------------
+. * AGE: age in 2016 
+. *------------------------------------------------------
+. 
+.         gen age = 2016 - ple0010_h  
+(477 missing values generated)
+
+.         gen age_ln = ln(age)
+(477 missing values generated)
+
+. 
+. 
+. *------------------------------------------------------ 
+. * SINGLEPARENT: Singleparent/ partner in household 
+. *------------------------------------------------------
+. *INFO: pld0133 is conditional on having a "Lebensgemeinschaft". 
+. *Married people living with their partner (pld0131_v1 == 1) are also coded as
+>  1 (partner lives in household)
+. 
+.         gen with_partner = .
+(1,853 missing values generated)
+
+.         *married people living with their partner
+.         replace with_partner = 1 if pld0131_v1 == 1 
+(728 real changes made)
+
+.         *partner lives in household
+.         replace with_partner = 1 if pld0133 == 1
+(136 real changes made)
+
+.         *partner does not live in household
+.         replace with_partner = 0 if pld0133 == 2
+(107 real changes made)
+
+.         *no "Lebensgemeinschaft" = no partner
+.         replace with_partner = 0 if pld0132_h == 2
+(255 real changes made)
+
+. 
+.         label define with_partner ///
+>                 0       "[0] no(t with) partner " ///
+>                 1       "[1] partner lives in household" ///
+>                 , replace
+
+.         label values with_partner with_partner
+
+. 
+. 
+. *------------------------------------------------------
+. * DAUGHTERS DISTANCE
+. *------------------------------------------------------
+. 
+.         gen daughters_distance = 0 
+
+.         replace daughters_distance = 1 if plj0122_h == 1 & having_daughter ==
+>  1
+(20 real changes made)
+
+.         label define distance ///
+>                 0       "[0] daughter does not live in household or only sons
+> " ///
+>                 1       "[1] daughter lives in household" ///
+>                 , replace
+
+.         label values daughters_distance distance
+
+. 
+. *------------------------------------------------------
+. * INCOME: Personal contribution to income
+. *------------------------------------------------------
+. 
+.         recode pglabnet (-1 = .) (-2 = .) (-3 = .) (-4 = .) (-5 = .) (-6 = .)
+>  (-7 = .) (-8 = .) (-9 = .)
+(636 changes made to pglabnet)
+
+.         recode hlc0005_h (-1 = .) (-2 = .) (-3 = .) (-4 = .) (-5 = .) (-6 = .
+> ) (-7 = .) (-8 = .) (-9 = .)
+(90 changes made to hlc0005_h)
+
+.         
+.         gen income_ratio = pglabnet / hlc0005_h
+(1,125 missing values generated)
+
+. 
+. 
+. * ============================
+. * ANALYSIS
+. * ============================
+.                   
+.         reg z_attitude_gender_equality having_daughter##sex lb0285 pgbilzeit 
+>  ///
+>                 c.age_ln reli, vce(cluster pid)
+
+Linear regression                               Number of obs     =        115
+                                                F(7, 114)         =       2.10
+                                                Prob > F          =     0.0488
+                                                R-squared         =     0.0811
+                                                Root MSE          =     .98828
+
+                                  (Std. err. adjusted for 115 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+z_attitude~y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+1.having_d~r |  -.5196831   .3350197    -1.55   0.124    -1.183355    .1439884
+             |
+         sex |
+ [1] female  |  -.0374397   .3928816    -0.10   0.924    -.8157351    .7408557
+             |
+having_dau~r#|
+         sex |
+          1 #|
+ [1] female  |   .0807937   .4303045     0.19   0.851    -.7716362    .9332237
+             |
+      lb0285 |   .0390425   .0507982     0.77   0.444    -.0615884    .1396733
+   pgbilzeit |   .1051293    .043243     2.43   0.017     .0194653    .1907933
+      age_ln |  -.8111579   .4570068    -1.77   0.079    -1.716485    .0941691
+   religious |  -.2314844    .415257    -0.56   0.578    -1.054105    .5911365
+       _cons |   2.550964   1.736953     1.47   0.145    -.8899272    5.991855
+------------------------------------------------------------------------------
+
+.         
+.         
+. **The variables daughters_distance, with_partner, and born_germany were eithe
+> r omitted due to collinearity or not available for any observations in the es
+> timation sample. Furthermore, including income_ratio and the interaction term
+>  c.income_ratio#sex resulted in a loss of approximately 88% of the observatio
+> ns. As a result, all these variables, although pre-specified in the PAP, were
+>  excluded from the final regression models in order to preserve statistical p
+> ower and ensure model convergence.
+. **This may be resolved when using the full dataset
+. 
+. *reg z_attitude_gender_equality having_daughter##sex lb0285 pgbilzeit c.age_l
+> n ///
+> *               income_ratio c.income_ratio#sex reli born_germany with_partne
+> r daughters_distance, vce(cluster pid)
+. 
+.         
+.                 
+. * ============================
+. * EXTRACT AND EXPORT RESULTS 
+. * ============================
+. 
+.         * Extract the required statistics
+. 
+.                 * (i) coefficient estimate
+.                 local coefficient = _b[1.having_daughter#1.sex]
+
+. 
+.                 * (ii) standard error
+.                 local se = _se[1.having_daughter#1.sex]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "t"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 local p_value = _b[1.having_daughter#1.sex] / _se[1.having_da
+> ughter#1.sex]
+
+.                 local p_value = 2 * ttail(e(df_r), abs(`p_value'))
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation of directionality
+.                 scalar coef_d_daughter = _b[1.having_daughter#1.sex]
+
+.                 local interpretation "negative coefficient is in line with hy
+> pothesis"
+
+. 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: .0807937276106758
+
+.         di "Standard Error: `se'"
+Standard Error: .4303045258413868
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: t
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: 114
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 7
+
+.         di "p-value: " `p_value'
+p-value: .85139904
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 115
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 115
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: negative coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h4_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/5_res
+    > ults/h4_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

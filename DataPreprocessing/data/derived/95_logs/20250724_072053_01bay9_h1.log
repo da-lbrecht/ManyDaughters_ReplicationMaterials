@@ -1,0 +1,606 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmp5ffii7yk.do 
+
+. do "95%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. * the following code automatically sets paths based on the project location o
+> n your system *
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/95%-sample" // folder, in which the or
+> iginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/95%-sample
+
+. global DATA "$ROOT/data/derived_confidential/95%-sample" // folder for datase
+> ts
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/95%-sample
+
+. global OUT "$ROOT/data/derived/95_results" // folder for output (results, tab
+> les)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/95_results
+
+. 
+end of do-file
+
+. do "20250724_072053_01bay9_h1.do"
+
+. *****************************************************************************
+> ***
+. ****************** Example Do-File H1: #ManyDaughters Project ***************
+> ***
+. *****************************************************************************
+> ***
+. 
+. * Authors: Tina Wang, David Albrecht
+. 
+. * ============================
+. * Setup * (Please adapt according to your needs)
+. * ============================
+. 
+. *clear all
+. version 17 // indicate the version of stata you are using here
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. * INSTALL PACKAGES * (Please adapt according to your needs)
+. * install all packages you need here, for example:
+. ssc install outreg2
+checking outreg2 consistency and verifying not already installed...
+all files already exist and are up to date.
+
+. /*
+> * CONFIGURE FILE PATHS * (Please do not change)
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> */
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA * (Please adapt according to your needs)
+. 
+.         use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. 
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", keep(1 3) keepus(kidpnr01 kid
+> pnr02 kidgeb01 kidgeb02 kidsex01 kidsex02 kidmon01 kidmon02) nogen
+(variable pid was long, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * pgen contains user-friendly data on the individual level that are c
+> onsolidated from different sources
+.         merge 1:1 pid syear using "$IN/pgen.dta", keep(1 3) keepus(pgpsbil pg
+> famstd pgemplst pglabgro) nogen
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * pl contains all variables from the individual questionnaire
+.         merge 1:1 pid syear using "$IN/pl.dta", keep(1 3) keepus(plh0308_v2 p
+> lh0333 plh0004 pli0040 pli0043_h pli0044_h pli0046) nogen
+(label cid_EN already defined)
+(label pid_EN already defined)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * hgen contains generated variables on household level from the house
+> hold interview; use for household net income
+.         merge m:1 pid using "$IN/bioparen.dta", keep(1 3) keepus(fsedu msedu)
+>  nogen
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. 
+.         label language EN // change language of the labels to English
+
+. 
+.         save "$DATA/h1_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h1_dataset.dta saved
+
+. 
+. 
+. * ============================
+. * Analysis
+. * ============================
+. 
+. * FILTERS * (Please adapt according to your needs)
+.  
+.  
+.         keep if inrange(netto,10,19)
+(143,471 observations deleted)
+
+. 
+. 
+. * GENERATE VARIABLES * (Please adapt according to your needs)
+. 
+.         set seed 123
+
+.         
+.         *Change non valid/missing values to NA
+.         mvdecode _all, mv(-1=. \ -2=.t \ -3=.x \ -5=.y \ -8=.z)
+       parid: 165425 missing values generated
+         sex: 13 missing values generated
+     gebjahr: 4 missing values generated
+     sampreg: 77 missing values generated
+     casemat: 519473 missing values generated
+     todjahr: 489691 missing values generated
+     todinfo: 489691 missing values generated
+    immiyear: 428898 missing values generated
+     corigin: 330 missing values generated
+    gebmonat: 8942 missing values generated
+     loc1989: 54098 missing values generated
+     locinfo: 17530 missing values generated
+ birthregion: 280794 missing values generated
+birthregio~w: 286720 missing values generated
+    arefback: 598 missing values generated
+    arefinfo: 598 missing values generated
+       rv_id: 399031 missing values generated
+    kidpnr01: 253279 missing values generated
+    kidpnr02: 316414 missing values generated
+    kidgeb01: 140513 missing values generated
+    kidgeb02: 244431 missing values generated
+    kidsex01: 140360 missing values generated
+    kidsex02: 244499 missing values generated
+    kidmon01: 276010 missing values generated
+    kidmon02: 330431 missing values generated
+    pgfamstd: 2315 missing values generated
+    pglabgro: 217158 missing values generated
+    pgemplst: 29 missing values generated
+     pgpsbil: 14944 missing values generated
+     plh0004: 428081 missing values generated
+  plh0308_v2: 490191 missing values generated
+     plh0333: 470787 missing values generated
+     pli0040: 26962 missing values generated
+   pli0043_h: 21018 missing values generated
+   pli0044_h: 27097 missing values generated
+     pli0046: 52431 missing values generated
+       fsedu: 67229 missing values generated
+       msedu: 65834 missing values generated
+
+. 
+.         *Recode gender
+.         gen male=(sex==1)
+
+. 
+.         *Generate age and age²
+.         gen age=piyear-gebjahr
+(4 missing values generated)
+
+.         replace age=syear-gebjahr if missing(age)
+(0 real changes made)
+
+.         gen age2= age^2
+(4 missing values generated)
+
+. 
+.         *Generate education dummy
+.         gen abitur=0 if pgpsbil>0
+
+.         replace abitur=1 if pgpsbil==4
+(105,487 real changes made)
+
+. 
+.         *Define daughter dummy
+.         gen daughter=(kidsex01==2) 
+
+.         
+.         *Generate parents education dummy
+.         gen parent_abitur=(fsedu==4) | (msedu==4)
+
+.         
+.         *Define labor income
+.         gen labor_earn=pglabgro
+(217,158 missing values generated)
+
+.         replace labor_earn=0 if pglabgro<0
+(0 real changes made)
+
+.         
+.         *Recode political attitudes (voting outcome)
+.         replace plh0333=29 if plh0333==-5 & inrange(psample,17,19)
+(0 real changes made)
+
+.         clonevar party_vote=plh0333
+(475,949 missing values generated)
+
+.         
+.         *Define and standardize attitudes towards gender equality
+.         sum plh0308_v2 if syear==2018
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+  plh0308_v2 |     24,299    5.451335    1.722319          1          7
+
+.         gen equalityattitude=(plh0308_v2-r(mean))/r(sd)
+(495,353 missing values generated)
+
+. 
+.         *Define dummies for first and second child
+.         gen first_child18=1 if kidgeb01<=2018
+(142,338 missing values generated)
+
+.         gen second_child18=1 if kidgeb02<=2018
+(246,761 missing values generated)
+
+.         
+.         
+.         *** Sample restriction
+.         
+.         *Only keep if first child born before or in 2018 and no second child 
+> at 2018
+.         keep if first_child18==1 & second_child18!=1
+(415,048 observations deleted)
+
+. 
+.         *Only keep cross section 2018
+.         keep if syear==2018
+(99,328 observations deleted)
+
+. 
+.         *Only keep if full information on following variables
+.         keep if !missing(equalityattitude,age, daughter, migback, kidgeb01, a
+> bitur, parent_abitur, party_vote, labor_earn, pgemplst )
+(2,412 observations deleted)
+
+. 
+.         *Only keep if partner is also in sample (to allow for household fixed
+>  effects)
+.         *keep if !missing(parid)
+.         *preserve
+.         *keep parid
+.         *rename parid pid
+.         *tempfile parid
+.         *save `parid' , replace
+.         *restore
+.         *merge 1:1 pid using `parid'
+.         *keep if _merge==3 // only keep observations if we have all variables
+>  from both partners.
+.         *drop _merge
+. 
+. * HYPOTHESIS TEST FOR H1 * (Please adapt according to your needs)
+. 
+.         * To identify the causal effect of having a daughter on support towar
+> ds gender equality (as
+.         * measured by attitudes), we estimate a cross-sectional OLS regressio
+> n in a sample of parents
+.         * who in 2018 only have exactly one child (first-born). Specifically,
+>  we use the fact that the
+.         * sex of the first-born child is random by nature for the identificat
+> ion of the effect of having
+.         * a daughter compared to having a son. Our dependent variable is surv
+> eyed in 2018 and
+.         * captures attitudes towards equal sharing of employment and care wor
+> k within couples. We
+.         * include only individuals for whom we also have valid observations f
+> or their partner, in order
+.         * to account for household fixed effects.
+. 
+.         * CHANGED SPECIFICATION: In the PAP (as writte above) we wanted to co
+> ntrol for household fixed effects. This
+.         * can not be done, as the variable of interest (daughter) is constant
+>  across households and would therefore
+.         * be fully absorbed in the household fixed effects. For the regressio
+> n model we corrected this and REMOVED
+.         * the household fixed effects
+. 
+.         reg equalityattitude daughter age age2 i.migback i.kidgeb01 i.abitur 
+> i.parent_abitur i.party_vote labor_earn i.pgemplst, vce(cluster hid)
+
+Linear regression                               Number of obs     =      2,864
+                                                F(80, 2301)       =          .
+                                                Prob > F          =          .
+                                                R-squared         =     0.0690
+                                                Root MSE          =     .98556
+
+                                (Std. err. adjusted for 2,302 clusters in hid)
+------------------------------------------------------------------------------
+             |               Robust
+equalityat~e | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+    daughter |  -.0020488   .0400563    -0.05   0.959    -.0805991    .0765014
+         age |   .0338419   .0187429     1.81   0.071    -.0029129    .0705967
+        age2 |  -.0004432   .0002007    -2.21   0.027    -.0008367   -.0000496
+             |
+     migback |
+[2] direc..  |  -.0503118   .0697403    -0.72   0.471    -.1870722    .0864486
+[3] indir..  |   .0830005    .087699     0.95   0.344    -.0889768    .2549778
+             |
+    kidgeb01 |
+       1961  |  -1.837908    .186779    -9.84   0.000    -2.204181   -1.471635
+       1962  |  -.7514722   .1342072    -5.60   0.000    -1.014652   -.4882925
+       1964  |   -.317558   .1407349    -2.26   0.024    -.5935386   -.0415774
+       1965  |  -.8284921   .1446491    -5.73   0.000    -1.112148   -.5448359
+       1967  |   -.401433   .1455436    -2.76   0.006    -.6868433   -.1160227
+       1968  |  -2.188205   .8379109    -2.61   0.009    -3.831344   -.5450654
+       1969  |  -1.093664   .3356248    -3.26   0.001    -1.751823   -.4355054
+       1970  |  -.7844875   .3214382    -2.44   0.015    -1.414826   -.1541487
+       1971  |  -1.011023   .2419741    -4.18   0.000    -1.485533   -.5365125
+       1972  |   -1.39208   .3563699    -3.91   0.000     -2.09092   -.6932405
+       1973  |   -.713616   .1853575    -3.85   0.000    -1.077101   -.3501307
+       1974  |  -1.210732   .3889441    -3.11   0.002     -1.97345   -.4480142
+       1975  |  -1.086905    .275968    -3.94   0.000    -1.628077   -.5457329
+       1976  |  -1.607148    .346118    -4.64   0.000    -2.285884   -.9284124
+       1977  |  -1.259092    .271369    -4.64   0.000    -1.791245   -.7269385
+       1978  |  -.8928142   .2113233    -4.22   0.000    -1.307218   -.4784101
+       1979  |  -1.320219    .244359    -5.40   0.000    -1.799406   -.8410322
+       1980  |  -1.221422   .2631415    -4.64   0.000    -1.737441   -.7054027
+       1981  |  -1.365678   .2852854    -4.79   0.000    -1.925122    -.806235
+       1982  |  -1.001594   .2199552    -4.55   0.000    -1.432925   -.5702624
+       1983  |  -1.168587   .2504969    -4.67   0.000     -1.65981   -.6773633
+       1984  |  -1.309864     .25473    -5.14   0.000    -1.809389     -.81034
+       1985  |  -1.344867   .2294584    -5.86   0.000    -1.794834      -.8949
+       1986  |  -1.681224   .2790349    -6.03   0.000    -2.228411   -1.134038
+       1987  |  -1.323784   .2439832    -5.43   0.000    -1.802234   -.8453343
+       1988  |   -1.41291   .2461358    -5.74   0.000    -1.895582   -.9302392
+       1989  |  -1.560737    .287074    -5.44   0.000    -2.123688    -.997786
+       1990  |  -1.556117   .2595168    -6.00   0.000    -2.065028   -1.047206
+       1991  |  -1.621209   .2851658    -5.69   0.000    -2.180418   -1.062001
+       1992  |  -1.453658   .2483566    -5.85   0.000    -1.940684   -.9666313
+       1993  |  -1.517686   .2474551    -6.13   0.000    -2.002945   -1.032428
+       1994  |  -1.579029   .2795166    -5.65   0.000     -2.12716   -1.030899
+       1995  |  -1.645716   .2704642    -6.08   0.000    -2.176095   -1.115337
+       1996  |  -1.625124   .2624847    -6.19   0.000    -2.139855   -1.110393
+       1997  |  -1.897586   .2678303    -7.09   0.000      -2.4228   -1.372372
+       1998  |  -1.712783   .2638955    -6.49   0.000    -2.230281   -1.195285
+       1999  |  -1.863332   .2647064    -7.04   0.000     -2.38242   -1.344244
+       2000  |   -1.72187    .262237    -6.57   0.000    -2.236115   -1.207624
+       2001  |  -1.849724   .2837767    -6.52   0.000    -2.406209    -1.29324
+       2002  |  -1.796527   .2774805    -6.47   0.000    -2.340665   -1.252389
+       2003  |   -1.80689   .2820075    -6.41   0.000    -2.359905   -1.253874
+       2004  |  -1.711047   .2815607    -6.08   0.000    -2.263186   -1.158908
+       2005  |  -1.836474   .2826782    -6.50   0.000    -2.390805   -1.282144
+       2006  |  -1.780738   .2824289    -6.31   0.000     -2.33458   -1.226896
+       2007  |  -2.050815   .2720659    -7.54   0.000    -2.584335   -1.517295
+       2008  |  -1.793833   .2768671    -6.48   0.000    -2.336769   -1.250898
+       2009  |  -1.804093   .2801461    -6.44   0.000    -2.353458   -1.254727
+       2010  |  -2.006004   .2814721    -7.13   0.000     -2.55797   -1.454039
+       2011  |  -1.883078   .2867559    -6.57   0.000    -2.445405   -1.320751
+       2012  |  -1.964581   .2884756    -6.81   0.000     -2.53028   -1.398882
+       2013  |  -1.954858   .2832391    -6.90   0.000    -2.510289   -1.399428
+       2014  |   -1.66772   .2732957    -6.10   0.000    -2.203651   -1.131788
+       2015  |  -1.927168   .2726628    -7.07   0.000    -2.461859   -1.392477
+       2016  |  -1.729892   .2724664    -6.35   0.000    -2.264198   -1.195587
+       2017  |    -2.1378   .2849365    -7.50   0.000    -2.696559   -1.579041
+       2018  |  -1.865258   .2761997    -6.75   0.000    -2.406884   -1.323632
+             |
+    1.abitur |   .0349659   .0516997     0.68   0.499     -.066417    .1363488
+1.parent_a~r |  -.0340865   .0568172    -0.60   0.549    -.1455048    .0773317
+             |
+  party_vote |
+[2] [de] ..  |  -.0673628   .0623086    -1.08   0.280    -.1895497    .0548241
+[3] [de] ..  |  -.2729139   .1200601    -2.27   0.023    -.5083513   -.0374766
+[4] [de] ..  |  -.0234705   .0879023    -0.27   0.789    -.1958465    .1489055
+[5] [de] ..  |   .1910487   .0766396     2.49   0.013     .0407588    .3413386
+[6] [de] ..  |   .1924627   .0785393     2.45   0.014     .0384474     .346478
+[7] [de] ..  |  -.3889923   .4785254    -0.81   0.416    -1.327378    .5493938
+[8] [de] ..  |   .0594309   .1103258     0.54   0.590    -.1569176    .2757793
+[9] [de] ..  |  -.5585864   .2957919    -1.89   0.059    -1.138633    .0214603
+[10] [de]..  |   .3841084   .2662074     1.44   0.149    -.1379231    .9061399
+[11] [de]..  |   -.235129   .2238716    -1.05   0.294    -.6741402    .2038821
+[13] [de]..  |  -.0884935   .1195762    -0.74   0.459    -.3229819     .145995
+[14] [de]..  |  -1.310457   .2856933    -4.59   0.000      -1.8707    -.750214
+[15] [de]..  |   .3457131   .0972887     3.55   0.000     .1549304    .5364958
+[16] [de]..  |   .7533206    .159477     4.72   0.000     .4405869    1.066054
+[17] [de]..  |   .4343687   .1553255     2.80   0.005     .1297761    .7389614
+[20] [de]..  |   .5587013   .1210845     4.61   0.000     .3212551    .7961475
+[24] [de]..  |  -.3567727   .1508152    -2.37   0.018    -.6525206   -.0610247
+[27] [de]..  |  -.1004963   .0846132    -1.19   0.235    -.2664225    .0654299
+[28] [de]..  |   .0590647   .0792999     0.74   0.456     -.096442    .2145713
+[29] [de]..  |  -.0052047    .095624    -0.05   0.957    -.1927229    .1823136
+[30] [de]..  |   .8665286   .1920773     4.51   0.000      .489866    1.243191
+             |
+  labor_earn |   -.000024    .000012    -2.00   0.045    -.0000475   -4.92e-07
+             |
+    pgemplst |
+[2] Regul..  |  -.1617633   .0464772    -3.48   0.001    -.2529049   -.0706217
+[3] Vocat..  |   -.374661   .2451388    -1.53   0.127     -.855377    .1060551
+[4] Margi..  |  -.1159117   .0825128    -1.40   0.160    -.2777189    .0458956
+[5] Not E..  |  -.6001022   .4103447    -1.46   0.144    -1.404786     .204582
+[6] Shelt..  |   .4989728   .2882855     1.73   0.084    -.0663538    1.064299
+             |
+       _cons |    1.31912   .3905911     3.38   0.001     .5531726    2.085067
+------------------------------------------------------------------------------
+
+. 
+. 
+. * EXTRACT AND EXPORT RESULTS * (Please check whether the suggested code autom
+> atically picks up the correct statistics for your chosen regression analysis 
+> and adapt if needed)
+. 
+.         * Extract the required statistics
+. 
+.                 * (i) coefficient estimate
+.                 local coefficient = _b[daughter]
+
+. 
+.                 * (ii) standard error
+.                 local se2 = _se[daughter]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "t"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 local p_value = _b[daughter] / _se[daughter]
+
+.                 local p_value = 2 * ttail(e(df_r), abs(`p_value'))
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation of directionality
+.                 local interpretation "positive coefficient is in line with hy
+> pothesis"
+
+.                 
+. 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: -.0020488489609424
+
+.         di "Standard Error: `se2'"
+Standard Error: .0400563356357737
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: t
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: 2301
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 80
+
+.         di "p-value: " `p_value'
+p-value: .95921108
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 2864
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 2864
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h1_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/95_re
+    > sults/h1_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se2', `test_stat_family', `df_resi
+> dual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

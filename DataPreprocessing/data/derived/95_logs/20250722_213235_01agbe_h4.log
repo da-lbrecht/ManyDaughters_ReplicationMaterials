@@ -1,0 +1,554 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmp0tajahvv.do 
+
+. do "95%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. * the following code automatically sets paths based on the project location o
+> n your system *
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/95%-sample" // folder, in which the or
+> iginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/95%-sample
+
+. global DATA "$ROOT/data/derived_confidential/95%-sample" // folder for datase
+> ts
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/95%-sample
+
+. global OUT "$ROOT/data/derived/95_results" // folder for output (results, tab
+> les)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/95_results
+
+. 
+end of do-file
+
+. do "20250722_213235_01agbe_h4.do"
+
+. **************************************************************************
+. * H4: Gender heterogeneity – Triple‐Difference DiD Analysis               *
+. * Authors: [REDACTED], [REDACTED]                                        
+> *
+. * Based on pre-analysis plan (Lenzi & Román, July 14, 2025)                 *
+. * Hypothesis: Having daughters increases support for gender equality more   *
+. * for women than men (Triple Difference)                                   *
+. **************************************************************************
+. * CHANGE LOG (July 2025):
+. * Following the request from the study organizers, this version reports 
+. * a single regression-based result for Hypothesis 4. 
+. * 
+. * We use the variable `id_gnorm_eq`, capturing agreement with the 
+. * statement: "Best if man and woman work the same amount so they can 
+. * share the responsibility".
+. * 
+. * This item is the most general and directly interpretable measure of 
+. * gender egalitarianism in roles, making it the most conceptually 
+. * appropriate outcome to test whether daughters shift beliefs more in 
+. * men than women.
+. **************************************************************************/
+. * clear all
+. version 18
+
+. set maxvar 10000
+
+
+. 
+. 
+. *----------------------------------------------------------------------------
+. * INSTALL PACKAGES * (Please adapt according to your needs)
+. *----------------------------------------------------------------------------
+. ssc install mdesc
+checking mdesc consistency and verifying not already installed...
+all files already exist and are up to date.
+
+. 
+. *-----------------------------
+. * CONFIGURE FILE PATHS  (Please do not change)
+. /*
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> *-----------------------------
+> 
+> if strpos("`c(pwd)'", "code") {
+> global ROOT "`c(pwd)'/.."
+> }
+> else {
+> global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> */
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. *----------------------------------------------------------------------------
+. * LOAD AND MERGE DATA * (Please adapt according to your needs)
+. *----------------------------------------------------------------------------
+. 
+. use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. 
+. * Merge ppathl with all datasets, that you deem relevant for your analysis. (
+> Tip: use keepusing() to specify which variables to keep from the using datase
+> t; the default is all.)
+. 
+. * biobirth contains information on fertility history
+. merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches)
+(variable pid was long, now double to accommodate using data's values)
+(variable cid was long, now double to accommodate using data's values)
+(variable gebjahr was int, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. * pgen contains user-friendly data on the individual level that are consolida
+> ted from different sources
+. merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. * pl contains all variables from the individual questionnaire
+. merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches)
+(variable inputdataset was str6, now str9 to accommodate using data's values)
+(label cid_EN already defined)
+(label pid_EN already defined)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. * hgen contains generated variables on household level from the household int
+> erview; use for household net income
+. merge m:1 hid syear using "$IN/hgen.dta", nogen keep(master matches) keepusin
+> g(hid syear hghinc)
+(label iyear already defined)
+(label iyear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. 
+. label language EN // change language of the labels to English
+
+. 
+. save "$DATA/h4_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h4_dataset.dta saved
+
+. *-----------------------------
+. *  Construct outcome
+. *     id_gnorm_eq
+. *-----------------------------
+. *......................................
+. * Dependent variables 
+. *......................................
+. 
+. mvdecode plh0308_v1 plh0308_v2, mv(-10/-1) // missing values coded as negativ
+> e to missing
+  plh0308_v1: 507781 missing values generated
+  plh0308_v2: 490191 missing values generated
+
+. 
+. 
+. * Transform variables such that the lowest value is most in accordance with t
+> raditional gender norms, i.e. disagreeing on an egalitarian taks distribution
+>  
+. replace plh0308_v1 = 5 - plh0308_v1
+(6,709 real changes made)
+
+. gen id_gnorm_eq = plh0308_v1 > 2 & plh0308_v1 != .
+
+. replace id_gnorm_eq = 1 if id_gnorm_eq == 0 & plh0308_v2 > 4 & plh0308_v2 != 
+> .
+(17,103 real changes made)
+
+. label variable id_gnorm_eq "Agree with: Best if man and woman work the same a
+> mount"
+
+. 
+. 
+. 
+. *  Construct DiD regressors 
+. *-----------------------------
+. bysort pid: egen byte Daughter = max(kidsex01==2)
+
+. bysort pid: egen byte Son      = max(kidsex01==1)
+
+. bysort pid (syear): assert Daughter==Daughter[1]
+
+. gen int   yearFirstChild = kidgeb01
+
+. gen byte  Post             = (syear >= kidgeb01) if Daughter==1 | Son==1
+(216,893 missing values generated)
+
+. gen byte  Man              = (sex==1)
+
+. 
+. *-----------------------------
+. * Controls (PaP Table 4)
+. *-----------------------------
+. mdesc sumkids pgfamstd plh0258_h sampreg birthregion_ew bioage migback pgbilz
+> eit hghinc pgemplst pgexpft
+
+    Variable    |     Missing          Total     Percent Missing
+----------------+-----------------------------------------------
+        sumkids |           0        663,123           0.00
+       pgfamstd |     143,310        663,123          21.61
+      plh0258_h |     148,633        663,123          22.41
+        sampreg |           0        663,123           0.00
+   birthregio~w |           0        663,123           0.00
+         bioage |           0        663,123           0.00
+        migback |           0        663,123           0.00
+      pgbilzeit |     143,310        663,123          21.61
+         hghinc |      80,120        663,123          12.08
+       pgemplst |     143,310        663,123          21.61
+        pgexpft |     143,310        663,123          21.61
+----------------+-----------------------------------------------
+
+. 
+. gen nchild = sumkids
+
+. replace nchild = 5 if nchild > 5
+(7,063 real changes made)
+
+. 
+. gen mastat = pgfamstd == 1 | pgfamstd == 6 | pgfamstd == 7 | pgfamstd == 8
+
+. replace mastat = . if pgfamstd == .
+(143,310 real changes made, 143,310 to missing)
+
+. label define mastat 0 "Unmarried" 1 "Married"
+
+. label values mastat mastat
+
+. 
+. replace sampreg = sampreg - 1
+(663,123 real changes made)
+
+. replace birthregion_ew = birthregion_ew - 1
+(663,123 real changes made)
+
+. label define ew 0 "West" 1 "East"
+
+. label values sampreg ew
+
+. label values birthregion_ew ew
+
+. 
+. sort pid piyear
+
+. gen age = syear - gebjahr
+
+. gen age_sq = age^2
+
+. 
+. gen exp = pgexpft
+(143,310 missing values generated)
+
+. gen exp_sq = exp^2
+(143,310 missing values generated)
+
+. 
+. gen byte emplyd = inlist(pgemplst,1,2)
+
+. label define emp 0 "Not employed" 1 "Employed"
+
+. label values emplyd emp
+
+. 
+. label variable hghinc "Household net income"
+
+. global controls "i.nchild i.mastat i.sampreg age age_sq exp exp_sq i.migback 
+> pgbilzeit hghinc i.emplyd"
+
+. 
+. *-----------------------------
+. * Sample Restrictions
+. *-----------------------------
+. keep if inlist(pop,1,2)
+(89,279 observations deleted)
+
+. keep if sampreg >= 0 & inrange(age,18,50)
+(262,973 observations deleted)
+
+. keep if yearFirstChild > 0
+(103,248 observations deleted)
+
+. keep if inlist(syear, 2012, 2018)
+(184,661 observations deleted)
+
+. keep if inrange(yearFirstChild, 2013, 2017)
+(20,698 observations deleted)
+
+. 
+. bysort pid: egen byte has_eq_pre = max(!missing(id_gnorm_eq) & !Post & syear=
+> =2012)
+
+. bysort pid: egen byte has_eq_post = max(!missing(id_gnorm_eq) & Post & syear=
+> =2018)
+
+. 
+. 
+. *-----------------------------
+. * HYPOTHESIS TEST FOR H4 *
+. *-----------------------------
+. * Model Description:
+. * We test whether having a firstborn daughter increases support for gender eq
+> uality 
+. * more for men than for women using a triple-difference design.
+. * 
+. * Model: y = β₀ + β₁Man + β₂Daughter + β₃Post + β₄Man×Daughter + β₅Man×Post +
+>  
+. *            β₆Daughter×Post + β₇Man×Daughter×Post + γX + ε
+. *
+. * Key hypothesis: H₀: β₄ + β₇ = 0 vs H₁: β₄ + β₇ > 0
+. * This tests whether the effect of having a daughter is larger for men than w
+> omen.
+. 
+. * Create results file
+.     
+. 
+. keep if has_eq_pre & has_eq_post
+(1,466 observations deleted)
+
+. 
+. * Run triple-difference regression
+. reg id_gnorm_eq i.Man##i.Daughter##i.Post $controls, vce(cluster cid)
+
+Linear regression                               Number of obs     =        774
+                                                F(20, 285)        =      35.70
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.4167
+                                                Root MSE          =     .36431
+
+                                  (Std. err. adjusted for 286 clusters in cid)
+------------------------------------------------------------------------------
+             |               Robust
+ id_gnorm_eq | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+       1.Man |   .0338576   .0259532     1.30   0.193    -.0172265    .0849418
+  1.Daughter |   .0257681   .0297804     0.87   0.388    -.0328493    .0843856
+             |
+Man#Daughter |
+        1 1  |  -.0471065   .0328409    -1.43   0.153    -.1117479    .0175349
+             |
+      1.Post |   .6665882   .0481337    13.85   0.000     .5718456    .7613308
+             |
+    Man#Post |
+        1 1  |  -.0417387   .0684274    -0.61   0.542    -.1764259    .0929485
+             |
+    Daughter#|
+        Post |
+        1 1  |  -.1139763    .071251    -1.60   0.111    -.2542213    .0262687
+             |
+         Man#|
+    Daughter#|
+        Post |
+      1 1 1  |   .0969174   .0986136     0.98   0.327    -.0971858    .2910207
+             |
+      nchild |
+          2  |  -.0188786   .0301368    -0.63   0.532    -.0781974    .0404403
+          3  |  -.0441137   .0683413    -0.65   0.519    -.1786314     .090404
+             |
+      mastat |
+    Married  |  -.0367565   .0338176    -1.09   0.278    -.1033205    .0298075
+             |
+     sampreg |
+       East  |   .0710803   .0376726     1.89   0.060    -.0030716    .1452321
+         age |  -.0720047   .0239262    -3.01   0.003    -.1190993   -.0249102
+      age_sq |   .0011637   .0003677     3.16   0.002     .0004398    .0018875
+         exp |  -.0119655   .0077049    -1.55   0.122    -.0271313    .0032003
+      exp_sq |   .0002946   .0003563     0.83   0.409    -.0004067    .0009959
+             |
+     migback |
+[2] direc..  |   .0903641   .0469608     1.92   0.055    -.0020699    .1827981
+[3] indir..  |  -.0571043   .0489816    -1.17   0.245    -.1535159    .0393073
+             |
+   pgbilzeit |   .0019844   .0028715     0.69   0.490    -.0036676    .0076364
+      hghinc |  -8.16e-06   9.81e-06    -0.83   0.406    -.0000275    .0000112
+             |
+      emplyd |
+   Employed  |   .0148579   .0366296     0.41   0.685    -.0572409    .0869567
+       _cons |   1.135198   .3731127     3.04   0.003     .4007917    1.869604
+------------------------------------------------------------------------------
+
+. 
+. * Extract all coefficients and SEs
+. local b1 = _b[1.Man]
+
+. local s1 = _se[1.Man]
+
+. local b2 = _b[1.Daughter]
+
+. local s2 = _se[1.Daughter]
+
+. local b3 = _b[1.Post]
+
+. local s3 = _se[1.Post]
+
+. local b4 = _b[1.Man#1.Daughter]
+
+. local s4 = _se[1.Man#1.Daughter]
+
+. local b5 = _b[1.Man#1.Post]
+
+. local s5 = _se[1.Man#1.Post]
+
+. local b6 = _b[1.Daughter#1.Post]
+
+. local s6 = _se[1.Daughter#1.Post]
+
+. local b7 = _b[1.Man#1.Daughter#1.Post]
+
+. local s7 = _se[1.Man#1.Daughter#1.Post]
+
+. 
+. 
+. 
+. 
+. * Hypothesis test: beta4 + beta7
+. lincom 1.Man#1.Daughter + 1.Man#1.Daughter#1.Post
+
+ ( 1)  1.Man#1.Daughter + 1.Man#1.Daughter#1.Post = 0
+
+------------------------------------------------------------------------------
+ id_gnorm_eq | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+         (1) |   .0498109   .0923428     0.54   0.590    -.1319495    .2315713
+------------------------------------------------------------------------------
+
+. local bsum = r(estimate)
+
+. local ssum = r(se)
+
+. local tsum = `bsum'/`ssum'
+
+. local pvalsum = ttail(e(df_r), `tsum')
+
+. local interp = "positive coefficient is in line with hypothesis"
+
+. 
+. 
+. * Summary stats
+. local df_m = e(df_m)
+
+. local df_r = e(df_r)
+
+. local Nobs = e(N)
+
+. quietly levelsof pid if e(sample), local(ids)
+
+. local Nind: word count `ids'
+
+. local R2 = e(r2)
+
+. local test_stat_family = "t"
+
+. 
+. 
+. * Export results to csv 
+.         file open myfile using "$OUT/h4_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/95_re
+    > sults/h4_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`bsum', `ssum', `test_stat_family', `df_r', `df_m'
+> ,`pvalsum',`Nobs',`Nind', `interp'" _n
+
+.         file close myfile
+
+. **************************************************************************
+. * End of H4 Triple‐Difference Analysis                                     *
+. **************************************************************************
+. 
+end of do-file
+
+. 
+end of do-file

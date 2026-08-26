@@ -1,0 +1,809 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmpsbogk0o8.do 
+
+. do "95%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. * the following code automatically sets paths based on the project location o
+> n your system *
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/95%-sample" // folder, in which the or
+> iginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/95%-sample
+
+. global DATA "$ROOT/data/derived_confidential/95%-sample" // folder for datase
+> ts
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/95%-sample
+
+. global OUT "$ROOT/data/derived/95_results" // folder for output (results, tab
+> les)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/95_results
+
+. 
+end of do-file
+
+. do "20250721_155729_01zoow_h1.do"
+
+. *****************************************************************************
+> ***
+. ****************** Example Do-File H1: #ManyDaughters Project ***************
+> ***
+. *****************************************************************************
+> ***
+. 
+. * Authors: Blake H. [REDACTED] and [REDACTED] (adapted from template
+>  by Tina Wang and David Albrecht)
+. * Created: 8 July 2025
+. * Last Updated: 21 July 2025
+. 
+. * ============================
+. * Setup * 
+. * ============================
+. 
+. 
+. *clear all
+. version 17 // indicate the version of stata you are using here
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. * INSTALL PACKAGES * 
+. * install all packages you need here, for example:
+. ssc install outreg2
+checking outreg2 consistency and verifying not already installed...
+all files already exist and are up to date.
+
+. ssc install egenmore
+checking egenmore consistency and verifying not already installed...
+all files already exist and are up to date.
+
+. /*
+> * CONFIGURE FILE PATHS * (Please do not change)
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> disp "$IN"
+> disp "$DATA"
+> disp "$OUT"
+> */
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA * 
+. 
+.         use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. 
+.         * Merge ppathl with all datasets relevant for the analysis. 
+. 
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches)
+(variable pid was long, now double to accommodate using data's values)
+(variable cid was long, now double to accommodate using data's values)
+(variable gebjahr was int, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * pgen contains user-friendly data on the individual level that are c
+> onsolidated from different sources
+.         merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * pl contains all variables from the individual questionnaire
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches)
+(variable inputdataset was str6, now str9 to accommodate using data's values)
+(label cid_EN already defined)
+(label pid_EN already defined)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * hgen contains generated variables on household level from the house
+> hold interview; use for household net income and state of residence
+.         merge m:1 hid syear using "$IN/hgen.dta", nogen keep(master matches) 
+> keepusing(hid syear hghinc hgnuts1)
+(label iyear already defined)
+(label iyear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. 
+.         label language EN // change language of the labels to English
+
+. 
+.         save "$DATA/h1_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h1_dataset.dta saved
+
+. 
+. 
+. * ============================
+. * Analysis
+. * ============================
+. 
+. * FILTERS * 
+.  
+.  
+. *Keep only respondents with valid answers to plh0308_v2
+. replace plh0308_v2=. if plh0308_v2<0
+(490,191 real changes made, 490,191 to missing)
+
+. drop if mi(plh0308_v2)
+(638,824 observations deleted)
+
+. 
+. *confirm that all responses to plh0308_v2 occur during the 2018 survey year
+. assert syear==2018
+
+.  
+. 
+. *Keep only respondents with at least one child with known sex when survey was
+>  administered
+.         foreach var of varlist kidgeb01-kidgeb19{
+  2.         replace `var'=. if `var'<0
+  3. }
+(6,822 real changes made, 6,822 to missing)
+(11,627 real changes made, 11,627 to missing)
+(19,412 real changes made, 19,412 to missing)
+(22,766 real changes made, 22,766 to missing)
+(23,789 real changes made, 23,789 to missing)
+(24,101 real changes made, 24,101 to missing)
+(24,216 real changes made, 24,216 to missing)
+(24,268 real changes made, 24,268 to missing)
+(24,280 real changes made, 24,280 to missing)
+(24,290 real changes made, 24,290 to missing)
+(24,294 real changes made, 24,294 to missing)
+(24,295 real changes made, 24,295 to missing)
+(24,298 real changes made, 24,298 to missing)
+(24,298 real changes made, 24,298 to missing)
+(24,298 real changes made, 24,298 to missing)
+(24,298 real changes made, 24,298 to missing)
+(24,298 real changes made, 24,298 to missing)
+(24,299 real changes made, 24,299 to missing)
+(24,299 real changes made, 24,299 to missing)
+
+. 
+. *generate count of children/daughters
+. gen num_daughters=0
+
+. gen num_kids=0
+
+. foreach n in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18{
+  2. replace num_daughters=num_daughters+1 if kidsex`n'==2 & kidgeb`n'<=2018
+  3. replace num_kids=num_kids+1 if (kidsex`n'==1|kidsex`n'==2) & kidgeb`n'<=20
+> 18
+  4. }
+(8,469 real changes made)
+(17,314 real changes made)
+(6,088 real changes made)
+(12,466 real changes made)
+(2,314 real changes made)
+(4,811 real changes made)
+(734 real changes made)
+(1,507 real changes made)
+(243 real changes made)
+(497 real changes made)
+(80 real changes made)
+(189 real changes made)
+(43 real changes made)
+(78 real changes made)
+(10 real changes made)
+(31 real changes made)
+(12 real changes made)
+(19 real changes made)
+(4 real changes made)
+(9 real changes made)
+(3 real changes made)
+(5 real changes made)
+(2 real changes made)
+(4 real changes made)
+(0 real changes made)
+(1 real change made)
+(0 real changes made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(0 real changes made)
+(1 real change made)
+(1 real change made)
+(1 real change made)
+(0 real changes made)
+(0 real changes made)
+
+. 
+. drop if num_kids==0
+(6,971 observations deleted)
+
+. 
+. 
+. * GENERATE VARIABLES * 
+. 
+. *standardize measure of support for gender equality
+. su plh0308_v2
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+  plh0308_v2 |     17,328    5.420302    1.764909          1          7
+
+. local mean=r(mean)
+
+. local sd=r(sd)
+
+. gen std_support_gen_eq=(plh0308_v2-`mean')/`sd'
+
+. 
+. 
+. 
+. *generate covariates
+. 
+. gen r_male = (sex==1)
+
+. gen r_age = syear- gebjahr
+
+. 
+. *generate educational attainment indicators (educ_*)
+. replace pgpsbil =. if pgpsbil<0
+(294 real changes made, 294 to missing)
+
+. replace pgpbbil01 = . if pgpbbil01<0
+(5,808 real changes made, 5,808 to missing)
+
+. replace pgpbbil02 = . if pgpbbil02<0
+(12,833 real changes made, 12,833 to missing)
+
+. 
+. *impute "Intermediate School Degree" (the most common value of pgpsbil for in
+> dividuals with non-missing pgpbbil01) to individuals with non-missing vocatio
+> nal degree data but missing educational attainment
+. replace pgpsbil=2 if mi(pgpsbil)&!mi(pgpbbil01)
+(107 real changes made)
+
+. *impute "Upper Secondary Degree" (the most common value of pgpsbil for indivi
+> duals with non-missing pgpbbil02) to individuals with non-missing university 
+> degree data but missing educational attainment
+. replace pgpsbil=4 if mi(pgpsbil)&!mi(pgpbbil02)
+(34 real changes made)
+
+. tab pgpsbil, gen(r_educ_)
+
+                  School-Leaving Degree |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+            [1] Secondary School Degree |      4,363       25.40       25.40
+         [2] Intermediate School Degree |      5,429       31.61       57.01
+            [3] Technical School Degree |      1,011        5.89       62.90
+             [4] Upper Secondary Degree |      3,770       21.95       84.85
+                       [5] Other Degree |      2,196       12.79       97.64
+          [6] Dropout, No School Degree |        405        2.36       99.99
+               [7] No School Degree Yet |          1        0.01      100.00
+----------------------------------------+-----------------------------------
+                                  Total |     17,175      100.00
+
+. gen mi_educ=mi(pgpsbil)&mi(pgpbbil01)&mi(pgpbbil02)
+
+. gen r_educ_vocational=!mi(pgpbbil01)
+
+. gen r_educ_academic=!mi(pgpbbil02)
+
+. foreach var of varlist r_educ*{
+  2.         replace `var'=0 if mi(`var') & mi_educ==1
+  3. }
+(153 real changes made)
+(153 real changes made)
+(153 real changes made)
+(153 real changes made)
+(153 real changes made)
+(153 real changes made)
+(153 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. 
+. gen r_full_time = (pgemplst==1)
+
+. gen r_part_time = (pgemplst==2|pgemplst==4)
+
+. gen r_voc_training = (pgemplst==3|pgemplst==6)
+
+. gen r_unemployed = (pgemplst==5)
+
+. gen mi_work_status = (pgemplst==.|pgemplst<0)
+
+. 
+. 
+. replace pglabgro=. if  pglabgro<0
+(6,496 real changes made, 6,496 to missing)
+
+. replace pgsndjob=. if pgsndjob<0
+(17,328 real changes made, 17,328 to missing)
+
+. egen indiv_income = rowtotal(pglabgro pgsndjob)
+
+. bys hid syear: egen r_hhld_income = total(indiv_income)
+
+. 
+. replace pgfamstd=. if pgfamstd<0
+(49 real changes made, 49 to missing)
+
+. gen r_married=(pgfamstd==1)
+
+. gen r_separated=(pgfamstd==2)
+
+. gen r_single=(pgfamstd==3)
+
+. gen r_divorced=(pgfamstd==4)
+
+. gen r_widowed=(pgfamstd==5)
+
+. gen r_spouse_abroad=(pgfamstd==6)
+
+. gen r_registered_partnership=(inlist(pgfamstd,7,8))
+
+. gen mi_marital_status=mi(pgfamstd)
+
+. 
+. replace plh0258_h=. if plh0258_h<0
+(17,328 real changes made, 17,328 to missing)
+
+. gen r_catholic=(plh0258_h==1)
+
+. gen r_other_christian = (inlist(plh0258_h,2,3,7))
+
+. gen r_muslim = (inlist(plh0258_h,4,8,9,10))
+
+. gen r_other_non_christian = (plh0258_h==5)
+
+. gen r_no_affiliation=(plh0258_h==6)
+
+. gen mi_religion= (plh0258_h==.)
+
+. 
+. 
+. *country of origin can't be negative for regression—replace -1 with 0
+. replace corigin = 0 if corigin==-1
+(2 real changes made)
+
+. 
+. *identify hhlds with missing data on state of residence
+. replace hgnuts1=0 if mi(hgnuts1)
+(17 real changes made)
+
+. 
+. 
+. 
+. 
+. * HYPOTHESIS TEST FOR H1 * 
+. 
+.         * We standardize responses to plh0308_v2, a question that asks whethe
+> r respondents believe it is "Best if man and woman work the same amount so th
+> ey can share the responsibility" to construct our dependent variable, std_sup
+> port_gen_eq.  We take this to a good measure of support for gender equality (
+> H1). If H1 is true and having daughters leads to more support for gender equa
+> lity, respondents will be more likely to agree or agree more strongly with th
+> e statement (i.e., answer closer to 7 on plh0308_v2). We estimate the paramet
+> er of interest, the coefficient on NumDaughters, from a linear OLS regression
+>  analysis with std_support_gen_eq as dependent variable and the count variabl
+> e num_daughters as independent variable, controlling for demographic characte
+> ristics, missing data, country of origin, state of residence, total family si
+> ze, and survey wave. We weight responses using the individual weight (phrf) p
+> rovided by the SOEP.
+. 
+. 
+.         reg std_support_gen_eq num_daughters r_* mi_* i.corigin i.syear i.hgn
+> uts1 num_kids [aweight=phrf] if num_kids!=0, r
+(sum of wgt is 41,801,587.42)
+note: r_unemployed omitted because of collinearity.
+note: r_catholic omitted because of collinearity.
+note: r_other_christian omitted because of collinearity.
+note: r_muslim omitted because of collinearity.
+note: r_other_non_christian omitted because of collinearity.
+note: r_no_affiliation omitted because of collinearity.
+note: mi_educ omitted because of collinearity.
+note: mi_work_status omitted because of collinearity.
+note: mi_marital_status omitted because of collinearity.
+note: mi_religion omitted because of collinearity.
+note: 2018.syear omitted because of collinearity.
+
+Linear regression                               Number of obs     =     17,255
+                                                F(139, 17091)     =          .
+                                                Prob > F          =          .
+                                                R-squared         =     0.0811
+                                                Root MSE          =     .95361
+
+------------------------------------------------------------------------------
+             |               Robust
+std_suppor~q | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+num_daught~s |  -.0085284    .015232    -0.56   0.576    -.0383846    .0213279
+      r_male |  -.1459388   .0248666    -5.87   0.000    -.1946798   -.0971978
+       r_age |   .0065508   .0010701     6.12   0.000     .0044533    .0086483
+    r_educ_1 |   .1441657   .1442112     1.00   0.317     -.138503    .4268345
+    r_educ_2 |   .0775892   .1442284     0.54   0.591    -.2051133    .3602917
+    r_educ_3 |   .1329349   .1512376     0.88   0.379    -.1635064    .4293763
+    r_educ_4 |   .0925888   .1454405     0.64   0.524    -.1924894    .3776671
+    r_educ_5 |   .1930087    .149662     1.29   0.197    -.1003443    .4863617
+    r_educ_6 |   .1640667   .1623658     1.01   0.312     -.154187    .4823203
+    r_educ_7 |  -1.610177   .1501475   -10.72   0.000    -1.904482   -1.315872
+r_educ_voc~l |  -.0083054   .0297019    -0.28   0.780    -.0665242    .0499133
+r_educ_aca~c |   .0602884   .0353374     1.71   0.088    -.0089765    .1295533
+ r_full_time |   .0765909   .0357235     2.14   0.032     .0065693    .1466126
+ r_part_time |  -.0181106   .0339119    -0.53   0.593    -.0845814    .0483601
+r_voc_trai~g |   .2671379   .2099156     1.27   0.203    -.1443181     .678594
+r_unemployed |          0  (omitted)
+r_hhld_inc~e |  -.0000159   3.91e-06    -4.07   0.000    -.0000236   -8.24e-06
+   r_married |   .2230375   .1377323     1.62   0.105    -.0469321     .493007
+ r_separated |   .4183749   .1507158     2.78   0.006     .1229565    .7137933
+    r_single |   .2556708   .1461978     1.75   0.080     -.030892    .5422335
+  r_divorced |   .3236551   .1407028     2.30   0.021     .0478632    .5994471
+   r_widowed |   .2133267   .1409186     1.51   0.130    -.0628882    .4895416
+r_spouse_a~d |  -.0873735    .603019    -0.14   0.885    -1.269353    1.094606
+r_register~p |   .3417726   .2822688     1.21   0.226    -.2115034    .8950485
+  r_catholic |          0  (omitted)
+r_other_ch~n |          0  (omitted)
+    r_muslim |          0  (omitted)
+r_other_no~n |          0  (omitted)
+r_no_affil~n |          0  (omitted)
+     mi_educ |          0  (omitted)
+mi_work_st~s |          0  (omitted)
+mi_marital~s |          0  (omitted)
+ mi_religion |          0  (omitted)
+             |
+     corigin |
+[1] Germany  |   .9061672   .5598874     1.62   0.106    -.1912697    2.003604
+ [2] Turkey  |   .6643356   .5715775     1.16   0.245     -.456015    1.784686
+[3] Ex-Yu..  |   1.097162   .7640491     1.44   0.151    -.4004524    2.594777
+ [4] Greece  |   .8991343   .5891689     1.53   0.127    -.2556972    2.053966
+  [5] Italy  |   1.235625   .5759443     2.15   0.032     .1067147    2.364535
+  [6] Spain  |    .930959   .6251549     1.49   0.136     -.294409    2.156327
+[10] Aust..  |   .6727707   .6422413     1.05   0.295    -.5860882     1.93163
+[11] France  |   1.215279    .601877     2.02   0.043     .0355382     2.39502
+[13] Denm..  |   1.063071   .6224862     1.71   0.088     -.157066    2.283208
+[14] Grea..  |   1.187145   .6537061     1.82   0.069    -.0941866    2.468476
+[15] Sweden  |    1.70525    .590503     2.89   0.004     .5478036    2.862697
+[16] Norway  |   1.833802   .5645109     3.25   0.001     .7273022    2.940301
+[17] Finl..  |   1.157492   .6127484     1.89   0.059     -.043558    2.358542
+   [18] USA  |   .8438561   .6361861     1.33   0.185     -.403134    2.090846
+[19] Swit..  |   .7738019   .6089763     1.27   0.204    -.4198542    1.967458
+ [20] Chile  |    1.26161    .572822     2.20   0.028     .1388195      2.3844
+[21] Roma..  |    1.22667   .5716834     2.15   0.032     .1061121    2.347228
+[22] Poland  |    .880215    .567711     1.55   0.121     -.232557    1.992987
+ [23] Korea  |  -.3981224   .5639025    -0.71   0.480    -1.503429    .7071845
+  [24] Iran  |   1.341719   .5732671     2.34   0.019     .2180564    2.465381
+[25] Indo..  |   .3554169   .7769951     0.46   0.647    -1.167573    1.878407
+[26] Hung..  |   .7799798   .6108923     1.28   0.202    -.4174319    1.977391
+[27] Boli..  |  -1.611909   .5627321    -2.86   0.004    -2.714922   -.5088961
+[28] Port..  |   .8807158   .6653342     1.32   0.186    -.4234077    2.184839
+[29] Bulg..  |   1.044121   .5918536     1.76   0.078    -.1159728    2.204215
+ [30] Syria  |   .7462351   .6184629     1.21   0.228    -.4660158    1.958486
+[31] Czec..  |   .7976471    .707155     1.13   0.259    -.5884495    2.183744
+[32] Russia  |   .9008488   .5664617     1.59   0.112    -.2094744    2.011172
+[34] Mexico  |   1.141184   .6410083     1.78   0.075    -.1152586    2.397626
+[35] Arge..  |  -.3803347   .6295396    -0.60   0.546    -1.614297    .8536276
+ [37] Benin  |   1.950815   .5658669     3.45   0.001     .8416575    3.059972
+[38] Phil..  |    1.10093   .5842966     1.88   0.060    -.0443509    2.246212
+[39] Israel  |   .8763358   .5961123     1.47   0.142    -.2921056    2.044777
+ [40] Japan  |  -.1959559   .7137533    -0.27   0.784    -1.594986    1.203074
+[41] Aust..  |   .6766322   .5631375     1.20   0.230    -.4271752     1.78044
+ [42] India  |    1.04055   .7024289     1.48   0.139    -.3362827    2.417383
+[43] Afgh..  |   .9203766   .6620057     1.39   0.164    -.3772226    2.217976
+[44] Thai..  |   .4108346   .7375059     0.56   0.577    -1.034753    1.856422
+[45] Jama..  |   1.409785    .714996     1.97   0.049     .0083198    2.811251
+[47] Ethi..  |   1.056914   .6104355     1.73   0.083     -.139602     2.25343
+[48] Colu..  |   1.600235   .5611732     2.85   0.004     .5002783    2.700193
+ [49] Ghana  |   .6663682    .647369     1.03   0.303    -.6025416    1.935278
+[50] Bang..  |   .4044226   .5792553     0.70   0.485    -.7309773    1.539823
+[51] Vene..  |   .4071836   .5618651     0.72   0.469    -.6941298    1.508497
+[52] Tuni..  |   1.554431   .5774946     2.69   0.007     .4224823     2.68638
+[54] Nige..  |   .5112289   .7847572     0.65   0.515    -1.026976    2.049434
+[55] Canada  |   .1129261   .5697418     0.20   0.843    -1.003826    1.229679
+[56] New ..  |   1.395075   .7719353     1.81   0.071    -.1179979    2.908147
+  [59] Cuba  |   2.004529   .5720821     3.50   0.000     .8831897    3.125869
+  [60] Iraq  |   .8717696   .6373789     1.37   0.171    -.3775586    2.121098
+[61] Brazil  |   .8993305   .7534829     1.19   0.233    -.5775734    2.376234
+  [64] Peru  |   1.439538   .6461998     2.23   0.026     .1729199    2.706156
+[65] Sri ..  |   1.299992   .6256526     2.08   0.038     .0736484    2.526335
+ [66] Nepal  |   2.057017   .5614343     3.66   0.000     .9565479    3.157486
+[67] Moro..  |   .5466477   .6206291     0.88   0.378    -.6698492    1.763145
+ [68] China  |   .9718792   .5949691     1.63   0.102    -.1943214     2.13808
+[71] Irel..  |   1.309501   .7932785     1.65   0.099    -.2454059    2.864409
+[73] Mold..  |   .6903732   .6038044     1.14   0.253    -.4931455    1.873892
+[74] Kaza..  |   .8337714   .5757772     1.45   0.148    -.2948111    1.962354
+[75] Alba..  |   .9149804    .613123     1.49   0.136    -.2868038    2.116765
+[76] Leba..  |   1.522829   .5855679     2.60   0.009     .3750556    2.670602
+[77] Kyrg..  |   .5747593   .7390642     0.78   0.437    -.8738825    2.023401
+[78] Ukra..  |    1.03196   .5899062     1.75   0.080    -.1243168    2.188237
+[79] Alge..  |  -.5272627   .7719308    -0.68   0.495    -2.040327    .9858011
+[80] Moza..  |   1.407078   .5650238     2.49   0.013     .2995736    2.514583
+ [81] Egypt  |   .3220293   .9195502     0.35   0.726    -1.480384    2.124442
+[82] Taji..  |   .9455308   .5906216     1.60   0.109    -.2121482     2.10321
+[83] Viet..  |   .8765659   .5740455     1.53   0.127    -.2486222    2.001754
+[84] Soma..  |   .4248997   .6675487     0.64   0.524    -.8835643    1.733364
+[85] Paki..  |   .4983134   .6296379     0.79   0.429    -.7358416    1.732468
+[86] Sout..  |   1.613311    .565852     2.85   0.004     .5041827    2.722439
+[89] Erit..  |  -.5096794   .5677908    -0.90   0.369    -1.622608    .6032489
+[90] Jordan  |   .6787247   .7334733     0.93   0.355    -.7589583    2.116408
+[95] Zambia  |   1.467299   .5667922     2.59   0.010     .3563277     2.57827
+[96] Ecua..  |   1.587427   .6451313     2.46   0.014     .3229035    2.851951
+[97] Uzbe..  |   .4499517   .7159226     0.63   0.530    -.9533303    1.853234
+[101] Est..  |   .1020567   .5772941     0.18   0.860    -1.029499    1.233612
+[102] Ang..  |   1.198525   .5680674     2.11   0.035     .0850545    2.311995
+[103] Lat..  |  -.4461386   .6011711    -0.74   0.458    -1.624496    .7322185
+[105] Nam..  |   1.148087   .5710006     2.01   0.044     .0288672    2.267307
+[108] Dom..  |   .8895741   .8041379     1.11   0.269    -.6866188    2.465767
+[109] Nic..  |   1.322364   .8230234     1.61   0.108    -.2908467    2.935574
+[110] Kenya  |  -.0815529   .9589121    -0.09   0.932    -1.961119    1.798013
+[111] Libya  |  -.8165235   .5612701    -1.45   0.146    -1.916671    .2836236
+[113] Bot..  |   2.067062    .564261     3.66   0.000     .9610529    3.173072
+[116] Lux..  |   1.177456   .5728314     2.06   0.040     .0546476    2.300265
+[117] Bel..  |   .2136725   .8671779     0.25   0.805    -1.486085     1.91343
+[118] The..  |   .6971641   .5945127     1.17   0.241    -.4681419     1.86247
+[119] Cro..  |   1.274484   .5763812     2.21   0.027     .1447174     2.40425
+[120] Bos..  |   .7971523   .5987575     1.33   0.183     -.376474    1.970779
+[121] Mac..  |    .826879   .6256903     1.32   0.186    -.3995384    2.053296
+[122] Slo..  |   .8400058   .7084044     1.19   0.236    -.5485396    2.228551
+[123] Slo..  |   1.434817   .6440669     2.23   0.026     .1723801    2.697255
+[124] Par..  |   2.011268   .5631989     3.57   0.000     .9073402    3.115196
+[125] Gui..  |   .7821024   .5892049     1.33   0.184    -.3727997    1.937004
+[126] Kuw..  |   1.998114   .5637358     3.54   0.000     .8931342    3.103094
+[127] Ivo..  |     .39614    .564152     0.70   0.483    -.7096559    1.501936
+[128] Mal..  |   1.265163   .5642524     2.24   0.025     .1591706    2.371156
+[129] Samoa  |   1.271371   .5683753     2.24   0.025     .1572965    2.385445
+[130] Aze..  |   1.643527   .5688914     2.89   0.004     .5284412    2.758612
+[132] Bel..  |   1.051131   .6056772     1.74   0.083    -.1360586    2.238321
+[133] Uru..  |   .3357354    .561196     0.60   0.550    -.7642664    1.435737
+[139] Cam..  |  -.2636947   .7022413    -0.38   0.707     -1.64016    1.112771
+[140] Kos..  |   .6380914    .585253     1.09   0.276    -.5090647    1.785248
+[141] Geo..  |   .6894453   .6317297     1.09   0.275    -.5488098      1.9277
+[143] Congo  |  -.6325521   .6553561    -0.97   0.334    -1.917117    .6520132
+ [144] Togo  |   .1920837   .6730966     0.29   0.775    -1.127255    1.511422
+[146] Lit..  |   1.522119   .5845157     2.60   0.009     .3764078     2.66783
+[148] Arm..  |    1.02023   .7224316     1.41   0.158    -.3958104     2.43627
+[152] Pal..  |   .6832058   .7022876     0.97   0.331    -.6933502    2.059762
+[154] Tai..  |   .0252326   .5735443     0.04   0.965    -1.098973    1.149438
+[155] Tur..  |    2.04577   .5655489     3.62   0.000     .9372356    3.154303
+[158] Si..)  |   1.593987   .5633195     2.83   0.005     .4898224    2.698151
+[162] Sen..  |   1.720851   .5669568     3.04   0.002     .6095578    2.832145
+[165] Ser..  |   1.000895   .5949278     1.68   0.093     -.165225    2.167014
+[166] Gam..  |  -.0654769   .5727798    -0.11   0.909    -1.188184     1.05723
+[168] Mon..  |   .1290564   .9189028     0.14   0.888    -1.672088      1.9302
+[169] Cam..  |    1.90728   .5695944     3.35   0.001      .790816    3.023743
+[170] Sur..  |   1.911462   .5644021     3.39   0.001     .8051763    3.017749
+[171] Guy..  |   1.555951   .5675581     2.74   0.006     .4434788    2.668423
+[173] Zim..  |  -.4485566   .5671269    -0.79   0.429    -1.560184    .6630705
+[183] Niger  |   1.721845   .6091938     2.83   0.005     .5277623    2.915927
+[190] Dji..  |  -1.220153   .5686451    -2.15   0.032    -2.334756   -.1055504
+[196] Kos..  |   .2106507   .5740334     0.37   0.714    -.9145138    1.335815
+             |
+       syear |
+       2018  |          0  (omitted)
+             |
+     hgnuts1 |
+[2] Bavaria  |   .0418609   .0472204     0.89   0.375     -.050696    .1344178
+ [3] Berlin  |   .4821561   .0623055     7.74   0.000     .3600308    .6042814
+[4] Brand..  |   .6377643   .0541983    11.77   0.000       .53153    .7439986
+ [5] Bremen  |   .5082685    .095528     5.32   0.000     .3210237    .6955132
+[6] Hamburg  |   .2097643   .0921172     2.28   0.023     .0292052    .3903234
+  [7] Hesse  |    .032992   .0593076     0.56   0.578    -.0832571    .1492411
+[8] Meckl..  |   .6193876    .060135    10.30   0.000     .5015167    .7372585
+[9] Lower..  |   .1033981   .0516423     2.00   0.045      .002174    .2046223
+[10] Nort..  |   .1345759    .043434     3.10   0.002     .0494407    .2197111
+[11] Rhin..  |   .0753064   .0627415     1.20   0.230    -.0476734    .1982862
+[12] Saar..  |   .1402744   .1068134     1.31   0.189    -.0690908    .3496396
+[13] Saxony  |   .4855607   .0549742     8.83   0.000     .3778057    .5933157
+[14] Saxo..  |   .5566294   .0567125     9.81   0.000     .4454671    .6677916
+[15] Schl..  |    .165429   .0611849     2.70   0.007     .0455004    .2853576
+[16] Thur..  |   .4692942   .0703413     6.67   0.000     .3314181    .6071704
+             |
+    num_kids |  -.0317498   .0135877    -2.34   0.019    -.0583831   -.0051166
+       _cons |  -1.676549   .5816639    -2.88   0.004     -2.81667   -.5364281
+------------------------------------------------------------------------------
+
+. 
+. 
+. * EXTRACT AND EXPORT RESULTS * 
+. 
+.         * Extract the required statistics
+. 
+.                 * (i) coefficient estimate
+.                 local coefficient = _b[num_daughters]
+
+. 
+.                 * (ii) standard error
+.                 local se = _se[num_daughters]
+
+. 
+.                 * (iii) family of the test statistic (one-sided T statistic)
+.                 local test_stat_family = "t"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+.                 * (v) p-value from one-sided test
+.                 local coef_sign = sign(_b[num_daughters])
+
+.                 test num_daughters
+
+ ( 1)  num_daughters = 0
+
+       F(  1, 17091) =    0.31
+            Prob > F =    0.5756
+
+.                 local p_value = ttail(r(df_r),`coef_sign'*sqrt(r(F)))
+
+.                 display "H_1: coef<=0  p-value = `p_value'"
+H_1: coef<=0  p-value = .712222101352894
+
+.                 
+.                 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation 
+.                 
+.                 local interpretation "positive coefficient is in line with hy
+> pothesis"
+
+. 
+. 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: -.0085283690284872
+
+.         di "Standard Error: `se'"
+Standard Error: .0152319827293975
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: t
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: 17091
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 139
+
+.         di "p-value: " `p_value'
+p-value: .7122221
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 17255
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 17255
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h1_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/95_re
+    > sults/h1_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

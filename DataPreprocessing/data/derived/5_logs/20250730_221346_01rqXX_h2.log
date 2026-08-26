@@ -1,0 +1,745 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmpzdlf6epo.do 
+
+. do "5%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. 
+. * the following code automatically sets paths based on the project location o
+> n your system *local curdir = c(pwd)
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/5%-sample" // folder, in which the ori
+> ginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/5%-sample
+
+. global DATA "$ROOT/data/derived_confidential/5%-sample" // folder for dataset
+> s
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/5%-sample
+
+. global OUT "$ROOT/data/derived/5_results" // folder for output (results, tabl
+> es)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/5_results
+
+. 
+end of do-file
+
+. do "20250730_221346_01rqXX_h2.do"
+
+. *****************************************************************************
+> ***
+. ****************** Example Do-File H2: #ManyDaughters Project ***************
+> ***
+. *****************************************************************************
+> ***
+. 
+. * Authors: Tina Wang, David Albrecht
+. 
+. * ============================
+. * Setup * (Please adapt according to your needs)
+. * ============================
+. 
+. * clear all
+. version 17 // indicate the version of stata you are using here
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. * INSTALL PACKAGES * (Please adapt according to your needs)
+. * install all packages you need here, for example:
+. ssc install outreg2
+checking outreg2 consistency and verifying not already installed...
+all files already exist and are up to date.
+
+. 
+. /*
+> * CONFIGURE FILE PATHS * (Please do not change)
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> */ 
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA * (Please adapt according to your needs)
+. 
+.         use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. 
+.         * Merge ppathl with all datasets, that you deem relevant for your ana
+> lysis. (Tip: use keepusing() to specify which variables to keep from the usin
+> g dataset; the default is all.)
+. 
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches)
+(variable pid was long, now double to accommodate using data's values)
+(variable cid was long, now double to accommodate using data's values)
+(variable gebjahr was int, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * pgen contains user-friendly data on the individual level that are c
+> onsolidated from different sources
+.         merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * pl contains all variables from the individual questionnaire
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches)
+(variable inputdataset was str6, now str9 to accommodate using data's values)
+(label cid already defined)
+(label pid_EN already defined)
+(label cid_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * hgen contains generated variables on household level from the house
+> hold interview; use for household net income
+.         merge m:1 hid syear using "$IN/hgen.dta", nogen keep(master matches) 
+> keepusing(hid syear hghinc)
+(label iyear already defined)
+(label iyear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+. 
+.         label language EN // change language of the labels to English
+
+. 
+.         save "$DATA/h2_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/5%-sample/h2_dataset.dta saved
+
+. 
+. 
+. * ============================
+. * Analysis
+. * ============================
+. 
+. * FILTERS * (Please adapt according to your needs)
+.  
+.         * Example: only keep participants from private households
+.         keep if inlist(pop,1,2)
+(4,698 observations deleted)
+
+. 
+. 
+. * GENERATE VARIABLES * (Please adapt according to your needs)
+. 
+.         * Example: generate dummy variable for whether participant has at lea
+> st one daughter (1) or not (0)
+.         * For illustrative purposes, we will generate the variable randomly:
+.         
+.         gen d_daughter =0 
+
+. forvalues i=1(1)9{
+  2.         replace d_daughter = 1 if kidsex0`i'==2
+  3. }
+(9,889 real changes made)
+(4,837 real changes made)
+(717 real changes made)
+(89 real changes made)
+(22 real changes made)
+(4 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. forvalues i=10(1)19{
+  2.         replace d_daughter = 1 if kidsex`i'==2
+  3. }       
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. 
+. 
+. tab1 plh0301 plh0303 plh0307 plh0308_v1 plh0308_v2
+
+-> tabulation of plh0301  
+
+    Fam: Women Should Rather Care About |
+                     Family Than Career |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+[-8] Question this year not part of sur |     25,296       94.80       94.80
+[-5] Not included in this version of th |      1,019        3.82       98.62
+                         [-1] No answer |          4        0.01       98.64
+                [1] [de] Stimme voll zu |         45        0.17       98.80
+                [2] [de] Stimme eher zu |         94        0.35       99.16
+          [3] [de] Stimme eher nicht zu |        147        0.55       99.71
+    [4] [de] Stimme ueberhaupt nicht zu |         78        0.29      100.00
+----------------------------------------+-----------------------------------
+                                  Total |     26,683      100.00
+
+-> tabulation of plh0303  
+
+         Fam: Men Involved in Housework |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+[-8] Question this year not part of sur |     25,296       94.80       94.80
+[-5] Not included in this version of th |      1,019        3.82       98.62
+                         [-1] No answer |          3        0.01       98.63
+                [1] [de] Stimme voll zu |        198        0.74       99.37
+                [2] [de] Stimme eher zu |        132        0.49       99.87
+          [3] [de] Stimme eher nicht zu |         29        0.11       99.98
+    [4] [de] Stimme ueberhaupt nicht zu |          6        0.02      100.00
+----------------------------------------+-----------------------------------
+                                  Total |     26,683      100.00
+
+-> tabulation of plh0307  
+
+     Fam: Men Care more About Financial |
+                               Security |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+[-8] Question this year not part of sur |     25,296       94.80       94.80
+[-5] Not included in this version of th |      1,019        3.82       98.62
+                         [-1] No answer |          1        0.00       98.62
+                [1] [de] Stimme voll zu |         48        0.18       98.80
+                [2] [de] Stimme eher zu |        114        0.43       99.23
+          [3] [de] Stimme eher nicht zu |        120        0.45       99.68
+    [4] [de] Stimme ueberhaupt nicht zu |         85        0.32      100.00
+----------------------------------------+-----------------------------------
+                                  Total |     26,683      100.00
+
+-> tabulation of plh0308_v1  
+
+[de] Fam: Mann/Frau in gleich in Arbeit |
+       u. Haushalt/Familie (FID) [2012] |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+[-8] Question this year not part of sur |     25,296       94.80       94.80
+[-5] Not included in this version of th |      1,019        3.82       98.62
+                         [-1] No answer |          6        0.02       98.64
+                [1] [de] Stimme voll zu |        127        0.48       99.12
+                [2] [de] Stimme eher zu |        119        0.45       99.57
+          [3] [de] Stimme eher nicht zu |         90        0.34       99.90
+    [4] [de] Stimme ueberhaupt nicht zu |         26        0.10      100.00
+----------------------------------------+-----------------------------------
+                                  Total |     26,683      100.00
+
+-> tabulation of plh0308_v2  
+
+    Best if man and woman work the same |
+           amount so they can share the |
+                        responsibility  |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+[-8] Question this year not part of sur |     25,221       94.52       94.52
+[-5] Not included in this version of th |        182        0.68       95.20
+                         [-1] No answer |         17        0.06       95.27
+    [1] [de] Stimme ueberhaupt nicht zu |         44        0.16       95.43
+                 [2] [de] Skala von 1-7 |         74        0.28       95.71
+                 [3] [de] Skala von 1-7 |         96        0.36       96.07
+                 [4] [de] Skala von 1-7 |        176        0.66       96.73
+                 [5] [de] Skala von 1-7 |        146        0.55       97.28
+                 [6] [de] Skala von 1-7 |        208        0.78       98.05
+                [7] [de] Stimme voll zu |        519        1.95      100.00
+----------------------------------------+-----------------------------------
+                                  Total |     26,683      100.00
+
+. 
+. ta plh0004 // political view
+
+                     Political attitude |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+[-8] Question this year not part of sur |     21,745       81.49       81.49
+[-5] Not included in this version of th |        177        0.66       82.16
+                         [-1] No answer |        227        0.85       83.01
+                  [0] [de] 0 ganz links |         83        0.31       83.32
+                             [1] [de] 1 |         77        0.29       83.61
+                             [2] [de] 2 |        288        1.08       84.69
+                             [3] [de] 3 |        503        1.89       86.57
+                             [4] [de] 4 |        535        2.01       88.58
+                             [5] [de] 5 |      2,028        7.60       96.18
+                             [6] [de] 6 |        460        1.72       97.90
+                             [7] [de] 7 |        339        1.27       99.17
+                             [8] [de] 8 |        168        0.63       99.80
+                             [9] [de] 9 |         27        0.10       99.90
+               [10] [de] 10 ganz rechts |         26        0.10      100.00
+----------------------------------------+-----------------------------------
+                                  Total |     26,683      100.00
+
+.         
+. * HYPOTHESIS TEST FOR H2 * (Please adapt according to your needs)
+. 
+.         * Please add a verbal description of your model here
+. 
+.         * As an example, and for illustrative purposes we consider a: linear 
+> OLS regression
+. 
+.         * For illustrative purposes, let's further assume that having a job t
+> hat requires hard manual labor (plb0085) is a good measure of political attit
+> udes (hypothesis 2),
+.         * if having a job with less manual labor, the respondent is more like
+> ly to have left-leaning political attitudes.
+.         * Accordingly, we run a linear OLS regression analysis with plb0085 a
+> s dependent variable and the dummy variable d_daughter as independent variabl
+> e
+. 
+.         
+.         
+. qui g politicalview=plh0004     
+
+. qui replace politicalview=. if plh0004<0
+
+.         
+. .........................................
+
+. //Gender: females
+. //...........................................................................
+> .....................................................
+. qui g female=1 if sex==2
+
+. qui replace female=0 if sex==1
+
+. 
+. 
+. .........................................
+
+. //Age: 
+. //...........................................................................
+> .....................................................
+. qui g age=bioage 
+
+. qui replace age=. if bioage<0
+
+. 
+. qui g age2=age*age
+
+. 
+. 
+. 
+. 
+. 
+. //Employment Status:
+. //...........................................................................
+> .....................................................
+. qui g emp_stat= pgemplst
+
+. qui replace emp_stat=. if pgemplst<0
+
+. 
+. 
+. //Marital Status
+. //...........................................................................
+> .....................................................
+. qui gen mar_stat=pgfamstd
+
+. qui replace mar_stat=. if pgfamstd<0
+
+. 
+. 
+. .........................................
+
+. //Education using ISCED-2011-Classification
+. //...........................................................................
+> .....................................................
+. 
+.  qui g education= pgisced11 
+
+.  qui replace education=. if pgisced11<0
+
+.  
+.  
+. .........................................
+
+. // Labour income net
+. ......................................... 
+
+. qui g wageinc= pglabnet
+
+. qui replace wageinc=. if wageinc<0
+
+. qui replace wageinc=1 if wageinc==0
+
+. qui g lwage_i=log(wageinc)
+
+. 
+. 
+. .........................................       
+
+. 
+. .........................................       
+
+. 
+. //...........................................................................
+> .....................................................
+. //Big 5 personality traits inventory
+. //...........................................................................
+> .....................................................
+. 
+. qui replace  plh0212=. if  plh0212<0 //1
+
+. qui replace  plh0213=. if  plh0213<0 //2
+
+. qui replace  plh0214=. if  plh0214<0 //3
+
+. qui replace  plh0215=. if  plh0215<0 //4
+
+. qui replace  plh0216=. if  plh0216<0 //5
+
+. qui replace  plh0217=. if  plh0217<0 //6
+
+. qui replace  plh0218=. if  plh0218<0 //7
+
+. qui replace  plh0219=. if  plh0219<0 //8
+
+. qui replace  plh0220=. if  plh0220<0 //9
+
+. qui replace  plh0221=. if  plh0221<0 //10
+
+. qui replace  plh0222=. if  plh0222<0 //11
+
+. qui replace  plh0223=. if  plh0223<0 //12
+
+. qui replace  plh0224=. if  plh0224<0 //13
+
+. qui replace  plh0225=. if  plh0225<0 //14
+
+. qui replace  plh0226=. if  plh0226<0 //15
+
+. qui recode  plh0214 (1=7) (2=6) (3=5) (4=4) (5=3) (6=2) (7=1)
+
+. qui recode  plh0223 (1=7) (2=6) (3=5) (4=4) (5=3) (6=2) (7=1)
+
+. qui recode  plh0218 (1=7) (2=6) (3=5) (4=4) (5=3) (6=2) (7=1)
+
+. qui recode  plh0226 (1=7) (2=6) (3=5) (4=4) (5=3) (6=2) (7=1)
+
+. 
+. 
+. qui gen conscientious5=plh0212+ plh0218+ plh0222 if syear==2005
+
+. qui gen extraversion5= plh0213+ plh0219+ plh0223 if syear==2005
+
+. qui gen agreeableness5=plh0214+ plh0217+ plh0224 if syear==2005
+
+. qui gen openness5=     plh0215+ plh0220+ plh0225 if syear==2005
+
+. qui gen neuriticism5=  plh0216+ plh0221+ plh0226 if syear==2005
+
+. 
+. qui gen conscientious7=plh0212+ plh0218+ plh0222 if syear==2009
+
+. qui gen extraversion7= plh0213+ plh0219+ plh0223 if syear==2009
+
+. qui gen agreeableness7=plh0214+ plh0217+ plh0224 if syear==2009
+
+. qui gen openness7=     plh0215+ plh0220+ plh0225 if syear==2009
+
+. qui gen neuriticism7=  plh0216+ plh0221+ plh0226 if syear==2009
+
+. 
+. qui gen conscientious13=plh0212+ plh0218+ plh0222 if syear==2013
+
+. qui gen extraversion13= plh0213+ plh0219+ plh0223 if syear==2013
+
+. qui gen agreeableness13=plh0214+ plh0217+ plh0224 if syear==2013
+
+. qui gen openness13=     plh0215+ plh0220+ plh0225 if syear==2013
+
+. qui gen neuriticism13=  plh0216+ plh0221+ plh0226 if syear==2013
+
+. 
+. qui gen conscientious17=plh0212+ plh0218+ plh0222 if syear==2017
+
+. qui gen extraversion17= plh0213+ plh0219+ plh0223 if syear==2017
+
+. qui gen agreeableness17=plh0214+ plh0217+ plh0224 if syear==2017
+
+. qui gen openness17=     plh0215+ plh0220+ plh0225 if syear==2017
+
+. qui gen neuriticism17=  plh0216+ plh0221+ plh0226 if syear==2017
+
+. 
+. qui gen conscientious19=plh0212+ plh0218+ plh0222 if syear==2019
+
+. qui gen extraversion19= plh0213+ plh0219+ plh0223 if syear==2019
+
+. qui gen agreeableness19=plh0214+ plh0217+ plh0224 if syear==2019
+
+. qui gen openness19=     plh0215+ plh0220+ plh0225 if syear==2019
+
+. qui gen neuriticism19=  plh0216+ plh0221+ plh0226 if syear==2019
+
+.         
+.         
+. qui egen conscientious= rowmean(conscientious5 conscientious7 conscientious13
+>  conscientious17 conscientious19)
+
+. qui egen extraversion= rowmean(extraversion5 extraversion7 extraversion13 ext
+> raversion17 extraversion19)
+
+. qui egen agreeableness= rowmean(agreeableness5 agreeableness7 agreeableness13
+>  agreeableness17 agreeableness19)
+
+. qui egen openness= rowmean(openness5 openness7 openness13 openness17 openness
+> 19)
+
+. qui egen neuriticism= rowmean(neuriticism5 neuriticism7 neuriticism13 neuriti
+> cism17 neuriticism19)
+
+.                 
+. ......................................................................
+
+. 
+.         
+. /*      
+> xi: reg politicalview d_daughter female age age2 lwage_i i.mar_stat i.educati
+> on i.emp_stat i.migback i.syear conscientious extraversion agreeableness open
+> ness neuriticism  , r
+> */
+. 
+. 
+. xi: reg politicalview d_daughter female age age2 lwage_i i.mar_stat i.educati
+> on i.emp_stat , r
+i.mar_stat        _Imar_stat_1-8      (naturally coded; _Imar_stat_1 omitted)
+i.education       _Ieducation_0-8     (naturally coded; _Ieducation_0 omitted)
+i.emp_stat        _Iemp_stat_1-6      (naturally coded; _Iemp_stat_1 omitted)
+note: _Imar_stat_6 omitted because of collinearity.
+note: _Imar_stat_8 omitted because of collinearity.
+note: _Iemp_stat_6 omitted because of collinearity.
+
+Linear regression                               Number of obs     =      1,218
+                                                F(21, 1195)       =          .
+                                                Prob > F          =          .
+                                                R-squared         =     0.0486
+                                                Root MSE          =     1.6207
+
+------------------------------------------------------------------------------
+             |               Robust
+politicalv~w | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  d_daughter |   .0033276   .1011611     0.03   0.974    -.1951456    .2018007
+      female |  -.2473475    .119072    -2.08   0.038     -.480961    -.013734
+         age |  -.0977249    .021289    -4.59   0.000     -.139493   -.0559569
+        age2 |   .0010457   .0002551     4.10   0.000     .0005453    .0015462
+     lwage_i |     .08162   .0710346     1.15   0.251    -.0577465    .2209865
+_Imar_stat_2 |  -.0197898   .2699126    -0.07   0.942    -.5493452    .5097655
+_Imar_stat_3 |  -.4640339   .1360598    -3.41   0.001    -.7309767   -.1970912
+_Imar_stat_4 |  -.1215233   .1510867    -0.80   0.421     -.417948    .1749015
+_Imar_stat_5 |   .4363789   .3168072     1.38   0.169    -.1851813    1.057939
+_Imar_stat_6 |          0  (omitted)
+_Imar_stat_7 |  -1.172248   .1867748    -6.28   0.000    -1.538691   -.8058047
+_Imar_stat_8 |          0  (omitted)
+_Ieducatio~1 |   -1.98193   1.085332    -1.83   0.068    -4.111298    .1474376
+_Ieducatio~2 |  -2.106613   1.047384    -2.01   0.045    -4.161529   -.0516976
+_Ieducatio~3 |  -1.997528   1.025171    -1.95   0.052    -4.008862    .0138071
+_Ieducatio~4 |  -2.262011   1.032159    -2.19   0.029    -4.287056   -.2369663
+_Ieducatio~5 |  -2.178183   1.044597    -2.09   0.037    -4.227632   -.1287349
+_Ieducatio~6 |  -2.217695   1.029385    -2.15   0.031    -4.237297    -.198092
+_Ieducatio~7 |  -2.523458   1.031737    -2.45   0.015    -4.547676   -.4992406
+_Ieducatio~8 |  -2.485633   1.064903    -2.33   0.020     -4.57492   -.3963453
+_Iemp_stat_2 |   .0471833   .1318249     0.36   0.720    -.2114508    .3058174
+_Iemp_stat_3 |  -.5396733   .5126745    -1.05   0.293    -1.545516     .466169
+_Iemp_stat_4 |  -.2459484   .2314807    -1.06   0.288    -.7001022    .2082055
+_Iemp_stat_5 |  -1.365921   .2789992    -4.90   0.000    -1.913303   -.8185379
+_Iemp_stat_6 |          0  (omitted)
+       _cons |   8.459232   1.228073     6.89   0.000     6.049812    10.86865
+------------------------------------------------------------------------------
+
+. 
+. 
+. 
+. * EXTRACT AND EXPORT RESULTS * (Please check whether the suggested code autom
+> atically picks up the correct statistics for your chosen regression analysis 
+> and adapt if needed)
+. 
+.         * Extract the required statistics
+. 
+.                 * (i) coefficient estimate
+.                 local coefficient = _b[d_daughter]
+
+. 
+.                 * (ii) standard error
+.                 local se = _se[d_daughter]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "t"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 local p_value = _b[d_daughter] / _se[d_daughter]
+
+.                 local p_value = 2 * ttail(e(df_r), abs(`p_value'))
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation of directionality
+.                 local interpretation "negative coefficient is in line with hy
+> pothesis"
+
+. 
+. 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: .003327573779837
+
+.         di "Standard Error: `se'"
+Standard Error: .1011611059467512
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: t
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: 1195
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 21
+
+.         di "p-value: " `p_value'
+p-value: .97376477
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 1218
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 895
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: negative coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h1_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/5_res
+    > ults/h1_results.csv not found)
+
+.         file write myfile "coefficient, se, family, residual_df, model_df, p_
+> value, num_obs, num_participants, interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value', `num_obs', `num_participants',`interpretation'" _
+> n
+
+.         file close myfile
+
+. 
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

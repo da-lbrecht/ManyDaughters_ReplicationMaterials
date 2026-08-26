@@ -1,0 +1,630 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmpggdul_1f.do 
+
+. do "95%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. * the following code automatically sets paths based on the project location o
+> n your system *
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/95%-sample" // folder, in which the or
+> iginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/95%-sample
+
+. global DATA "$ROOT/data/derived_confidential/95%-sample" // folder for datase
+> ts
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/95%-sample
+
+. global OUT "$ROOT/data/derived/95_results" // folder for output (results, tab
+> les)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/95_results
+
+. 
+end of do-file
+
+. do "20250804_162913_01vjXX_h2.do"
+
+. *****************************************************************************
+> ***
+. *********************  Do-File H2: #ManyDaughters Project *******************
+> ***
+. *****************************************************************************
+> ***
+. 
+. * Authors: Tina Wang, David Albrecht, adapted by 01vjXX
+. 
+. * ============================
+. * Setup * 
+. * ============================
+. 
+. * clear all
+. version 14 
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. * INSTALL PACKAGES * 
+. * ssc install outreg2
+. 
+. * CONFIGURE FILE PATHS * 
+. /*
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> */
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA * 
+. 
+.         use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. 
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches) ke
+> epusing (pid kidsex01 kidpnr01 kidgeb01 kidmon01)
+(variable pid was long, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * pgen contains user-friendly data on the individual level that are c
+> onsolidated from different sources
+.         *merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches)
+.         * pl contains all variables from the individual questionnaire
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches) ke
+> epusing (pid syear hid plh0012_h)
+(label cid_EN already defined)
+(label pid_EN already defined)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * hgen contains generated variables on household level from the house
+> hold interview; use for household net income
+.         *merge m:1 hid syear using "$IN/hgen.dta", nogen keep(master matches)
+>  keepusing(hid syear)
+. 
+.         label language EN // change language of the labels to English
+
+. 
+.         save "$DATA/h2_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h2_dataset.dta saved
+
+. 
+. 
+. * ============================
+. * Analysis
+. * ============================
+. 
+. * GENERATE VARIABLES * 
+. 
+.         drop eintritt erstbefr austritt psample letztbef sampreg  nett1 casem
+> at todjahr todinfo immiyear germborn corigin gebmonat loc1989 migback miginfo
+>  germborninfo corigininfo immiyearinfo sexor sexorinfo locinfo birthregion bi
+> rthregion_ew arefback arefinfo rv_id prgroup pbleib phrf phrf0 phrf1
+
+. 
+.         ** recode all missings
+.         mvdecode _all, mv(-8/-1 = .)
+         hid: 1151 missing values generated
+       parid: 249466 missing values generated
+     partner: 1151 missing values generated
+         sex: 13 missing values generated
+     gebjahr: 8 missing values generated
+         pop: 3689 missing values generated
+      piyear: 7935 missing values generated
+    kidpnr01: 346391 missing values generated
+    kidgeb01: 217072 missing values generated
+    kidsex01: 216893 missing values generated
+    kidmon01: 377877 missing values generated
+   plh0012_h: 311415 missing values generated
+
+.         
+.         **      
+.         xtset pid syear
+
+Panel variable: pid (unbalanced)
+ Time variable: syear, 2000 to 2020, but with gaps
+         Delta: 1 unit
+
+.         sort pid syear
+
+.         
+.         ** quick look at data
+.         xtdescribe, patterns(25)
+
+     pid:  201, 203, ..., 55404001                           n =      85849
+   syear:  2000, 2001, ..., 2020                             T =         21
+           Delta(syear) = 1 unit
+           Span(syear)  = 21 periods
+           (pid*syear uniquely identifies each observation)
+
+Distribution of T_i:   min      5%     25%       50%       75%     95%     max
+                         1       1       3         6        11      21      21
+
+     Freq.  Percent    Cum. |  Pattern
+ ---------------------------+-----------------------
+     5839      6.80    6.80 |  111111111111111111111
+     5405      6.30   13.10 |  .................1111
+     3962      4.62   17.71 |  ..........11111111111
+     3498      4.07   21.79 |  ...........1111111111
+     3324      3.87   25.66 |  ...................11
+     3295      3.84   29.50 |  ....................1
+     3247      3.78   33.28 |  ................11111
+     2393      2.79   36.07 |  .........11..........
+     2258      2.63   38.70 |  .............11111111
+     1789      2.08   40.78 |  111111111111.........
+     1713      2.00   42.78 |  11...................
+     1617      1.88   44.66 |  111..................
+     1465      1.71   46.37 |  ..................111
+     1433      1.67   48.04 |  ............111111111
+     1374      1.60   49.64 |  1111111..............
+     1232      1.44   51.07 |  1111.................
+     1226      1.43   52.50 |  1111111111...........
+     1191      1.39   53.89 |  11111111111..........
+     1188      1.38   55.27 |  11111111.............
+     1150      1.34   56.61 |  111111111............
+     1130      1.32   57.93 |  11111................
+     1037      1.21   59.13 |  111111...............
+      959      1.12   60.25 |  ...............111111
+      949      1.11   61.36 |  1111111111111........
+      902      1.05   62.41 |  .................111.
+    32273     37.59  100.00 | (other patterns)
+ ---------------------------+-----------------------
+    85849    100.00         |  XXXXXXXXXXXXXXXXXXXXX
+
+.         
+.         ** recode sex of child - this is a universal variable that does not y
+> et show WHEN the birth was 
+.         tab kidsex01
+
+                         Sex 1st. Child |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+                               [1] Male |    229,481       51.43       51.43
+                             [2] Female |    216,749       48.57      100.00
+----------------------------------------+-----------------------------------
+                                  Total |    446,230      100.00
+
+.         recode kidsex01 (1=0) (2=1), gen(kidsex01F) // change coding from 1,2
+>  to 0,1 - 1 is female, 0 is male
+(446,230 differences between kidsex01 and kidsex01F)
+
+.         
+.         ** identify when birth occurred 
+.         gen hadChild = .
+(663,123 missing values generated)
+
+.         replace hadChild = 1 if syear == kidgeb01 // marks year where a child
+>  is born
+(5,025 real changes made)
+
+.                 
+.         gen hadChild2 = .
+(663,123 missing values generated)
+
+.         replace hadChild2 = 1 if hadChild==1 & pid==pid // 
+(5,025 real changes made)
+
+.         replace hadChild2 = 1 if l.hadChild==1 & pid==l.pid // 
+(4,882 real changes made)
+
+.         replace hadChild2 = 1 if l2.hadChild==1 & pid==l2.pid // 
+(4,448 real changes made)
+
+.         replace hadChild2 = 1 if l3.hadChild==1 & pid==l3.pid //
+(3,869 real changes made)
+
+.         replace hadChild2 = 1 if l4.hadChild==1 & pid==l4.pid //
+(3,275 real changes made)
+
+.         replace hadChild2 = 1 if l5.hadChild==1 & pid==l5.pid //
+(2,785 real changes made)
+
+.         replace hadChild2 = 1 if l6.hadChild==1 & pid==l6.pid //
+(2,385 real changes made)
+
+.         replace hadChild2 = 1 if l7.hadChild==1 & pid==l7.pid //
+(2,064 real changes made)
+
+.         replace hadChild2 = 1 if l8.hadChild==1 & pid==l8.pid //
+(1,783 real changes made)
+
+.         replace hadChild2 = 1 if l9.hadChild==1 & pid==l9.pid //
+(1,513 real changes made)
+
+.         replace hadChild2 = 1 if l10.hadChild==1 & pid==l10.pid //
+(1,303 real changes made)
+
+.         replace hadChild2 = 1 if l11.hadChild==1 & pid==l11.pid //
+(964 real changes made)
+
+.         replace hadChild2 = 1 if l12.hadChild==1 & pid==l12.pid //
+(844 real changes made)
+
+.         replace hadChild2 = 1 if l13.hadChild==1 & pid==l13.pid //
+(728 real changes made)
+
+.         replace hadChild2 = 1 if l14.hadChild==1 & pid==l14.pid //
+(616 real changes made)
+
+.         replace hadChild2 = 1 if l15.hadChild==1 & pid==l15.pid //
+(508 real changes made)
+
+.         replace hadChild2 = 1 if l16.hadChild==1 & pid==l16.pid //
+(403 real changes made)
+
+.         replace hadChild2 = 1 if l17.hadChild==1 & pid==l17.pid //
+(301 real changes made)
+
+.         replace hadChild2 = 1 if l18.hadChild==1 & pid==l18.pid //
+(199 real changes made)
+
+.         replace hadChild2 = 1 if l19.hadChild==1 & pid==l19.pid //
+(117 real changes made)
+
+.         replace hadChild2 = 1 if l20.hadChild==1 & pid==l20.pid //
+(57 real changes made)
+
+. 
+.         ** now indicate whether that child was a boy or girl
+.         gen hadDaughter = .
+(663,123 missing values generated)
+
+.         replace hadDaughter = 1 if hadChild2==1 & pid==pid & kidsex01F == 1 /
+> / 
+(19,063 real changes made)
+
+.         replace hadDaughter = 0 if hadChild2==1 & pid==pid & kidsex01F == 0 /
+> / by definition children whose sex is unknown are exluded through this approa
+> ch
+(18,975 real changes made)
+
+.         replace hadDaughter = 0 if syear < kidgeb01 // 
+(234,529 real changes made)
+
+.         
+.         ** preparation to take out those who do not have child in the observa
+> tion period
+.         bysort pid (syear): egen ever_child = max(hadChild)
+(607,625 missing values generated)
+
+.         
+.         *** Create leftVote 
+.         tab plh0012_h
+
+      [de] Parteineigung [harmonisiert] |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+                           [1] [de] SPD |     64,583       31.80       31.80
+                           [2] [de] CDU |     65,829       32.42       64.22
+                           [3] [de] CSU |     13,420        6.61       70.83
+                           [4] [de] FDP |      8,450        4.16       74.99
+             [5] [de] Buendnis90/Gruene |     26,878       13.24       88.22
+                     [6] [de] Die Linke |     13,182        6.49       94.71
+   [7] [de] NPD/Republikaner/Die Rechte |      1,817        0.89       95.61
+                        [8] [de] Andere |      2,314        1.14       96.75
+         [9] [de] SPD/Buendnis90/Gruene |        936        0.46       97.21
+                      [10] [de] SPD/CDU |         71        0.03       97.24
+                      [11] [de] SPD/FDP |         40        0.02       97.26
+             [12] [de] SPD/DVU(Rep/NPD) |          9        0.00       97.27
+                      [13] [de] CDU/CSU |        697        0.34       97.61
+                      [14] [de] CDU/FDP |        278        0.14       97.75
+        [15] [de] CDU/Buendnis90/Gruene |        132        0.07       97.81
+  [16] [de] Buendnis90/Gruene/Die Linke |        130        0.06       97.88
+                [17] [de] SPD/Die Linke |        213        0.10       97.98
+          [18] [de] Gruene/DVU(Rep/NPD) |          2        0.00       97.98
+      [19] [de] Die Linke /DVU(Rep/NPD) |          8        0.00       97.99
+                [20] [de] CDU/Die Linke |          7        0.00       97.99
+             [21] [de] CDU/DVU(Rep/NPD) |         20        0.01       98.00
+                      [22] [de] CSU/FDP |         36        0.02       98.02
+                   [23] [de] Gruene/FDP |         16        0.01       98.03
+                [24] [de] FDP/Die Linke |          5        0.00       98.03
+                      [25] [de] FDP/NPD |          2        0.00       98.03
+                [26] [de] Piratenpartei |        488        0.24       98.27
+                          [27] [de] AfD |      3,454        1.70       99.97
+            [30] [de] CDU+/oder CSU/AfD |         51        0.03      100.00
+                      [31] [de] SPD/AfD |          7        0.00      100.00
+----------------------------------------+-----------------------------------
+                                  Total |    203,075      100.00
+
+.         recode plh0012_h (1=1)(2=0)(3=0) (4=0) (5=1) (6 =1) (7=0) (8=0) (9=1)
+>  (10=0) (11=0) (12=0) (13=0) (14=0) (15=0) (16=1) (17=1) (18=0) (19=0) (20=0)
+>  (21=0) (22=0) (23=0) (24=0) (25=0) (26=0) (27=0) (30=0) (31=0), gen(leftVote
+> )
+(138,492 differences between plh0012_h and leftVote)
+
+.         
+.         ** make sure measurement exists before and after childbirth 
+.         gen timing_birth = syear - kidgeb01 // years before and after first c
+> hildbirth
+(217,072 missing values generated)
+
+.         gen has_pre = .
+(663,123 missing values generated)
+
+.         replace has_pre = 1 if timing_birth <= -1 & leftVote != . // has a be
+> fore measurement
+(5,966 real changes made)
+
+.         gen has_post = .
+(663,123 missing values generated)
+
+.         replace has_post = 1 if timing_birth >=  1 & leftVote != . // has an 
+> after measurement
+(195,575 real changes made)
+
+. 
+.         bysort pid: egen any_pre = max(has_pre) // checks for any pre measure
+> ment
+(638,210 missing values generated)
+
+.         bysort pid: egen any_post = max(has_post) // checks for any post meas
+> urement
+(241,731 missing values generated)
+
+.         
+.         
+. * FILTERS * 
+.         drop if ever_child == . // take out observations of those who never h
+> ave a child
+(607,625 observations deleted)
+
+. 
+.         keep if any_pre == 1 & any_post == 1 // only keep individuals with pr
+> e and post measurement
+(36,461 observations deleted)
+
+. 
+. 
+.         
+. * HYPOTHESIS TEST FOR H2 * 
+.         * I run a fixed effects model. I assume that political attitudes can 
+> be measured through political party preference (plh0012_h). 
+.         * Specifically, preference for a left-leaning party (leftVote  == 1).
+.         * I run a fixed-effects model with standard errors clustered at the i
+> ndividual level.
+.         * The dummy variable leftVote is the dependent variable and the dummy
+>  variable hadDaughter is the independent variable. 
+.         * I also include year fixed effects.
+. 
+.         * xtset pid syear // already did this earlier to create lag variable
+.         xtreg leftVote hadDaughter i.syear, fe vce(cluster pid) // deviation 
+> from PAP_ birthOrder variable is not included as I only look at firstborn chi
+> ldren. BirthOrder was mistakenly mentioned in the PAP. 
+
+Fixed-effects (within) regression               Number of obs     =     11,943
+Group variable: pid                             Number of groups  =      1,256
+
+R-squared:                                      Obs per group:
+     Within  = 0.0077                                         min =          2
+     Between = 0.0000                                         avg =        9.5
+     Overall = 0.0008                                         max =         21
+
+                                                F(21, 1255)       =       2.33
+corr(u_i, Xb) = -0.0129                         Prob > F          =     0.0006
+
+                                (Std. err. adjusted for 1,256 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+    leftVote | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+ hadDaughter |   .0179385   .0104797     1.71   0.087    -.0026212    .0384982
+             |
+       syear |
+       2001  |   .0036477   .0119784     0.30   0.761    -.0198522    .0271477
+       2002  |  -.0018808   .0126767    -0.15   0.882    -.0267507     .022989
+       2003  |  -.0233826   .0134196    -1.74   0.082      -.04971    .0029447
+       2004  |  -.0255104   .0134024    -1.90   0.057    -.0518039    .0007831
+       2005  |  -.0140436   .0141829    -0.99   0.322    -.0418685    .0137813
+       2006  |  -.0067633   .0143701    -0.47   0.638    -.0349554    .0214288
+       2007  |  -.0180737   .0141545    -1.28   0.202    -.0458428    .0096954
+       2008  |  -.0245498   .0146028    -1.68   0.093    -.0531984    .0040989
+       2009  |  -.0329506   .0150252    -2.19   0.028    -.0624279   -.0034733
+       2010  |  -.0412056   .0149421    -2.76   0.006    -.0705197   -.0118914
+       2011  |  -.0384951   .0160122    -2.40   0.016    -.0699087   -.0070815
+       2012  |  -.0562643   .0167069    -3.37   0.001    -.0890409   -.0234878
+       2013  |  -.0480064   .0168127    -2.86   0.004    -.0809904   -.0150223
+       2014  |  -.0504564   .0166777    -3.03   0.003    -.0831756   -.0177372
+       2015  |  -.0407027   .0168037    -2.42   0.016    -.0736692   -.0077362
+       2016  |  -.0692654   .0166187    -4.17   0.000    -.1018689   -.0366618
+       2017  |  -.0507541   .0173026    -2.93   0.003    -.0846993   -.0168089
+       2018  |  -.0659838   .0173186    -3.81   0.000    -.0999603   -.0320073
+       2019  |  -.0419856   .0186947    -2.25   0.025    -.0786618   -.0053093
+       2020  |  -.0296506   .0188253    -1.58   0.115    -.0665832     .007282
+             |
+       _cons |   .5636524   .0119887    47.02   0.000     .5401324    .5871725
+-------------+----------------------------------------------------------------
+     sigma_u |  .46012757
+     sigma_e |  .19030986
+         rho |  .85392216   (fraction of variance due to u_i)
+------------------------------------------------------------------------------
+
+. 
+. 
+. * EXTRACT AND EXPORT RESULTS * 
+. 
+.         * Extract the required statistics
+. 
+.                 * (i) coefficient estimate
+.                 local coefficient = _b[hadDaughter]
+
+. 
+.                 * (ii) standard error
+.                 local se = _se[hadDaughter]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "t"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 local p_value = _b[hadDaughter] / _se[hadDaughter]
+
+.                 local p_value = 2 * ttail(e(df_r), abs(`p_value'))
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation of directionality
+.                 scalar coef_d_daughter = _b[hadDaughter]
+
+.                 local interpretation "positive coefficient is in line with hy
+> pothesis"
+
+. 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: .0179384692428262
+
+.         di "Standard Error: `se'"
+Standard Error: .0104797163776919
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: t
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: 1255
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 20
+
+.         di "p-value: " `p_value'
+p-value: .08719307
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 11943
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 1256
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h2_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/95_re
+    > sults/h2_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

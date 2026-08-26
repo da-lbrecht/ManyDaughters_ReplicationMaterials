@@ -1,0 +1,620 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmpwip0fxjz.do 
+
+. do "5%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. 
+. * the following code automatically sets paths based on the project location o
+> n your system *local curdir = c(pwd)
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/5%-sample" // folder, in which the ori
+> ginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/5%-sample
+
+. global DATA "$ROOT/data/derived_confidential/5%-sample" // folder for dataset
+> s
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/5%-sample
+
+. global OUT "$ROOT/data/derived/5_results" // folder for output (results, tabl
+> es)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/5_results
+
+. 
+end of do-file
+
+. do "20250728_200701_01zg8e_h3.do"
+
+.                                         /* ManyDaughters master file  */
+. *****************************************************************************
+> ***
+. 
+. * Authors: [REDACTED], [REDACTED] (based on the example code) *
+. 
+. 
+. *************** SETUP ***************
+. 
+. //clear all
+. version 15 // indicate the version of stata you are using here
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. /*
+> * Configure file paths * (Please do not change)
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> */
+. 
+. 
+. *****************************************************************************
+> ***
+.                                 /* Create dataset for testing H1-H4  */
+. *****************************************************************************
+> ***
+. 
+. 
+. 
+. * Load and merge data * 
+. 
+. use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. 
+. keep pid hid syear parid partner sex gebjahr
+
+. 
+. * Merge ppathl with other datasets.
+. 
+. * biobirth contains information on fertility history
+. merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches) ///
+>         keepusing(sumkids kidgeb* kidsex*)
+(variable pid was long, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         
+. /* drop those who don't have children (sumkids and all variables related to 
+>         children seem to be updated at the end of the sample periods, 
+>         so sumkids are kids until 2020) */
+. drop if sumkids == 0
+(10,594 observations deleted)
+
+. * drop those for whom we don't know the gender of the first child
+. drop if inlist(kidsex01, -2, -1)
+(43 observations deleted)
+
+.                 
+. * pl contains all variables from the individual questionnaire 
+. * pli* is time use for H3
+. * plj* and plh* are gender attitudes + some plh* are topics of disagreement 
+.         * with partner for H1 and H4
+. * plh0004 is political orientation, plh0012_h is party preference, 
+.         * plh0013_h is preference intensity for H2
+. merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches) ///
+>         keepusing(pli0010 pli0011 pli0012_h pli0016_h pli0019_h pli0022_h pli
+> 0024_h ///
+>         pli0028_h pli0031_h pli0036 pli0038_h pli0040 pli0043_h pli0044_h ///
+>         pli0046 pli0049_h pli0051 pli0052 pli0055 pli0057 pli0059 pli0060 ///
+>         pli0159 pli0162 pli0163 pli0164 pli0178 pli0175 pli0176 pli0177 ///
+>         plj0620 plj0621 plj0622 plj0623 plj0624 plj0625 plh0298_v1 plh0298_v2
+>  ///
+>         plh0301 plh0302_v1 plh0302_v2 plh0303 plh0304 plh0308_v1 plh0308_v2 /
+> //
+>         plh0309 plh0307 plh0322 plh0323 plh0324 plh0329 plh0004 plh0012_h plh
+> 0013_h)
+(label cid already defined)
+(label pid_EN already defined)
+(label cid_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            24,591  
+    -----------------------------------------
+
+.         
+. * hgen contains generated variables on household level from the household int
+> erview; use for household net income
+. merge m:1 hid syear using "$IN/hgen.dta", nogen keep(master matches) ///
+>         keepusing(hid syear hghinc)
+(variable syear was long, now double to accommodate using data's values)
+(label iyear already defined)
+(label iyear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            24,591  
+    -----------------------------------------
+
+. 
+.         
+. label language EN // change language of the labels to English
+
+. 
+. compress
+  variable pli0012_h was float now byte
+  variable pli0016_h was float now byte
+  variable pli0019_h was float now byte
+  variable pli0022_h was float now byte
+  variable pli0024_h was float now byte
+  variable pli0028_h was float now byte
+  variable pli0031_h was float now byte
+  variable pli0038_h was float now byte
+  variable pid was double now long
+  variable syear was double now int
+  variable partner was double now byte
+  variable sumkids was double now byte
+  variable kidgeb01 was double now int
+  variable kidgeb02 was double now int
+  variable kidgeb03 was double now int
+  variable kidgeb04 was double now int
+  variable kidgeb05 was double now int
+  variable kidgeb06 was double now int
+  variable kidgeb07 was double now int
+  variable kidgeb08 was double now int
+  variable kidgeb09 was double now int
+  variable kidgeb10 was double now int
+  variable kidgeb11 was double now int
+  variable kidgeb12 was double now int
+  variable kidgeb13 was double now byte
+  variable kidgeb14 was double now byte
+  variable kidgeb15 was double now byte
+  variable kidgeb16 was double now byte
+  variable kidgeb17 was double now byte
+  variable kidgeb18 was double now byte
+  variable kidgeb19 was double now byte
+  variable kidsex01 was double now byte
+  variable kidsex02 was double now byte
+  variable kidsex03 was double now byte
+  variable kidsex04 was double now byte
+  variable kidsex05 was double now byte
+  variable kidsex06 was double now byte
+  variable kidsex07 was double now byte
+  variable kidsex08 was double now byte
+  variable kidsex09 was double now byte
+  variable kidsex10 was double now byte
+  variable kidsex11 was double now byte
+  variable kidsex12 was double now byte
+  variable kidsex13 was double now byte
+  variable kidsex14 was double now byte
+  variable kidsex15 was double now byte
+  variable kidsex16 was double now byte
+  variable kidsex17 was double now byte
+  variable kidsex18 was double now byte
+  variable kidsex19 was double now byte
+  (7,426,482 bytes saved)
+
+. save "$DATA/hypotheses-dataset.dta", replace // save merged dataset
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/5%-sample/hypotheses-dataset.dta not found)
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/5%-sample/hypotheses-dataset.dta saved
+
+. 
+. *****************************************************************************
+> ***
+.                                 /* Create and recode variables for H1-H4  */
+. *****************************************************************************
+> ***
+. 
+. 
+. * Generate age
+. gen age = syear - gebjahr
+
+. 
+. ** First child is a girl
+. 
+. gen first_daughter = kidsex01 == 2 if inlist(kidsex01, 1, 2)
+
+. rename kidgeb01 first_byear
+
+.         
+. 
+. ********************************* Outcomes **********************************
+> **
+. 
+. ** H3: gender equality in the household measured by behavior **
+. 
+. /* Weekly hours spent on non-paid work (childcare, housework, errands, repara
+> tion,
+>         caring for persons) -- inequality within household (Gini) */
+.         
+. foreach v in pli0010 pli0011 pli0012_h pli0016_h pli0019_h pli0022_h ///
+>         pli0024_h pli0028_h pli0031_h pli0036 pli0038_h pli0040 pli0043_h ///
+>         pli0044_h pli0046 pli0049_h pli0051 pli0055 pli0057 pli0162 pli0163 /
+> //
+>         pli0164 {
+  2.         replace `v' = . if `v'<0
+  3. }       
+(11,418 real changes made, 11,418 to missing)
+(11,651 real changes made, 11,651 to missing)
+(11,370 real changes made, 11,370 to missing)
+(11,437 real changes made, 11,437 to missing)
+(11,587 real changes made, 11,587 to missing)
+(11,595 real changes made, 11,595 to missing)
+(11,672 real changes made, 11,672 to missing)
+(11,676 real changes made, 11,676 to missing)
+(11,469 real changes made, 11,469 to missing)
+(11,422 real changes made, 11,422 to missing)
+(830 real changes made, 830 to missing)
+(996 real changes made, 996 to missing)
+(782 real changes made, 782 to missing)
+(928 real changes made, 928 to missing)
+(1,984 real changes made, 1,984 to missing)
+(714 real changes made, 714 to missing)
+(550 real changes made, 550 to missing)
+(11,677 real changes made, 11,677 to missing)
+(11,685 real changes made, 11,685 to missing)
+(12,014 real changes made, 12,014 to missing)
+(16,872 real changes made, 16,872 to missing)
+(16,873 real changes made, 16,873 to missing)
+
+. 
+. gen weekly_nonpaid = pli0011 + pli0012_h + pli0016_h + pli0019_h ///
+>         + pli0022_h + pli0031_h + 5*pli0040 + 5*pli0043_h + 5*pli0044_h ///
+>         + 5*pli0046 + 5*pli0049_h + pli0055 + pli0057
+(15,536 missing values generated)
+
+. 
+. * Everyone only has 168 hours in a week
+. replace weekly_nonpaid = 168 if weekly_nonpaid > 168 & weekly_nonpaid != .
+(129 real changes made)
+
+. 
+. * Keep those with partners
+. keep if parid > 0
+(5,303 observations deleted)
+
+. 
+. * Gen inequality within household
+. preserve
+
+.         keep syear pid hid age sex weekly_nonpaid
+
+.         rename pid parid
+
+.         rename hid hid_partner
+
+.         rename sex sex_partner
+
+.         rename weekly_nonpaid weekly_nonpaid_partner
+
+.         rename age age_partner
+
+.         tempfile partnerhousework
+
+.         save `partnerhousework'
+file C:\Users\DALBRE~1\AppData\Local\Temp\ST_26e4_000003.tmp saved as .dta
+    format
+
+. restore
+
+. 
+. merge 1:1 syear parid using `partnerhousework', nogen keep(master matches)
+(label sex already defined)
+(label sex_EN already defined)
+(label pid_EN already defined)
+(label syear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                         1,920
+        from master                     1,920  
+        from using                          0  
+
+    Matched                            17,368  
+    -----------------------------------------
+
+. 
+. 
+. * Keep those who live in the same household
+. keep if hid == hid_partner
+(1,920 observations deleted)
+
+. 
+. * Drop same-sex relationships (though there are none at this point)
+. keep if sex != sex_partner
+(0 observations deleted)
+
+. 
+. * Gen father age
+. gen father_age = age
+
+. replace father_age = age_partner if sex == 2
+(7,777 real changes made)
+
+. 
+. * Gen non-paid work 
+. gen total_nonpaid = weekly_nonpaid + weekly_nonpaid_partner
+(11,252 missing values generated)
+
+. gen nonpaid_gini = abs(weekly_nonpaid - weekly_nonpaid_partner)/total_nonpaid
+(11,254 missing values generated)
+
+. replace nonpaid_gini = 0 if total_nonpaid == 0
+(2 real changes made)
+
+. 
+. 
+. gen sample_h3 = inlist(first_byear, 2000, 2002, 2004, 2006, 2008, 2010, 2011,
+>  ///
+>         2012, 2014, 2016, 2018)
+
+. replace nonpaid_gini = . if syear != first_byear + 1 
+(6,023 real changes made, 6,023 to missing)
+
+. 
+. * Keep one observation per household
+. bysort syear hid (pid): gen member = _n
+
+. tab member
+
+     member |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          1 |      8,661       49.87       49.87
+          2 |      8,661       49.87       99.74
+          3 |         23        0.13       99.87
+          4 |         23        0.13      100.00
+------------+-----------------------------------
+      Total |     17,368      100.00
+
+. keep if member == 1
+(8,707 observations deleted)
+
+. 
+. keep if sample_h3 == 1
+(7,254 observations deleted)
+
+. 
+. save "$DATA/h3_dataset.dta", replace
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/5%-sample/h3_dataset.dta saved
+
+. 
+. 
+. 
+. *****************************************************************************
+> ***
+.  /*  H3: Having daughters leads to more gender equality within the household.
+>   */
+. *****************************************************************************
+> ***
+. 
+. * Authors: [REDACTED], [REDACTED] (based on example code)
+. 
+. use "$DATA/h3_dataset.dta", clear
+
+. 
+. 
+. * ============================
+. * Analysis
+. * ============================
+. 
+. 
+. * HYPOTHESIS TEST FOR H3 *
+. 
+.         /* We regress the Gini of nonpaid work in the household (measured in 
+>         the year after the first child was born) on the first child being a g
+> irl, 
+>         age of the father and survey year. The Gini of nonpaid work is calcul
+> ated 
+>         as the absolute difference between the amount of nonpaid work (childc
+> are, 
+>         errands, repairs, housework, caring for persons) in a week by
+>         the mother and the father, divided by the total nonpaid work. 0 means
+>  total
+>         equality, 1 means total inequality. */
+. 
+.         reg nonpaid_gini i.first_daughter father_age i.syear
+
+      Source |       SS           df       MS      Number of obs   =        43
+-------------+----------------------------------   F(12, 30)       =      1.67
+       Model |  .875212307        12  .072934359   Prob > F        =    0.1245
+    Residual |  1.30964613        30  .043654871   R-squared       =    0.4006
+-------------+----------------------------------   Adj R-squared   =    0.1608
+       Total |  2.18485844        42  .052020439   Root MSE        =    .20894
+
+------------------------------------------------------------------------------
+nonpaid_gini | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+1.first_da~r |  -.1105635   .0781983    -1.41   0.168    -.2702657    .0491388
+  father_age |  -.0073521   .0076612    -0.96   0.345    -.0229984    .0082941
+             |
+       syear |
+       2003  |  -.2730438   .1708952    -1.60   0.121    -.6220584    .0759708
+       2005  |  -.4490896   .1805079    -2.49   0.019     -.817736   -.0804432
+       2007  |  -.2810187   .1164633    -2.41   0.022    -.5188686   -.0431689
+       2009  |  -.2574603   .1730574    -1.49   0.147    -.6108907    .0959701
+       2011  |  -.2251947   .1054412    -2.14   0.041    -.4405343    -.009855
+       2012  |  -.7050145   .2298759    -3.07   0.005    -1.174484   -.2355453
+       2013  |  -.0953727   .1325765    -0.72   0.477      -.36613    .1753847
+       2015  |  -.3992562   .1782895    -2.24   0.033     -.763372   -.0351404
+       2017  |     -.1932   .1733892    -1.11   0.274     -.547308    .1609079
+       2019  |  -.1747435   .1234692    -1.42   0.167    -.4269012    .0774142
+             |
+       _cons |   1.021437   .2908604     3.51   0.001      .427421    1.615454
+------------------------------------------------------------------------------
+
+. 
+. 
+. * EXTRACT AND EXPORT RESULTS * 
+. 
+.         * Extract the required statistics
+. 
+.                 * (i) coefficient estimate
+.                 local coefficient = _b[1.first_daughter]
+
+. 
+.                 * (ii) standard error
+.                 local se = _se[1.first_daughter]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "t"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 local p_value = _b[1.first_daughter] / _se[1.first_daughter]
+
+.                 local p_value = 2 * ttail(e(df_r), abs(`p_value'))
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation of directionality
+.                 local interpretation "negative coefficient is in line with hy
+> pothesis"
+
+. 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: -.1105634597441745
+
+.         di "Standard Error: `se'"
+Standard Error: .0781983141811774
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: t
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: 30
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 12
+
+.         di "p-value: " `p_value'
+p-value: .1676896
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 43
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 43
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: negative coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h3_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/5_res
+    > ults/h3_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

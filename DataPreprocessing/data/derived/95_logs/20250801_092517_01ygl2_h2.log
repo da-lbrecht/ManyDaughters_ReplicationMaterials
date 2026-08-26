@@ -1,0 +1,1125 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmpqir8fpuw.do 
+
+. do "95%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. * the following code automatically sets paths based on the project location o
+> n your system *
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/95%-sample" // folder, in which the or
+> iginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/95%-sample
+
+. global DATA "$ROOT/data/derived_confidential/95%-sample" // folder for datase
+> ts
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/95%-sample
+
+. global OUT "$ROOT/data/derived/95_results" // folder for output (results, tab
+> les)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/95_results
+
+. 
+end of do-file
+
+. do "20250801_092517_01ygl2_h2.do"
+
+. *****************************************************************************
+> ***
+. ********************** Testing H2: #ManyDaughters Project *******************
+> ***
+. *****************************************************************************
+> ***
+. 
+. * Authors: [REDACTED]; [REDACTED]  
+. 
+. *------------------------------------------------------------------------*
+. * H2: Having daughters leads to more left-leaning political preferences. *
+. *------------------------------------------------------------------------*
+. 
+. /*
+>          Assumptions
+>         *----------------------------
+>         
+>         Same as in H1:
+>             -- Child's gender is randomly assigned. 
+>                 -- Parents are a selected subsample (child of any gender can 
+> affect political preferences)
+>         
+>         From this assumptions we arrive to similar conclusions concerning the
+>  relevant 
+>         comparison and treatment groups. 
+>         
+>         
+>            Implementation
+>          *------------------------------ 
+>         
+>         We consider sympathy for a political party as an indicator of right/l
+> eft political 
+>         leaning. We create a binary variable that equals one if an individual
+>  shows support
+>         for a political party on the left of the spectrum. 
+>         
+>         The approach has two clear advantages. First, the question on politic
+> al preferences
+>         is available every year. This allows clean before-after comparisons. 
+> Second, studying a 
+>         binary variable is considerably simpler than using multinomial models
+>  that consider
+>         voting for each party. In the latter case, a difference in difference
+> s approach 
+>         such as the one we propose would be much more complex. 
+>         
+>         Our approach has two shortcomings. First, when mapping political part
+> ies into a single axes
+>         (left-right) we use the data from the Chapel Hill Expert Survey
+>         (https://www.chesdata.eu/ches-europe). The database contains expert a
+> ssessments
+>         of where partie are located along many dimensions. 
+>         Our approach might be an oversimplification for two reasons. First, p
+> arties can 
+>         vary in terms of economic orientation (traditional axis), but also in
+>  terms of 
+>         social orientation / preferences for environment. We priorized the fi
+> rst axis
+>         when deciding on their orientation. Second, we assume that political
+>         parties are persistent in their views. They are left or right throgho
+> ut the entire
+>         30 years of data. In this case, ches data show that the two-camps (le
+> ft and right)
+>         are relatively stable, even if within these groups the relative posit
+> ion of political
+>         parties changes. 
+>         
+>         We estimate the effects of parenting a daughter using a diff-in-diff 
+> approach. 
+>         Following the new litereature on the topic, we first estimate a regre
+> ssion that 
+>         includes many (many) interactions, to avoid forbidden comparisons. We
+>  obtain
+>         estimates for every cohort, and every time since the event. Finally, 
+> we average
+>         the results to obtain a single coefficient. 
+>         
+>         In our diff-in-diff, control units include never treated, and not yet
+>  treated. 
+>                         */
+.                         
+. * ============================
+. * Setup  
+. * ============================
+. 
+. * clear all
+. version 16 // indicate the version of stata you are using here
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. * INSTALL PACKAGES * (Please adapt according to your needs)
+. ssc install jwdid
+checking jwdid consistency and verifying not already installed...
+all files already exist and are up to date.
+
+. ssc install reghdfe
+checking reghdfe consistency and verifying not already installed...
+all files already exist and are up to date.
+
+. ssc install hdfe
+checking hdfe consistency and verifying not already installed...
+all files already exist and are up to date.
+
+. ssc install ftools
+checking ftools consistency and verifying not already installed...
+all files already exist and are up to date.
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. /*
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> */
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA *  
+. 
+.         use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+.  
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches)
+(variable pid was long, now double to accommodate using data's values)
+(variable cid was long, now double to accommodate using data's values)
+(variable gebjahr was int, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * pgen contains user-friendly data on the individual level that are c
+> onsolidated from different sources
+.          merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches)
+>  keepusing(pgnation)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * pl contains all variables from the individual questionnaire
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches) ke
+> epusing( plh0012_v6 )
+(label cid_EN already defined)
+(label pid_EN already defined)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * hgen contains generated variables on household level from the house
+> hold interview; use for household net income
+.         merge m:1 hid syear using "$IN/hgen.dta", nogen keep(master matches) 
+> keepusing(hid syear hghinc)
+(label iyear already defined)
+(label iyear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. 
+.         label language EN // change language of the labels to English
+
+. 
+.         save "$DATA/h2_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h2_dataset.dta saved
+
+. 
+. 
+. 
+. 
+. * ========================= *
+. *               New variables           * 
+. * ========================= *
+. 
+. use "$DATA/h2_dataset.dta", clear 
+
+. 
+. drop if pgnation!=1
+(210,547 observations deleted)
+
+. keep if inlist(pop,1,2)
+(2,907 observations deleted)
+
+. drop if  plh0012_v6<0 | mi(plh0012_v6) 
+(257,379 observations deleted)
+
+. 
+. //Disregard missing anwsers to our questions of interest
+. * Create new variable where 1 = left wing party
+. 
+. /*
+> left_wing_party
+> [1] [de] SPD
+> [5] [de] Buendnis90/Green
+> [6] [de] Die Linke
+> [9] [de] SPD/Buendnis90/Green
+> [16] [de] Buendnis90/Green
+> [17] [de] SPD/Die Linke
+> [26] [de] Piratenpart
+> */
+. 
+. gen left_wing_party =  inlist(plh0012_v6,1,5,6,9,16,17,26)
+
+. 
+. 
+. * There are no duplicates
+. duplicates report pid syear
+
+Duplicates in terms of pid syear
+
+--------------------------------------
+   Copies | Observations       Surplus
+----------+---------------------------
+        1 |       192290             0
+--------------------------------------
+
+. 
+. * Keep only those who will eventually become parents (then kidpnr01 is non-mi
+> ssing)
+. keep if kidpnr01 > 0 & !mi(kidpnr01)
+(100,332 observations deleted)
+
+. 
+. * Generate variable which == 1 when a person already has a daughter/boy
+. gen age = syear - gebjahr
+
+.  
+. gen has_daughter        = 0
+
+. gen has_boy                     = 0
+
+. gen n_of_kids           = 0
+
+. 
+. * Loop over kidsex01 to kidsex19
+. forvalues i = 1/19 {
+  2.     local kidsex = "kidsex" + string(`i', "%02.0f")
+  3.     local kidgeb = "kidgeb" + string(`i', "%02.0f")
+  4. 
+. * We recode the value to -100 if a child is not yet born
+.         replace `kidsex' = -100 if `kidgeb'>syear  
+  5.     replace has_daughter = 1 if `kidsex' == 2
+  6.         replace has_boy          = 1 if `kidsex' == 1
+  7. }
+(5,656 real changes made)
+(40,715 real changes made)
+(45,584 real changes made)
+(5,342 real changes made)
+(14,556 real changes made)
+(13,708 real changes made)
+(1,758 real changes made)
+(2,163 real changes made)
+(2,712 real changes made)
+(568 real changes made)
+(441 real changes made)
+(255 real changes made)
+(160 real changes made)
+(48 real changes made)
+(39 real changes made)
+(55 real changes made)
+(0 real changes made)
+(22 real changes made)
+(23 real changes made)
+(0 real changes made)
+(0 real changes made)
+(10 real changes made)
+(1 real change made)
+(0 real changes made)
+(1 real change made)
+(0 real changes made)
+(0 real changes made)
+(1 real change made)
+(0 real changes made)
+(0 real changes made)
+(4 real changes made)
+(0 real changes made)
+(0 real changes made)
+(2 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. 
+. 
+. bys pid syear: egen initial_age = min(age)
+
+. 
+. * Drop those who already have a daughter when first encountered in our data
+. gen first_obs = 0
+
+. bysort pid (syear): replace first_obs = 1 if _n == 1
+(17956 real changes made)
+
+. gen already_treated = (has_daughter == 1 | has_boy == 1 ) & first_obs==1
+
+. bysort pid (syear): egen m_already_treated = mean(already_treated)
+
+. drop if m_already_treated>0
+(79,305 observations deleted)
+
+. 
+. 
+. * Get the first year of treatment per household
+. gen treated_year = syear if has_daughter == 1
+(8,612 missing values generated)
+
+. bysort pid (syear): egen first_treated_year = min(treated_year)
+(5,323 missing values generated)
+
+. replace first_treated_year = 0 if mi(first_treated_year)
+(5,323 real changes made)
+
+. 
+. *******************  HYPOTHESIS TEST FOR H2 ***************************
+.  
+. xtset pid syear
+
+Panel variable: pid (unbalanced)
+ Time variable: syear, 2000 to 2020, but with gaps
+         Delta: 1 unit
+
+. jwdid left_wing_party , ivar(pid) tvar(syear) gvar(first_treated_year)   neve
+> r  
+WARNING: Singleton observations not dropped; statistical significance is biased
+>  (link)
+(MWFE estimator converged in 8 iterations)
+
+HDFE Linear regression                            Number of obs   =     12,653
+Absorbing 2 HDFE groups                           F( 399,   1603) =   15113.18
+Statistics robust to heteroskedasticity           Prob > F        =     0.0000
+                                                  R-squared       =     0.8752
+                                                  Adj R-squared   =     0.8514
+                                                  Within R-sq.    =     0.0384
+Number of clusters (pid)     =      1,604         Root MSE        =     0.1922
+
+                                (Std. err. adjusted for 1,604 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+left_wing_~y | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+first_trea~r#|
+       syear#|
+    c.__tr__ |
+  2001 2001  |   .0883858   .0605052     1.46   0.144    -.0302918    .2070634
+  2001 2002  |   .0004548   .0232806     0.02   0.984    -.0452089    .0461184
+  2001 2003  |   -.065993     .07262    -0.91   0.364    -.2084331    .0764472
+  2001 2004  |   .0191734   .0231756     0.83   0.408    -.0262842     .064631
+  2001 2005  |   .0958235   .0700236     1.37   0.171    -.0415239    .2331709
+  2001 2006  |  -.0075149   .0222175    -0.34   0.735    -.0510933    .0360635
+  2001 2007  |  -.0033957   .0217641    -0.16   0.876    -.0460847    .0392933
+  2001 2008  |   .0091601   .0221744     0.41   0.680    -.0343337    .0526539
+  2001 2009  |   .0215084     .02506     0.86   0.391    -.0276454    .0706622
+  2001 2010  |   .0365561   .0244123     1.50   0.134    -.0113272    .0844394
+  2001 2011  |   .0401445   .0263631     1.52   0.128    -.0115653    .0918543
+  2001 2012  |   .1197925   .0835777     1.43   0.152    -.0441406    .2837255
+  2001 2013  |   .0389861   .0262323     1.49   0.137     -.012467    .0904393
+  2001 2014  |   .0611571    .026119     2.34   0.019     .0099261    .1123882
+  2001 2015  |   .0517727   .0265469     1.95   0.051    -.0002976     .103843
+  2001 2016  |   .0739254   .0273822     2.70   0.007     .0202167    .1276341
+  2001 2017  |   .0735394   .0274942     2.67   0.008      .019611    .1274677
+  2001 2018  |  -.0417836   .1387472    -0.30   0.763    -.3139286    .2303614
+  2001 2019  |   .0694733   .0295452     2.35   0.019      .011522    .1274247
+  2001 2020  |   .0469875   .0294423     1.60   0.111     -.010762    .1047369
+  2002 2000  |   .0266913   .0518203     0.52   0.607    -.0749514    .1283339
+  2002 2002  |   .0020493   .0477532     0.04   0.966     -.091616    .0957146
+  2002 2003  |  -.0195214   .0217693    -0.90   0.370    -.0622207     .023178
+  2002 2004  |  -.0026736   .0232439    -0.12   0.908    -.0482652     .042918
+  2002 2005  |   .0023925   .0233385     0.10   0.918    -.0433848    .0481698
+  2002 2006  |  -.0979117   .0677622    -1.44   0.149    -.2308235    .0350001
+  2002 2007  |  -.0394828    .022495    -1.76   0.079    -.0836054    .0046398
+  2002 2008  |  -.0179002   .0241761    -0.74   0.459    -.0653202    .0295199
+  2002 2009  |   .0013223    .024609     0.05   0.957    -.0469468    .0495914
+  2002 2010  |   .0240871   .0224385     1.07   0.283    -.0199248    .0680991
+  2002 2011  |   .0303952   .0233636     1.30   0.193    -.0154312    .0762215
+  2002 2012  |   .0129802   .0249233     0.52   0.603    -.0359055    .0618659
+  2002 2013  |   .0160761   .0261273     0.62   0.538    -.0351711    .0673233
+  2002 2014  |   .0198859   .0259247     0.77   0.443     -.030964    .0707357
+  2002 2015  |   .0331631   .0264877     1.25   0.211    -.0187911    .0851174
+  2002 2016  |   .0552742    .025491     2.17   0.030      .005275    .1052735
+  2002 2017  |   .0421908   .0268913     1.57   0.117    -.0105549    .0949366
+  2002 2018  |   .0479947   .0285213     1.68   0.093    -.0079484    .1039377
+  2002 2019  |   .0204963   .0311324     0.66   0.510    -.0405682    .0815607
+  2002 2020  |   .0281005   .0297227     0.95   0.345    -.0301988    .0863999
+  2003 2000  |   .0112266   .0552714     0.20   0.839    -.0971853    .1196385
+  2003 2001  |   .0591369   .0568208     1.04   0.298     -.052314    .1705879
+  2003 2003  |   .0062488   .0353753     0.18   0.860    -.0631378    .0756355
+  2003 2004  |   .0467574   .0205839     2.27   0.023     .0063832    .0871317
+  2003 2005  |   .0497452   .0207356     2.40   0.017     .0090735    .0904168
+  2003 2006  |  -.0237738   .0377216    -0.63   0.529    -.0977626     .050215
+  2003 2007  |   .0119146   .0189528     0.63   0.530    -.0252602    .0490894
+  2003 2008  |   .0255413   .0212769     1.20   0.230    -.0161922    .0672747
+  2003 2009  |   .0463347    .023414     1.98   0.048     .0004093      .09226
+  2003 2010  |    .059954   .0221336     2.71   0.007     .0165402    .1033678
+  2003 2011  |   .0336211   .0524672     0.64   0.522    -.0692904    .1365326
+  2003 2012  |   .0559096   .0260183     2.15   0.032     .0048761     .106943
+  2003 2013  |   .0554451   .0255365     2.17   0.030     .0053567    .1055335
+  2003 2014  |   .0711803   .0297255     2.39   0.017     .0128754    .1294853
+  2003 2015  |    .054507   .0287746     1.89   0.058    -.0019327    .1109467
+  2003 2016  |   .1077406   .0266593     4.04   0.000     .0554498    .1600314
+  2003 2017  |   .0697756   .0278029     2.51   0.012     .0152418    .1243094
+  2003 2018  |   .1687537   .0882091     1.91   0.056    -.0042637    .3417711
+  2003 2019  |   .0679195   .0286895     2.37   0.018     .0116465    .1241924
+  2003 2020  |   .0263821   .0358778     0.74   0.462    -.0439901    .0967544
+  2004 2000  |   .0201406   .0348107     0.58   0.563    -.0481387    .0884199
+  2004 2001  |   .0673657   .0559215     1.20   0.229    -.0423213    .1770526
+  2004 2002  |   .0142454   .0318723     0.45   0.655    -.0482703     .076761
+  2004 2004  |   .0598538   .0412239     1.45   0.147    -.0210045    .1407122
+  2004 2005  |   .0521215    .032442     1.61   0.108    -.0115117    .1157548
+  2004 2006  |   .0646736    .056075     1.15   0.249    -.0453144    .1746617
+  2004 2007  |   .0554223   .0474201     1.17   0.243    -.0375897    .1484343
+  2004 2008  |   .1217103   .0732624     1.66   0.097    -.0219898    .2654104
+  2004 2009  |    .162972    .083769     1.95   0.052    -.0013362    .3272803
+  2004 2010  |   .1687476   .0955659     1.77   0.078    -.0186996    .3561948
+  2004 2011  |   .0818907   .0960857     0.85   0.394    -.1065761    .2703575
+  2004 2012  |   .1179974   .0883344     1.34   0.182    -.0552658    .2912605
+  2004 2013  |   .1713045   .1809736     0.95   0.344    -.1836654    .5262743
+  2004 2014  |   .1269631   .1189741     1.07   0.286     -.106398    .3603243
+  2004 2015  |   .1614875   .1467446     1.10   0.271     -.126344     .449319
+  2004 2016  |   .0457123   .0995228     0.46   0.646    -.1494963    .2409208
+  2004 2017  |   .1829756   .0984619     1.86   0.063     -.010152    .3761033
+  2004 2018  |    .157698   .0941369     1.68   0.094    -.0269462    .3423423
+  2004 2019  |   .1113483   .0556379     2.00   0.046     .0022176     .220479
+  2004 2020  |   .2019263   .1029492     1.96   0.050    -2.81e-06    .4038554
+  2005 2000  |   .0038643   .0664017     0.06   0.954     -.126379    .1341077
+  2005 2001  |   .0973086   .0947656     1.03   0.305    -.0885689    .2831861
+  2005 2002  |  -.0073193   .0709718    -0.10   0.918    -.1465267     .131888
+  2005 2003  |  -.0012196   .0243702    -0.05   0.960    -.0490204    .0465811
+  2005 2005  |   .0925345   .0536271     1.73   0.085    -.0126521     .197721
+  2005 2006  |  -.0259605   .0470598    -0.55   0.581    -.1182657    .0663446
+  2005 2007  |  -.0071703   .0474663    -0.15   0.880    -.1002728    .0859322
+  2005 2008  |    -.01128   .0357742    -0.32   0.753    -.0814491    .0588891
+  2005 2009  |   .0424391   .0644227     0.66   0.510    -.0839224    .1688006
+  2005 2010  |   .0519358   .0312282     1.66   0.096    -.0093165    .1131881
+  2005 2011  |   .0112971   .0597929     0.19   0.850    -.1059833    .1285775
+  2005 2012  |    .048496   .0333473     1.45   0.146    -.0169129    .1139049
+  2005 2013  |  -.0218345   .0594983    -0.37   0.714    -.1385371    .0948682
+  2005 2014  |   .0296791   .0809421     0.37   0.714    -.1290844    .1884425
+  2005 2015  |   .0627134   .0756004     0.83   0.407    -.0855726    .2109995
+  2005 2016  |   .1866877   .1082696     1.72   0.085    -.0256771    .3990525
+  2005 2017  |  -.0558499    .081856    -0.68   0.495    -.2164059    .1047061
+  2005 2018  |  -.0000451   .1028308    -0.00   1.000    -.2017421    .2016519
+  2005 2019  |   .0688062   .0972829     0.71   0.479    -.1220089    .2596214
+  2005 2020  |   .0255702   .1106449     0.23   0.817    -.1914536     .242594
+  2006 2000  |  -.0320284   .1245387    -0.26   0.797    -.2763043    .2122474
+  2006 2001  |  -.0001248   .0399462    -0.00   0.998     -.078477    .0782274
+  2006 2002  |  -.0574832   .0418044    -1.38   0.169    -.1394803    .0245138
+  2006 2003  |  -.1378198    .104347    -1.32   0.187    -.3424907    .0668512
+  2006 2004  |  -.0148847   .0422218    -0.35   0.724    -.0977004     .067931
+  2006 2006  |   -.086376    .033865    -2.55   0.011    -.1528004   -.0199516
+  2006 2007  |  -.0574018   .0292549    -1.96   0.050    -.1147837   -.0000198
+  2006 2008  |  -.0298244   .0346174    -0.86   0.389    -.0977246    .0380758
+  2006 2009  |   .0073428   .0644574     0.11   0.909    -.1190868    .1337724
+  2006 2010  |  -.0618588   .0642472    -0.96   0.336    -.1878762    .0641586
+  2006 2011  |   .0828969   .0772344     1.07   0.283    -.0685942     .234388
+  2006 2012  |   .0360788   .0769399     0.47   0.639    -.1148345    .1869921
+  2006 2013  |   .1007761   .0924363     1.09   0.276    -.0805325    .2820848
+  2006 2014  |  -.1158024   .0971332    -1.19   0.233    -.3063238    .0747191
+  2006 2015  |   .0189194   .0542352     0.35   0.727    -.0874599    .1252987
+  2006 2016  |  -.0484765   .1272791    -0.38   0.703    -.2981274    .2011744
+  2006 2017  |  -.0544279   .0960933    -0.57   0.571    -.2429097    .1340539
+  2006 2018  |  -.1171899   .1421985    -0.82   0.410    -.3961045    .1617247
+  2006 2019  |  -.0018479   .2517338    -0.01   0.994    -.4956099    .4919141
+  2006 2020  |  -.0199396   .1608346    -0.12   0.901    -.3354078    .2955286
+  2007 2000  |   -.049347   .0843261    -0.59   0.559     -.214748     .116054
+  2007 2001  |   .0771971   .0579311     1.33   0.183    -.0364315    .1908257
+  2007 2002  |  -.0239938   .0272073    -0.88   0.378    -.0773594    .0293718
+  2007 2003  |  -.0296099   .0399123    -0.74   0.458    -.1078957    .0486758
+  2007 2004  |   .0034326   .0352014     0.10   0.922    -.0656129    .0724782
+  2007 2005  |   .0405588   .0486108     0.83   0.404    -.0547887    .1359063
+  2007 2007  |  -.0205447   .0267237    -0.77   0.442    -.0729618    .0318723
+  2007 2008  |   .0114586   .0160602     0.71   0.476    -.0200426    .0429598
+  2007 2009  |   .0274982   .0526082     0.52   0.601    -.0756899    .1306862
+  2007 2010  |   .0195855   .0407624     0.48   0.631    -.0603676    .0995387
+  2007 2011  |   .0392734   .0274449     1.43   0.153    -.0145582    .0931051
+  2007 2012  |   .0380571   .0285133     1.33   0.182    -.0178702    .0939845
+  2007 2013  |  -.0311132   .0717079    -0.43   0.664    -.1717642    .1095379
+  2007 2014  |   .0228317   .0652482     0.35   0.726    -.1051491    .1508125
+  2007 2015  |  -.0056752   .0645034    -0.09   0.930     -.132195    .1208446
+  2007 2016  |  -.0132375   .1015534    -0.13   0.896    -.2124289    .1859539
+  2007 2017  |   .0665808   .0298246     2.23   0.026     .0080816      .12508
+  2007 2018  |   .0195634   .0706469     0.28   0.782    -.1190066    .1581334
+  2007 2019  |   .0421871    .034697     1.22   0.224    -.0258692    .1102434
+  2007 2020  |   .0341879   .0350252     0.98   0.329    -.0345122    .1028879
+  2008 2000  |   .1320639   .0752236     1.76   0.079    -.0154831     .279611
+  2008 2001  |   .1282979   .0685663     1.87   0.062    -.0061912     .262787
+  2008 2002  |   .1509926   .0787149     1.92   0.055    -.0034023    .3053875
+  2008 2003  |   .0724991   .0442832     1.64   0.102      -.01436    .1593582
+  2008 2004  |   .1278202   .0653554     1.96   0.051    -.0003707    .2560112
+  2008 2005  |   .0481034    .050597     0.95   0.342    -.0511399    .1473468
+  2008 2006  |   .0179677   .0511276     0.35   0.725    -.0823164    .1182517
+  2008 2008  |   .0741831   .0572032     1.30   0.195    -.0380178     .186384
+  2008 2009  |    .024275   .0520861     0.47   0.641     -.077889     .126439
+  2008 2010  |   .1365106   .0499391     2.73   0.006     .0385578    .2344634
+  2008 2011  |   .1022812   .0410564     2.49   0.013     .0217514     .182811
+  2008 2012  |   .0499527   .0530888     0.94   0.347    -.0541781    .1540835
+  2008 2013  |   .0660373   .0503002     1.31   0.189    -.0326239    .1646984
+  2008 2014  |    .091602   .0567454     1.61   0.107     -.019701     .202905
+  2008 2015  |   .0946536   .0645778     1.47   0.143    -.0320123    .2213194
+  2008 2016  |   .1240277   .0713866     1.74   0.083    -.0159931    .2640485
+  2008 2017  |   .0631753     .06347     1.00   0.320    -.0613176    .1876681
+  2008 2018  |   .0844599   .0632375     1.34   0.182    -.0395769    .2084968
+  2008 2019  |   .0631644   .0611334     1.03   0.302    -.0567454    .1830742
+  2008 2020  |   .0512928   .0637844     0.80   0.421    -.0738169    .1764025
+  2009 2000  |   .1534647   .1325911     1.16   0.247    -.1066055    .4135348
+  2009 2001  |   .1726625   .1247805     1.38   0.167    -.0720876    .4174127
+  2009 2002  |   .1091777   .0859139     1.27   0.204    -.0593377    .2776931
+  2009 2003  |   .0287931   .0671157     0.43   0.668    -.1028506    .1604367
+  2009 2004  |    .056364   .0733762     0.77   0.443    -.0875593    .2002874
+  2009 2005  |   .0622823   .0742469     0.84   0.402    -.0833489    .2079135
+  2009 2006  |   .0348925   .0355097     0.98   0.326    -.0347578    .1045429
+  2009 2007  |  -.0555337   .0476812    -1.16   0.244    -.1490577    .0379903
+  2009 2009  |   .0245283   .0621662     0.39   0.693    -.0974074     .146464
+  2009 2010  |  -.0432062   .0607219    -0.71   0.477    -.1623089    .0758965
+  2009 2011  |  -.0449704   .0606072    -0.74   0.458    -.1638481    .0739073
+  2009 2012  |  -.0104541   .0885924    -0.12   0.906    -.1842232     .163315
+  2009 2013  |   .0087529   .0798135     0.11   0.913    -.1477969    .1653028
+  2009 2014  |  -.0392765   .0631367    -0.62   0.534    -.1631157    .0845627
+  2009 2015  |  -.0462753   .0741802    -0.62   0.533    -.1917756     .099225
+  2009 2016  |  -.0365866   .0673717    -0.54   0.587    -.1687324    .0955593
+  2009 2017  |  -.0456285   .0738877    -0.62   0.537    -.1905551    .0992981
+  2009 2018  |   .0054434   .0628204     0.09   0.931    -.1177754    .1286622
+  2009 2019  |  -.0278627   .1236019    -0.23   0.822    -.2703011    .2145757
+  2009 2020  |  -.0569665    .077958    -0.73   0.465    -.2098767    .0959438
+  2010 2000  |   .1055191   .0952633     1.11   0.268    -.0813345    .2923727
+  2010 2001  |    .105194   .0838263     1.25   0.210    -.0592267    .2696147
+  2010 2002  |   -.011906   .0858356    -0.14   0.890    -.1802678    .1564558
+  2010 2003  |   .0169738   .0622631     0.27   0.785    -.1051518    .1390995
+  2010 2004  |  -.0211814   .0556383    -0.38   0.703    -.1303129    .0879502
+  2010 2005  |   .0890633   .0567379     1.57   0.117    -.0222249    .2003515
+  2010 2006  |  -.0060245   .0268887    -0.22   0.823    -.0587652    .0467163
+  2010 2007  |  -.0360038   .0171714    -2.10   0.036    -.0696846   -.0023229
+  2010 2008  |   .0134639   .0272228     0.49   0.621    -.0399322      .06686
+  2010 2010  |   .0240494   .0394522     0.61   0.542     -.053334    .1014328
+  2010 2011  |   .0616808   .0656313     0.94   0.347    -.0670514     .190413
+  2010 2012  |   .0436007   .0677518     0.64   0.520    -.0892907     .176492
+  2010 2013  |   .0567398   .0305232     1.86   0.063    -.0031297    .1166094
+  2010 2014  |   .0289952   .0314308     0.92   0.356    -.0326546     .090645
+  2010 2015  |   .0674667   .0542655     1.24   0.214     -.038972    .1739054
+  2010 2016  |    .042974   .0649647     0.66   0.508    -.0844507    .1703988
+  2010 2017  |    .076333   .0440902     1.73   0.084    -.0101475    .1628134
+  2010 2018  |   .1167994   .0374417     3.12   0.002     .0433595    .1902393
+  2010 2019  |   .0443102   .0927352     0.48   0.633    -.1375848    .2262051
+  2010 2020  |   .0955309    .107313     0.89   0.373    -.1149576    .3060194
+  2011 2000  |  -.0780518   .0872621    -0.89   0.371    -.2492116    .0931081
+  2011 2001  |   .0267483   .0724797     0.37   0.712    -.1154165    .1689132
+  2011 2002  |  -.1163556   .0650264    -1.79   0.074    -.2439013    .0111901
+  2011 2003  |  -.0981645   .0598673    -1.64   0.101    -.2155909    .0192618
+  2011 2004  |  -.0373858   .0798207    -0.47   0.640    -.1939497    .1191781
+  2011 2005  |  -.0297547   .0689121    -0.43   0.666     -.164922    .1054125
+  2011 2006  |  -.0837357   .0305451    -2.74   0.006    -.1436483   -.0238232
+  2011 2007  |  -.1048989   .0475819    -2.20   0.028    -.1982282   -.0115696
+  2011 2008  |  -.0659941   .0559712    -1.18   0.239    -.1757785    .0437904
+  2011 2009  |  -.1012564   .0533233    -1.90   0.058    -.2058471    .0033342
+  2011 2011  |   .0114497   .0381336     0.30   0.764    -.0633472    .0862467
+  2011 2012  |   .0163069   .0341884     0.48   0.633    -.0507518    .0833656
+  2011 2013  |   .0089421   .0299474     0.30   0.765    -.0497981    .0676822
+  2011 2014  |  -.0038521   .0369202    -0.10   0.917     -.076269    .0685649
+  2011 2015  |   .0160559   .0335499     0.48   0.632    -.0497504    .0818623
+  2011 2016  |   .0154641   .0375003     0.41   0.680    -.0580907    .0890189
+  2011 2017  |  -.1114152    .074826    -1.49   0.137    -.2581822    .0353518
+  2011 2018  |   .0020272    .053974     0.04   0.970    -.1038397    .1078942
+  2011 2019  |  -.1140154   .0819086    -1.39   0.164    -.2746746    .0466438
+  2011 2020  |   .0063656   .0269563     0.24   0.813    -.0465078    .0592389
+  2012 2000  |  -.1461434    .121085    -1.21   0.228    -.3836449    .0913581
+  2012 2001  |  -.1525844   .1444437    -1.06   0.291    -.4359027    .1307338
+  2012 2002  |  -.1235278   .0850346    -1.45   0.147    -.2903185    .0432629
+  2012 2003  |  -.1644499   .0948004    -1.73   0.083    -.3503958     .021496
+  2012 2004  |  -.0487529   .0980977    -0.50   0.619     -.241166    .1436603
+  2012 2005  |   .0148464   .0606575     0.24   0.807    -.1041299    .1338227
+  2012 2006  |  -.0329804     .05048    -0.65   0.514    -.1319941    .0660333
+  2012 2007  |  -.0512126   .0276463    -1.85   0.064    -.1054392    .0030141
+  2012 2008  |  -.0478912   .0230566    -2.08   0.038    -.0931154   -.0026671
+  2012 2009  |  -.0156573   .0234922    -0.67   0.505     -.061736    .0304213
+  2012 2010  |  -.0107165   .0171909    -0.62   0.533    -.0444356    .0230025
+  2012 2012  |   .0009309   .0412236     0.02   0.982     -.079927    .0817888
+  2012 2013  |   .0133695   .0275542     0.49   0.628    -.0406766    .0674157
+  2012 2014  |    -.03798   .0389497    -0.98   0.330    -.1143777    .0384176
+  2012 2015  |   .0182169     .04121     0.44   0.659    -.0626142     .099048
+  2012 2016  |  -.0279115   .0413871    -0.67   0.500    -.1090901    .0532671
+  2012 2017  |  -.0109488   .0254295    -0.43   0.667    -.0608275    .0389298
+  2012 2018  |  -.0251051   .0481111    -0.52   0.602    -.1194723    .0692621
+  2012 2019  |   -.029587    .027444    -1.08   0.281    -.0834168    .0242428
+  2012 2020  |  -.0443481   .0291167    -1.52   0.128    -.1014589    .0127628
+  2013 2000  |   .0108432   .0442069     0.25   0.806    -.0758662    .0975525
+  2013 2001  |   .1099738   .1204395     0.91   0.361    -.1262616    .3462093
+  2013 2002  |  -.0148959   .1169348    -0.13   0.899    -.2442571    .2144653
+  2013 2003  |   .0541636   .1189998     0.46   0.649    -.1792478    .2875751
+  2013 2004  |   .0123942   .0962856     0.13   0.898    -.1764647    .2012531
+  2013 2005  |   .0182091   .0931313     0.20   0.845    -.1644629     .200881
+  2013 2006  |   .0816471   .0959089     0.85   0.395     -.106473    .2697671
+  2013 2007  |  -.0073535   .0497179    -0.15   0.882    -.1048725    .0901655
+  2013 2008  |  -.0318715   .0651015    -0.49   0.625    -.1595645    .0958214
+  2013 2009  |   .0174967   .0454342     0.39   0.700      -.07162    .1066135
+  2013 2010  |  -.0156403   .0356117    -0.44   0.661    -.0854907      .05421
+  2013 2011  |  -.0205757   .0425962    -0.48   0.629    -.1041259    .0629745
+  2013 2013  |   .0489013   .0352555     1.39   0.166    -.0202503     .118053
+  2013 2014  |   .0559107   .0411121     1.36   0.174    -.0247285    .1365499
+  2013 2015  |   .0570188   .0333305     1.71   0.087    -.0083571    .1223948
+  2013 2016  |   .1203467   .0474953     2.53   0.011     .0271873    .2135061
+  2013 2017  |   .1537777   .0721628     2.13   0.033     .0122343    .2953211
+  2013 2018  |   .1257464   .0515619     2.44   0.015     .0246107    .2268822
+  2013 2019  |   .0985511   .0502433     1.96   0.050     1.53e-06    .1971006
+  2013 2020  |   .1338153   .0715358     1.87   0.062    -.0064982    .2741289
+  2014 2000  |  -.0045686   .0477317    -0.10   0.924    -.0981917    .0890545
+  2014 2001  |    .025584   .0501175     0.51   0.610    -.0727188    .1238867
+  2014 2002  |  -.0910817   .0824034    -1.11   0.269    -.2527115    .0705481
+  2014 2003  |  -.0331034   .0492842    -0.67   0.502    -.1297715    .0635648
+  2014 2004  |   -.010682   .0425442    -0.25   0.802      -.09413     .072766
+  2014 2005  |   .0547524   .0561507     0.98   0.330    -.0553841    .1648888
+  2014 2006  |  -.0054568   .0519742    -0.10   0.916    -.1074013    .0964877
+  2014 2007  |  -.0231812   .0409888    -0.57   0.572    -.1035785    .0572161
+  2014 2008  |  -.0569412   .0681935    -0.83   0.404     -.190699    .0768165
+  2014 2009  |  -.0522047   .0642578    -0.81   0.417    -.1782428    .0738334
+  2014 2010  |   .0233432    .081457     0.29   0.774    -.1364301    .1831166
+  2014 2011  |  -.0004802   .0640348    -0.01   0.994     -.126081    .1251205
+  2014 2012  |  -.0246021   .0607131    -0.41   0.685    -.1436875    .0944834
+  2014 2014  |   .0484655   .0443989     1.09   0.275    -.0386204    .1355514
+  2014 2015  |   .0464534   .0435797     1.07   0.287    -.0390258    .1319326
+  2014 2016  |   .0588537   .0478469     1.23   0.219    -.0349953    .1527027
+  2014 2017  |   .0950479   .0623221     1.53   0.127    -.0271935    .2172892
+  2014 2018  |   .0704456   .0674035     1.05   0.296    -.0617626    .2026539
+  2014 2019  |   .0668996   .0989752     0.68   0.499    -.1272348     .261034
+  2014 2020  |  -.0429471   .0687114    -0.63   0.532    -.1777207    .0918265
+  2015 2000  |  -.2397685   .1178902    -2.03   0.042    -.4710036   -.0085335
+  2015 2001  |  -.2289065   .1170937    -1.95   0.051    -.4585792    .0007663
+  2015 2002  |  -.1683723   .1586398    -1.06   0.289    -.4795355     .142791
+  2015 2003  |  -.1775584   .1722228    -1.03   0.303     -.515364    .1602471
+  2015 2004  |  -.2148424   .1200697    -1.79   0.074    -.4503525    .0206677
+  2015 2005  |  -.1764213   .1003526    -1.76   0.079    -.3732574    .0204148
+  2015 2006  |   -.145174   .1260046    -1.15   0.249    -.3923252    .1019772
+  2015 2007  |  -.2436566   .1099716    -2.22   0.027    -.4593598   -.0279534
+  2015 2008  |  -.1939434   .1026732    -1.89   0.059    -.3953313    .0074444
+  2015 2009  |  -.1606296   .0963348    -1.67   0.096     -.349585    .0283258
+  2015 2010  |  -.1324149   .0864609    -1.53   0.126    -.3020032    .0371733
+  2015 2011  |  -.0433469   .0562709    -0.77   0.441    -.1537192    .0670254
+  2015 2012  |  -.0566462   .0527747    -1.07   0.283    -.1601609    .0468685
+  2015 2013  |  -.0229188   .0502438    -0.46   0.648    -.1214693    .0756316
+  2015 2015  |   -.001079   .0309379    -0.03   0.972     -.061762    .0596041
+  2015 2016  |     .00685   .0330758     0.21   0.836    -.0580264    .0717264
+  2015 2017  |  -.0575076   .0540482    -1.06   0.287    -.1635201     .048505
+  2015 2018  |  -.0527094    .058036    -0.91   0.364    -.1665438     .061125
+  2015 2019  |  -.0086773   .0892758    -0.10   0.923    -.1837869    .1664322
+  2015 2020  |   .0012042   .0856218     0.01   0.989    -.1667383    .1691466
+  2016 2000  |  -.1079488    .048557    -2.22   0.026    -.2031906   -.0127069
+  2016 2001  |  -.0786626   .0481541    -1.63   0.103    -.1731141    .0157889
+  2016 2002  |  -.1138903   .0464073    -2.45   0.014    -.2049156    -.022865
+  2016 2003  |  -.0996379   .0462916    -2.15   0.032    -.1904362   -.0088395
+  2016 2004  |  -.0763159   .0443927    -1.72   0.086    -.1633897    .0107579
+  2016 2005  |  -.0536541   .0476933    -1.12   0.261    -.1472018    .0398936
+  2016 2006  |  -.0947578   .0488914    -1.94   0.053    -.1906556      .00114
+  2016 2007  |  -.0884927   .0469462    -1.88   0.060    -.1805751    .0035897
+  2016 2008  |  -.1215383   .0662537    -1.83   0.067    -.2514913    .0084146
+  2016 2009  |  -.0969273   .0636592    -1.52   0.128    -.2217912    .0279366
+  2016 2010  |  -.0648822   .0630393    -1.03   0.304    -.1885304     .058766
+  2016 2011  |  -.0098148   .0475918    -0.21   0.837    -.1031635    .0835339
+  2016 2012  |  -.0645001   .0425423    -1.52   0.130    -.1479446    .0189443
+  2016 2013  |  -.0279229   .0311671    -0.90   0.370    -.0890554    .0332097
+  2016 2014  |  -.0494815   .0441616    -1.12   0.263    -.1361021    .0371391
+  2016 2016  |  -.0795465   .0616573    -1.29   0.197    -.2004839     .041391
+  2016 2017  |  -.0840956   .0611057    -1.38   0.169    -.2039511    .0357599
+  2016 2018  |  -.0631293   .0645364    -0.98   0.328    -.1897139    .0634553
+  2016 2019  |  -.0404463   .0562509    -0.72   0.472    -.1507792    .0698867
+  2016 2020  |   .0306038   .0650045     0.47   0.638     -.096899    .1581065
+  2017 2000  |  -.0928678   .0305907    -3.04   0.002    -.1528698   -.0328658
+  2017 2001  |  -.0604209   .0291529    -2.07   0.038    -.1176027    -.003239
+  2017 2002  |  -.1019616   .0301863    -3.38   0.001    -.1611703   -.0427529
+  2017 2003  |  -.0827814   .0267056    -3.10   0.002    -.1351629   -.0303999
+  2017 2004  |   .0188157   .0907389     0.21   0.836    -.1591637    .1967951
+  2017 2005  |  -.0576304   .0280605    -2.05   0.040    -.1126694   -.0025913
+  2017 2006  |  -.0033369   .0985772    -0.03   0.973    -.1966907    .1900169
+  2017 2007  |  -.1066617   .0270948    -3.94   0.000    -.1598066   -.0535168
+  2017 2008  |  -.0805847   .0257276    -3.13   0.002    -.1310479   -.0301216
+  2017 2009  |  -.0754493   .0270052    -2.79   0.005    -.1284186   -.0224801
+  2017 2010  |  -.0602876   .0261029    -2.31   0.021     -.111487   -.0090882
+  2017 2011  |  -.0547856   .0272874    -2.01   0.045    -.1083084   -.0012629
+  2017 2012  |  -.0556401   .0231292    -2.41   0.016    -.1010068   -.0102734
+  2017 2013  |  -.0391505    .056839    -0.69   0.491    -.1506371    .0723361
+  2017 2014  |  -.0363341   .0174824    -2.08   0.038     -.070625   -.0020433
+  2017 2015  |  -.0303828   .0205505    -1.48   0.139    -.0706914    .0099259
+  2017 2017  |  -.0271005   .0182552    -1.48   0.138    -.0629071     .008706
+  2017 2018  |  -.0482626   .0384932    -1.25   0.210    -.1237649    .0272397
+  2017 2019  |   -.065469   .0434732    -1.51   0.132    -.1507393    .0198012
+  2017 2020  |  -.0773719   .0453422    -1.71   0.088    -.1663082    .0115645
+  2018 2000  |  -.0423232   .0569463    -0.74   0.457    -.1540203    .0693738
+  2018 2001  |  -.0127609   .0576141    -0.22   0.825    -.1257679     .100246
+  2018 2002  |  -.0533656   .0567123    -0.94   0.347    -.1646037    .0578725
+  2018 2003  |  -.0468248   .0565605    -0.83   0.408    -.1577652    .0641155
+  2018 2004  |  -.1474244   .1293479    -1.14   0.255    -.4011332    .1062844
+  2018 2005  |  -.0152397   .0545986    -0.28   0.780    -.1223318    .0918524
+  2018 2006  |  -.0592321    .057792    -1.02   0.306    -.1725879    .0541237
+  2018 2007  |   .0321784   .1054167     0.31   0.760    -.1745906    .2389474
+  2018 2008  |   .0974178   .1393289     0.70   0.485    -.1758681    .3707037
+  2018 2009  |  -.0536261   .0563729    -0.95   0.342    -.1641985    .0569463
+  2018 2010  |  -.0261616   .0544585    -0.48   0.631     -.132979    .0806559
+  2018 2011  |    .093247   .1059027     0.88   0.379    -.1144754    .3009693
+  2018 2012  |   .0452129   .0826525     0.55   0.584    -.1169053    .2073312
+  2018 2013  |   .0119459   .0569087     0.21   0.834    -.0996774    .1235693
+  2018 2014  |   -.024066   .0476969    -0.50   0.614     -.117621    .0694889
+  2018 2015  |  -.0161324   .0454548    -0.35   0.723    -.1052896    .0730248
+  2018 2016  |   .0119112   .0505768     0.24   0.814    -.0872924    .1111147
+  2018 2018  |    .034864   .0600867     0.58   0.562    -.0829928    .1527208
+  2018 2019  |  -.0129828   .0623883    -0.21   0.835    -.1353541    .1093885
+  2018 2020  |    .006467   .0738823     0.09   0.930    -.1384492    .1513831
+  2019 2001  |  -.1000913   .0518748    -1.93   0.054    -.2018408    .0016582
+  2019 2002  |  -.1537251   .0749687    -2.05   0.040    -.3007721   -.0066781
+  2019 2003  |   .0671341    .193291     0.35   0.728    -.3119955    .4462637
+  2019 2004  |   .0865073   .1932773     0.45   0.655    -.2925956    .4656101
+  2019 2005  |   .0226389    .155852     0.15   0.885    -.2830563    .3283341
+  2019 2006  |  -.1417998   .1635695    -0.87   0.386    -.4626323    .1790327
+  2019 2007  |  -.1425778    .139868    -1.02   0.308    -.4169212    .1317656
+  2019 2008  |  -.2397899   .2080339    -1.15   0.249    -.6478369    .1682572
+  2019 2009  |  -.1357891   .1560603    -0.87   0.384    -.4418927    .1703145
+  2019 2010  |  -.2362685   .1149199    -2.06   0.040    -.4616775   -.0108594
+  2019 2011  |  -.3197555   .1324654    -2.41   0.016     -.579579   -.0599319
+  2019 2012  |  -.2529074   .1070318    -2.36   0.018    -.4628444   -.0429703
+  2019 2013  |  -.1757197   .0755157    -2.33   0.020    -.3238395   -.0275998
+  2019 2014  |  -.0817271   .0533014    -1.53   0.125    -.1862748    .0228207
+  2019 2015  |  -.0724103   .0658133    -1.10   0.271    -.2014996     .056679
+  2019 2016  |  -.0672502   .0459503    -1.46   0.144    -.1573791    .0228788
+  2019 2017  |  -.0083299   .0401501    -0.21   0.836    -.0870822    .0704223
+  2019 2019  |  -.0289363   .0607139    -0.48   0.634    -.1480233    .0901507
+  2019 2020  |  -.1115097   .0659759    -1.69   0.091    -.2409179    .0178984
+  2020 2000  |  -.3838736   .1703005    -2.25   0.024    -.7179086   -.0498387
+  2020 2001  |  -.4250356   .1741165    -2.44   0.015    -.7665555   -.0835157
+  2020 2002  |   -.401647   .2733298    -1.47   0.142    -.9377683    .1344743
+  2020 2003  |    .160698   .1945121     0.83   0.409    -.2208268    .5422228
+  2020 2004  |  -.0907204   .0706529    -1.28   0.199    -.2293021    .0478613
+  2020 2005  |  -.1985104   .1518065    -1.31   0.191    -.4962705    .0992496
+  2020 2006  |  -.1620281   .1729677    -0.94   0.349    -.5012947    .1772385
+  2020 2007  |  -.2307799    .151532    -1.52   0.128    -.5280015    .0664416
+  2020 2008  |   -.036454   .2203927    -0.17   0.869    -.4687422    .3958342
+  2020 2009  |  -.1943264   .1684177    -1.15   0.249    -.5246684    .1360157
+  2020 2010  |  -.1831414   .1511789    -1.21   0.226    -.4796705    .1133877
+  2020 2011  |   .0046601   .1358537     0.03   0.973    -.2618094    .2711297
+  2020 2012  |   .2487255   .1101526     2.26   0.024     .0326672    .4647839
+  2020 2013  |   .0646244   .0949629     0.68   0.496    -.1216401    .2508889
+  2020 2014  |  -.0467794   .0961219    -0.49   0.627    -.2353173    .1417586
+  2020 2015  |   .1343006   .1209288     1.11   0.267    -.1028947    .3714958
+  2020 2016  |   .1254664   .1474532     0.85   0.395    -.1637548    .4146877
+  2020 2017  |  -.1048142   .0775783    -1.35   0.177    -.2569798    .0473515
+  2020 2018  |    .058304   .0774586     0.75   0.452    -.0936268    .2102349
+  2020 2020  |   .0196904   .0908228     0.22   0.828    -.1584535    .1978344
+             |
+       _cons |   .5346144   .0042489   125.82   0.000     .5262805    .5429484
+------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+         pid |      1604        1604           0    *|
+       syear |        21           1          20     |
+-----------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+
+. estat simple
+------------------------------------------------------------------------------
+             |            Delta-method
+             | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+      simple |   .0216042   .0107974     2.00   0.045     .0004416    .0427668
+------------------------------------------------------------------------------
+
+. 
+. 
+. estat event , pretrend
+------------------------------------------------------------------------------
+             |            Delta-method
+             | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+   __event__ |
+        -20  |  -.3838736   .1703005    -2.25   0.024    -.7176564   -.0500909
+        -19  |  -.4250356   .1741165    -2.44   0.015    -.7662976   -.0837735
+        -18  |  -.1976064   .1131791    -1.75   0.081    -.4194332    .0242205
+        -17  |  -.0377325   .0432791    -0.87   0.383    -.1225579    .0470929
+        -16  |  -.0569253   .0333012    -1.71   0.087    -.1221946    .0083439
+        -15  |  -.1047701   .0350405    -2.99   0.003    -.1734482    -.036092
+        -14  |  -.0928605    .036306    -2.56   0.011     -.164019    -.021702
+        -13  |  -.0622152   .0396525    -1.57   0.117    -.1399327    .0155022
+        -12  |   -.078595    .039699    -1.98   0.048    -.1564036   -.0007865
+        -11  |  -.0767521   .0357007    -2.15   0.032    -.1467243   -.0067799
+        -10  |  -.0407739   .0294866    -1.38   0.167    -.0985666    .0170187
+         -9  |  -.0486016   .0279018    -1.74   0.082    -.1032882     .006085
+         -8  |  -.0194309   .0242392    -0.80   0.423    -.0669389    .0280772
+         -7  |  -.0010584   .0218077    -0.05   0.961    -.0438006    .0416838
+         -6  |  -.0233857   .0195337    -1.20   0.231     -.061671    .0148997
+         -5  |  -.0123313   .0139024    -0.89   0.375    -.0395794    .0149168
+         -4  |  -.0063719   .0134959    -0.47   0.637    -.0328234    .0200796
+         -3  |   -.018947   .0114745    -1.65   0.099    -.0414365    .0035425
+         -2  |    -.00619   .0093287    -0.66   0.507    -.0244739    .0120938
+         -1  |          0  (omitted)
+          0  |   .0122295   .0100882     1.21   0.225     -.007543     .032002
+          1  |   .0003904   .0095033     0.04   0.967    -.0182357    .0190166
+          2  |    .004362   .0116204     0.38   0.707    -.0184135    .0271375
+          3  |   .0119281   .0120363     0.99   0.322    -.0116627    .0355188
+          4  |   .0272725   .0151432     1.80   0.072    -.0024076    .0569526
+          5  |   .0398491   .0154207     2.58   0.010     .0096251    .0700731
+          6  |    .014171    .018184     0.78   0.436    -.0214689    .0498109
+          7  |   .0428141   .0179395     2.39   0.017     .0076533    .0779749
+          8  |   .0028981   .0209959     0.14   0.890    -.0382531    .0440494
+          9  |    .038515   .0256074     1.50   0.133    -.0116746    .0887045
+         10  |   .0493183   .0306554     1.61   0.108    -.0107652    .1094019
+         11  |   .0689895   .0323847     2.13   0.033     .0055167    .1324623
+         12  |   .0100226   .0293331     0.34   0.733    -.0474693    .0675144
+         13  |    .060323   .0397363     1.52   0.129    -.0175588    .1382048
+         14  |   .0677836     .03753     1.81   0.071    -.0057739     .141341
+         15  |   .0860945   .0383306     2.25   0.025      .010968     .161221
+         16  |   .1133781   .0424437     2.67   0.008     .0301899    .1965662
+         17  |   .0001698    .053511     0.00   0.997    -.1047099    .1050494
+         18  |   .0535607     .02589     2.07   0.039     .0028171    .1043043
+         19  |   .0469875   .0294423     1.60   0.111    -.0107183    .1046933
+------------------------------------------------------------------------------
+Pre-treatment test
+
+ ( 1)  1bn.__event__ = 0
+ ( 2)  2.__event__ = 0
+ ( 3)  3.__event__ = 0
+ ( 4)  4.__event__ = 0
+ ( 5)  5.__event__ = 0
+ ( 6)  6.__event__ = 0
+ ( 7)  7.__event__ = 0
+ ( 8)  8.__event__ = 0
+ ( 9)  9.__event__ = 0
+ (10)  10.__event__ = 0
+ (11)  11.__event__ = 0
+ (12)  12.__event__ = 0
+ (13)  13.__event__ = 0
+ (14)  14.__event__ = 0
+ (15)  15.__event__ = 0
+ (16)  16.__event__ = 0
+ (17)  17.__event__ = 0
+ (18)  18.__event__ = 0
+ (19)  19.__event__ = 0
+
+           chi2( 19) =   27.70
+         Prob > chi2 =    0.0895
+
+. scalar p_test = `r(pre_p)'
+
+. estat plot
+
+. 
+. estat simple
+------------------------------------------------------------------------------
+             |            Delta-method
+             | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+      simple |   .0216042   .0107974     2.00   0.045     .0004416    .0427668
+------------------------------------------------------------------------------
+
+. mat b = r(table)
+
+. scalar daughter= el(b ,1,1)
+
+. scalar se_daughter= el(b ,2,1)
+
+. scalar p_daughter= el(b ,4,1)
+
+.  
+. if p_test <0.1{
+.         di "WARNING: evidence of difference in pretrends" 
+WARNING: evidence of difference in pretrends
+. }
+
+.  
+. * if the first test passes, then for statistical power we should use all pre 
+> treatement as controls 
+. if p_test >  0.1{
+. if p_test == . {
+.         di "There are not enough observations to compute SD in the full model
+> " 
+.         di "We proceed to use later treated as control units" 
+.         }
+.         
+. jwdid left_wing_party   , ivar(pid) tvar(syear) gvar(first_treated_year)  
+. estat event
+. estat plot
+. mat b = r(table)
+. scalar daughter= el(b ,1,1)
+. scalar se_daughter= el(b ,2,1)
+. scalar p_daughter= el(b ,4,1)
+. }
+
+. 
+.  
+. ****************** EXTRACT AND EXPORT RESULTS *******************************
+> **
+. 
+.         * Extract the required statistics
+. 
+.                 * (i) coefficient estimate
+.                 local coefficient = b[1,1]
+
+. 
+.                 * (ii) standard error
+.                 local se = b[2,1]
+
+.                 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "z"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 *local df_residual = e(df_r)
+.                 *local df_model = e(df_m)
+. 
+.                 * (v) p-value
+.                 local p_value =b[4,1]
+
+.          
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+.         
+.                 
+.                 * (viii) interpretation of directionality
+.                 scalar coef_d_daughter = b[1,1]
+
+.                 local interpretation "positive coefficient is in line with hy
+> pothesis"
+
+. 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: .0216042034161587
+
+.         di "Standard Error: `se'"
+Standard Error: .0107974430292116
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: z
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: 
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 
+
+.         di "p-value: " `p_value'
+p-value: .04540716
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 12653
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 1604
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h2_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/95_re
+    > sults/h2_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient',`se', `test_stat_family', `df_residu
+> al', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

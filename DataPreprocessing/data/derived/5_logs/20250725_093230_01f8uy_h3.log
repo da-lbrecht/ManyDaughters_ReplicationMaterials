@@ -1,0 +1,713 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmptsxdqq9t.do 
+
+. do "5%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. 
+. * the following code automatically sets paths based on the project location o
+> n your system *local curdir = c(pwd)
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/5%-sample" // folder, in which the ori
+> ginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/5%-sample
+
+. global DATA "$ROOT/data/derived_confidential/5%-sample" // folder for dataset
+> s
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/5%-sample
+
+. global OUT "$ROOT/data/derived/5_results" // folder for output (results, tabl
+> es)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/5_results
+
+. 
+end of do-file
+
+. do "20250725_093230_01f8uy_h3.do"
+
+. *****************************************************************************
+> ***
+. ****************** Do-File H3: #ManyDaughters Project ***********************
+> ***
+. *****************************************************************************
+> ***
+. 
+. * Authors: Tina Wang, David Albrecht
+. 
+. * RT: [REDACTED], [REDACTED]
+. 
+. * ============================
+. * Setup * (Please adapt according to your needs)
+. * ============================
+. 
+. * clear all
+. version 17 // indicate the version of stata you are using here
+
+. *set maxvar 10000 // extend the maximum number of variables to 10,000
+. 
+. * INSTALL PACKAGES * (Please adapt according to your needs)
+. * install all packages you need here, for example:
+. * ssc install outreg2
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. /*
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> */
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA * (Please adapt according to your needs)
+. 
+.         use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. 
+.         * Merge ppathl with all datasets, that you deem relevant for your ana
+> lysis. (Tip: use keepusing() to specify which variables to keep from the usin
+> g dataset; the default is all.)
+. 
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches)
+(variable pid was long, now double to accommodate using data's values)
+(variable cid was long, now double to accommodate using data's values)
+(variable gebjahr was int, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * pgen contains user-friendly data on the individual level that are c
+> onsolidated from different sources
+.         merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * pl contains all variables from the individual questionnaire
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches)
+(variable inputdataset was str6, now str9 to accommodate using data's values)
+(label cid already defined)
+(label pid_EN already defined)
+(label cid_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * hgen contains generated variables on household level from the house
+> hold interview; use for household net income
+.         merge m:1 hid syear using "$IN/hgen.dta", nogen keep(master matches) 
+> keepusing(hid syear hghinc)
+(label iyear already defined)
+(label iyear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+. 
+.         label language EN // change language of the labels to English
+
+. 
+.         save "$DATA/h3_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/5%-sample/h3_dataset.dta saved
+
+. 
+. 
+. * ============================
+. * Analysis
+. * ============================
+. 
+. use "$DATA/h3_dataset.dta", clear
+
+. keep sumkids kidsex01 pid syear hid  pli0044_h pli0019_h pli0022_h plj0567 pl
+> i0012_h pli0016_h pli0054
+
+. 
+. * FILTERS * 
+.  
+.         * Keep participants with exactly 1 kid
+.         keep if sumkids == 1
+(28,496 observations deleted)
+
+. 
+. * GENERATE VARIABLES 
+. 
+.         * We  measure "gender equality in the household" as the absolute diff
+> erence from a 50/50 ratio for each household. 
+.         * It should be lower for people with daughters. 
+.         * The variable is recoded so that higher values indicate more egality
+>  in household work
+.                 *       Time use childcare/weekday, pli0044_h, Saturday: pli0
+> 019_h, Sunday: pli0022_h
+.                 *       Errands & shopping/weekday, plj0567, Errands saturday
+> : pli0054
+.                 *       Housework: pli0043_h, Saturday: pli0012_h, Sunday: pl
+> i0016_h    
+.                 tab1 pli0044_h pli0019_h pli0022_h plj0567 pli0012_h pli0016_
+> h pli0054
+
+-> tabulation of pli0044_h  
+
+     [de] Kinderbetreuung Std., Werktg. |
+                         [harmonisiert] |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+[-5] Not included in this version of th |         45        0.81        0.81
+                    [-2] Does not apply |        221        3.97        4.78
+                                      0 |      3,512       63.12       67.90
+                                      1 |        396        7.12       75.02
+                                      2 |        356        6.40       81.42
+                                      3 |        201        3.61       85.03
+                                      4 |        207        3.72       88.75
+                                      5 |        140        2.52       91.27
+                                      6 |        100        1.80       93.06
+                                      7 |         39        0.70       93.76
+                                      8 |         88        1.58       95.35
+                                      9 |          9        0.16       95.51
+                                     10 |         60        1.08       96.59
+                                     11 |          2        0.04       96.62
+                                     12 |         77        1.38       98.01
+                                     13 |          2        0.04       98.04
+                                     14 |         10        0.18       98.22
+                                     15 |          6        0.11       98.33
+                                     16 |         20        0.36       98.69
+                                     17 |          3        0.05       98.74
+                                     18 |          3        0.05       98.80
+                                     19 |          4        0.07       98.87
+                                     20 |         11        0.20       99.07
+                                     21 |          3        0.05       99.12
+                                     22 |          1        0.02       99.14
+                                     24 |         48        0.86      100.00
+----------------------------------------+-----------------------------------
+                                  Total |      5,564      100.00
+
+-> tabulation of pli0019_h  
+
+     [de] Kinderbetreuung Std., Samstag |
+                         [harmonisiert] |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+[-8] Question this year not part of sur |      2,633       47.32       47.32
+[-5] Not included in this version of th |        319        5.73       53.06
+                    [-2] Does not apply |        129        2.32       55.37
+                                      0 |      1,626       29.22       84.60
+                                      1 |         82        1.47       86.07
+                                      2 |        102        1.83       87.90
+                                      3 |         57        1.02       88.93
+                                      4 |         86        1.55       90.47
+                                      5 |         87        1.56       92.04
+                                      6 |         52        0.93       92.97
+                                      7 |         24        0.43       93.40
+                                      8 |         77        1.38       94.79
+                                      9 |         11        0.20       94.99
+                                     10 |         54        0.97       95.96
+                                     11 |          1        0.02       95.97
+                                     12 |        124        2.23       98.20
+                                     13 |          8        0.14       98.35
+                                     14 |         22        0.40       98.74
+                                     15 |          3        0.05       98.80
+                                     16 |          7        0.13       98.92
+                                     18 |          1        0.02       98.94
+                                     19 |          2        0.04       98.98
+                                     20 |          7        0.13       99.10
+                                     22 |          1        0.02       99.12
+                                     24 |         49        0.88      100.00
+----------------------------------------+-----------------------------------
+                                  Total |      5,564      100.00
+
+-> tabulation of pli0022_h  
+
+     [de] Kinderbetreuung Std., Sonntag |
+                         [harmonisiert] |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+[-8] Question this year not part of sur |      2,633       47.32       47.32
+[-5] Not included in this version of th |        319        5.73       53.06
+                    [-2] Does not apply |        130        2.34       55.39
+                                      0 |      1,637       29.42       84.81
+                                      1 |         71        1.28       86.09
+                                      2 |         71        1.28       87.37
+                                      3 |         56        1.01       88.37
+                                      4 |         89        1.60       89.97
+                                      5 |         74        1.33       91.30
+                                      6 |         48        0.86       92.16
+                                      7 |         22        0.40       92.56
+                                      8 |         90        1.62       94.18
+                                      9 |          9        0.16       94.34
+                                     10 |         69        1.24       95.58
+                                     11 |          2        0.04       95.61
+                                     12 |        138        2.48       98.09
+                                     13 |         10        0.18       98.27
+                                     14 |         22        0.40       98.67
+                                     15 |          3        0.05       98.72
+                                     16 |          7        0.13       98.85
+                                     18 |          1        0.02       98.87
+                                     20 |          5        0.09       98.96
+                                     21 |          1        0.02       98.98
+                                     22 |          3        0.05       99.03
+                                     24 |         54        0.97      100.00
+----------------------------------------+-----------------------------------
+                                  Total |      5,564      100.00
+
+-> tabulation of plj0567  
+
+         [de] Besorgungen und Einkaufen |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+[-8] Question this year not part of sur |      4,229       76.01       76.01
+[-5] Not included in this version of th |      1,260       22.65       98.65
+                    [-2] Does not apply |          3        0.05       98.71
+                         [-1] No answer |          2        0.04       98.74
+                                      0 |          2        0.04       98.78
+                                      1 |         44        0.79       99.57
+                                      2 |         17        0.31       99.87
+                                      3 |          7        0.13      100.00
+----------------------------------------+-----------------------------------
+                                  Total |      5,564      100.00
+
+-> tabulation of pli0012_h  
+
+          [de] Hausarbeit Std., Samstag |
+                         [harmonisiert] |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+[-8] Question this year not part of sur |      2,633       47.32       47.32
+[-5] Not included in this version of th |        319        5.73       53.06
+                 [-3] Implausible value |          1        0.02       53.07
+                    [-2] Does not apply |         56        1.01       54.08
+                                      0 |        459        8.25       62.33
+                                      1 |        695       12.49       74.82
+                                      2 |        690       12.40       87.22
+                                      3 |        366        6.58       93.80
+                                      4 |        190        3.41       97.21
+                                      5 |         90        1.62       98.83
+                                      6 |         37        0.66       99.50
+                                      7 |         10        0.18       99.68
+                                      8 |         16        0.29       99.96
+                                     10 |          1        0.02       99.98
+                                     12 |          1        0.02      100.00
+----------------------------------------+-----------------------------------
+                                  Total |      5,564      100.00
+
+-> tabulation of pli0016_h  
+
+          [de] Hausarbeit Std., Sonntag |
+                         [harmonisiert] |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+[-8] Question this year not part of sur |      2,633       47.32       47.32
+[-5] Not included in this version of th |        319        5.73       53.06
+                 [-3] Implausible value |          1        0.02       53.07
+                    [-2] Does not apply |         80        1.44       54.51
+                                      0 |        828       14.88       69.39
+                                      1 |        801       14.40       83.79
+                                      2 |        571       10.26       94.05
+                                      3 |        183        3.29       97.34
+                                      4 |         87        1.56       98.90
+                                      5 |         39        0.70       99.60
+                                      6 |         15        0.27       99.87
+                                      7 |          2        0.04       99.91
+                                      8 |          1        0.02       99.93
+                                      9 |          1        0.02       99.95
+                                     10 |          2        0.04       99.98
+                                     12 |          1        0.02      100.00
+----------------------------------------+-----------------------------------
+                                  Total |      5,564      100.00
+
+-> tabulation of pli0054  
+
+                  [de] Besorgungen Std. |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+[-8] Question this year not part of sur |      2,633       47.32       47.32
+[-5] Not included in this version of th |        319        5.73       53.06
+                 [-3] Implausible value |          1        0.02       53.07
+                    [-2] Does not apply |         66        1.19       54.26
+                                      0 |        753       13.53       67.79
+                                      1 |        956       17.18       84.97
+                                      2 |        608       10.93       95.90
+                                      3 |        177        3.18       99.08
+                                      4 |         39        0.70       99.78
+                                      5 |          8        0.14       99.93
+                                      6 |          2        0.04       99.96
+                                      8 |          2        0.04      100.00
+----------------------------------------+-----------------------------------
+                                  Total |      5,564      100.00
+
+.                 mvdecode pli0044_h pli0019_h pli0022_h plj0567 pli0012_h pli0
+> 016_h pli0054, mv(-9/-1)
+   pli0044_h: 266 missing values generated
+   pli0019_h: 3081 missing values generated
+   pli0022_h: 3082 missing values generated
+     plj0567: 5494 missing values generated
+   pli0012_h: 3009 missing values generated
+   pli0016_h: 3033 missing values generated
+     pli0054: 3019 missing values generated
+
+.         
+.                 egen housework =        rowtotal(pli0044_h pli0019_h pli0022_
+> h plj0567 pli0012_h pli0016_h pli0054)
+
+.                 egen hh_housework = total(housework), by(hid)
+
+.                         gen share = housework/hh_housework
+(215 missing values generated)
+
+.                                 replace share = share-.5
+(6,517 real changes made)
+
+.                                 replace share = share^2
+(6,491 real changes made)
+
+.                                 replace share = sqrt(share)
+(6,491 real changes made)
+
+.                         
+.                                 replace share = share*-1 
+(6,491 real changes made)
+
+.                                 * In the original variable, higher shares mea
+> n less equality.
+.                                 * Hence, coef. for daughter should be negativ
+> e.
+.                                 * We reverse the coding so that coef. can be 
+> interpreted in line with hypothesis
+.                                 * I.e., positive coef. -> greater gender equa
+> lity in the household
+.         
+.         
+.         *       As explained in our PAP we consider the treatment and control
+>  to be "having one daughter" and "having one son". 
+. 
+.         * Daughter dummy
+.         tab kidsex01
+
+                         Sex 1st. Child |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+                               [1] Male |      3,591       53.34       53.34
+                             [2] Female |      3,141       46.66      100.00
+----------------------------------------+-----------------------------------
+                                  Total |      6,732      100.00
+
+.         gen daughter = (kidsex01==2) if kidsex01 >= 0
+
+.         lab def daughter 1 "daughter" 0 "son"
+
+.         lab val daughter daughter
+
+.         tab daughter
+
+   daughter |      Freq.     Percent        Cum.
+------------+-----------------------------------
+        son |      3,591       53.34       53.34
+   daughter |      3,141       46.66      100.00
+------------+-----------------------------------
+      Total |      6,732      100.00
+
+. 
+.         
+. 
+. * HYPOTHESIS TEST FOR H3 * 
+. 
+.         * Please add a verbal description of your model here
+.         *       Our operationalization ensures ranodmization of the treatment
+>  and hence warrants a causal interpretation. Thus, we do not employ further c
+> ontrols.
+.         *       The only exception are survey waves to control for general tr
+> ends in gender equality and trends in birth rates. 
+.         *       We use a random effects model with observations clustered at 
+> the individual level. We xtset our data. We do not use an OLS since a RE mode
+> l is more efficient. 
+.         
+.         xtset pid syear
+
+Panel variable: pid (unbalanced)
+ Time variable: syear, 2000 to 2020, but with gaps
+         Delta: 1 unit
+
+.         * H3
+.                 xtreg share daughter i.syear, i(pid) cluster(pid) re
+
+Random-effects GLS regression                   Number of obs     =      6,517
+Group variable: pid                             Number of groups  =        801
+
+R-squared:                                      Obs per group:
+     Within  = 0.2786                                         min =          1
+     Between = 0.0016                                         avg =        8.1
+     Overall = 0.2142                                         max =         21
+
+                                                Wald chi2(21)     =    1248.51
+corr(u_i, X) = 0 (assumed)                      Prob > chi2       =     0.0000
+
+                                  (Std. err. adjusted for 801 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+       share | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+    daughter |   -.002084   .0039747    -0.52   0.600    -.0098742    .0057062
+             |
+       syear |
+       2001  |   .1289484   .0088998    14.49   0.000     .1115051    .1463917
+       2002  |  -.0097849   .0030964    -3.16   0.002    -.0158537   -.0037161
+       2003  |    .115045   .0078513    14.65   0.000     .0996567    .1304333
+       2004  |   -.012785   .0030929    -4.13   0.000     -.018847   -.0067231
+       2005  |   .0993458   .0074752    13.29   0.000     .0846946    .1139969
+       2006  |  -.0127013   .0034133    -3.72   0.000    -.0193913   -.0060114
+       2007  |   .0778069   .0069665    11.17   0.000     .0641529    .0914609
+       2008  |  -.0098495    .003487    -2.82   0.005     -.016684   -.0030151
+       2009  |   .0861071   .0074327    11.58   0.000     .0715393    .1006748
+       2010  |   .0050831   .0047926     1.06   0.289    -.0043101    .0144764
+       2011  |   .0877517   .0069783    12.58   0.000     .0740746    .1014289
+       2012  |   .0109124    .005257     2.08   0.038     .0006088     .021216
+       2013  |   .0670504   .0065847    10.18   0.000     .0541446    .0799562
+       2014  |  -.0151124   .0042186    -3.58   0.000    -.0233808    -.006844
+       2015  |   .0768553   .0073579    10.45   0.000     .0624342    .0912765
+       2016  |  -.0063472   .0049007    -1.30   0.195    -.0159525     .003258
+       2017  |   .0931816   .0078828    11.82   0.000     .0777317    .1086315
+       2018  |  -.0168509   .0045755    -3.68   0.000    -.0258187    -.007883
+       2019  |   .0881057   .0081142    10.86   0.000     .0722023    .1040092
+       2020  |   -.003389    .005873    -0.58   0.564    -.0148998    .0081219
+             |
+       _cons |  -.4667494   .0041676  -112.00   0.000    -.4749177   -.4585812
+-------------+----------------------------------------------------------------
+     sigma_u |  .04930778
+     sigma_e |  .08724274
+         rho |  .24209554   (fraction of variance due to u_i)
+------------------------------------------------------------------------------
+
+.                 matrix list r(table) // needed to extract p-value - original 
+> code did not work for me
+
+r(table)[9,23]
+                         2000b.       2001.       2002.       2003.       2004.
+          daughter       syear       syear       syear       syear       syear
+     b  -.00208399           0    .1289484  -.00978492   .11504502  -.01278503
+    se   .00397468           .   .00889979   .00309639   .00785131   .00309288
+     z  -.52431774           .   14.488918  -3.1601047   14.652978  -4.1336988
+pvalue   .60005756           .   1.424e-47   .00157712   1.289e-48    .0000357
+    ll  -.00987422           .   .11150512  -.01585374   .09965674  -.01884696
+    ul   .00570623           .   .14639168  -.00371611    .1304333   -.0067231
+    df           .           .           .           .           .           .
+  crit    1.959964    1.959964    1.959964    1.959964    1.959964    1.959964
+ eform           0           0           0           0           0           0
+
+              2005.       2006.       2007.       2008.       2009.       2010.
+             syear       syear       syear       syear       syear       syear
+     b   .09934578  -.01270133   .07780687  -.00984955   .08610707   .00508314
+    se   .00747521   .00341329   .00696646   .00348704   .00743267   .00479255
+     z   13.290033  -3.7211378   11.168786   -2.824616   11.584939   1.0606333
+pvalue   2.645e-40   .00019833   5.797e-29   .00473373   4.913e-31   .28885659
+    ll   .08469464  -.01939127   .06415286  -.01668402    .0715393  -.00431009
+    ul   .11399692   -.0060114   .09146087  -.00301508   .10067485   .01447638
+    df           .           .           .           .           .           .
+  crit    1.959964    1.959964    1.959964    1.959964    1.959964    1.959964
+ eform           0           0           0           0           0           0
+
+              2011.       2012.       2013.       2014.       2015.       2016.
+             syear       syear       syear       syear       syear       syear
+     b   .08775173   .01091239   .06705042  -.01511238   .07685534  -.00634722
+    se   .00697826   .00525703   .00658471   .00421865   .00735787   .00490074
+     z    12.57501   2.0757699    10.18275  -3.5822827    10.44533  -1.2951563
+pvalue   2.898e-36   .03791524   2.368e-24    .0003406   1.539e-25   .19526633
+    ll   .07407458    .0006088   .05414464  -.02338077   .06243419  -.01595249
+    ul   .10142887   .02121599   .07995621  -.00684399   .09127649   .00325805
+    df           .           .           .           .           .           .
+  crit    1.959964    1.959964    1.959964    1.959964    1.959964    1.959964
+ eform           0           0           0           0           0           0
+
+              2017.       2018.       2019.       2020.            
+             syear       syear       syear       syear       _cons
+     b    .0931816  -.01685089   .08810574  -.00338896  -.46674944
+    se   .00788276   .00457551   .00811417   .00587299   .00416756
+     z   11.820935  -3.6828417    10.85825  -.57704205  -111.99588
+pvalue   3.043e-32   .00023065   1.822e-27   .56391105           0
+    ll   .07773168  -.02581873   .07220225   -.0148998   -.4749177
+    ul   .10863153  -.00788305   .10400923   .00812188  -.45858117
+    df           .           .           .           .           .
+  crit    1.959964    1.959964    1.959964    1.959964    1.959964
+ eform           0           0           0           0           0
+
+.         
+.         
+. * EXTRACT AND EXPORT RESULTS *
+.         * Extract the required statistics
+. 
+.                 * (i) coefficient estimate
+.                 local coefficient = _b[daughter]
+
+. 
+.                 * (ii) standard error
+.                 local se = _se[daughter]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "z"
+
+. 
+.         
+.         * (iv) residual and model degrees of freedom (DFs) if applicable
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 local p_value = r(table)[4, 1]
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation of directionality
+.                 scalar coef_daughter = _b[daughter]
+
+.                 local interpretation "negative coefficient is in line with hy
+> pothesis"
+
+. 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: -.0020839933165787
+
+.         di "Standard Error: `se'"
+Standard Error: .0039746763165833
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: z
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: .
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 21
+
+.         di "p-value: " `p_value'
+p-value: .60005756
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 6517
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 801
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: negative coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h3_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/5_res
+    > ults/h3_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

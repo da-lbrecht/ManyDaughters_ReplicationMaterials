@@ -1,0 +1,1278 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmp0e2rkdsk.do 
+
+. do "5%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. 
+. * the following code automatically sets paths based on the project location o
+> n your system *local curdir = c(pwd)
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/5%-sample" // folder, in which the ori
+> ginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/5%-sample
+
+. global DATA "$ROOT/data/derived_confidential/5%-sample" // folder for dataset
+> s
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/5%-sample
+
+. global OUT "$ROOT/data/derived/5_results" // folder for output (results, tabl
+> es)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/5_results
+
+. 
+end of do-file
+
+. do "20250808_121829_013u29_h3.do"
+
+. *****************************************************************************
+> ***
+. ****************** Do-File H3: Behavioral Equality ******************
+. *****************************************************************************
+> ***
+. 
+. * Authors: [REDACTED], [REDACTED]
+. 
+. 
+. * ============================
+. * Setup * 
+. * ============================
+. 
+. * clear all
+. version 15 // indicate the version of stata you are using here
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. * INSTALL PACKAGES * 
+. * ssc install outreg2
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. /*
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> */
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA * (Please adapt according to your needs)
+. 
+.         use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. 
+.         * Merge ppathl with all datasets, that you deem relevant for your ana
+> lysis. (Tip: use keepusing() to specify which variables to keep from the usin
+> g dataset; the default is all.)
+. 
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches)
+(variable pid was long, now double to accommodate using data's values)
+(variable cid was long, now double to accommodate using data's values)
+(variable gebjahr was int, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * pgen contains user-friendly data on the individual level that are c
+> onsolidated from different sources
+.         merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * pl contains all variables from the individual questionnaire
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches)
+(variable inputdataset was str6, now str9 to accommodate using data's values)
+(label cid already defined)
+(label pid_EN already defined)
+(label cid_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * hgen contains generated variables on household level from the house
+> hold interview; use for household net income
+.         merge m:1 hid syear using "$IN/hgen.dta", nogen keep(master matches) 
+> keepusing(hid syear hghinc)
+(label iyear already defined)
+(label iyear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+. 
+.         label language EN // change language of the labels to English
+
+. 
+.         save "$DATA/h3_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/5%-sample/h3_dataset.dta saved
+
+. 
+.         use "$DATA/h3_dataset.dta", clear
+
+. 
+. * ============================
+. * Analysis 
+. * ============================
+. 
+. * STEP 0: Generate control variables
+. * Birthregion
+. gen birthregion_clean = birthregion
+
+. * Assign "Outside of Germany" = 17 to -1 (No answer) and -2 (Does not apply)
+. replace birthregion_clean = 17 if inlist(birthregion, -1, -2)
+(18,591 real changes made)
+
+. * Treat -5 as missing
+. replace birthregion_clean = . if birthregion == -5
+(1,558 real changes made, 1,558 to missing)
+
+. replace birthregion_cl = 0 if birthregion_clean ==.
+(1,558 real changes made)
+
+. 
+. * Label the new version
+. label define birthregion_lbl ///
+>     0  "Missing" ///
+>     1  "Schleswig-Holstein" ///
+>     2  "Hamburg" ///
+>     3  "Lower Saxony" ///
+>     4  "Bremen" ///
+>     5  "North Rhine-Westphalia" ///
+>     6  "Hesse" ///
+>     7  "Rhineland-Palatinate" ///
+>     8  "Baden-Wuerttemberg" ///
+>     9  "Bavaria" ///
+>     10 "Saarland" ///
+>     11 "Berlin" ///
+>     12 "Brandenburg" ///
+>     13 "Mecklenburg-West Pomerania" ///
+>     14 "Saxony" ///
+>     15 "Saxony-Anhalt" ///
+>     16 "Thuringia" ///
+>     17 "Outside of Germany"
+
+. label values birthregion_clean birthregion_lbl
+
+. 
+. * Income is defined later
+. 
+. * Age
+. gen age = syear - gebjahr
+
+. 
+. * Gender: 0 is male, 1 is female
+. gen gender = 0 if pla0009_v2 ==1
+(23,529 missing values generated)
+
+. replace gender = 1 if pla0009_v2 ==2
+(12,839 real changes made)
+
+. replace gender = 0 if pla0009_v3 ==1
+(790 real changes made)
+
+. replace gender = 1 if pla0009_v3 ==2
+(778 real changes made)
+
+. 
+. egen tag = tag(pid gender)
+
+. bysort pid (gender): gen n_unique_status = .
+(35,228 missing values generated)
+
+. bysort pid (gender): replace n_unique_status = sum(tag)
+(35228 real changes made)
+
+. bysort pid (gender): replace n_unique_status = n_unique_status[_N]
+(10909 real changes made)
+
+. tab n_unique_st
+
+n_unique_st |
+       atus |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |        246        0.70        0.70
+          1 |     34,945       99.20       99.89
+          2 |         37        0.11      100.00
+------------+-----------------------------------
+      Total |     35,228      100.00
+
+. sort pid gender
+
+. list pid gender if n_unique_st ==2
+
+       +-------------------+
+       |      pid   gender |
+       |-------------------|
+24358. | 20287601        0 |
+24359. | 20287601        1 |
+24360. | 20287601        1 |
+24361. | 20287601        1 |
+24362. | 20287601        1 |
+       |-------------------|
+24363. | 20287601        1 |
+24364. | 20287601        1 |
+24365. | 20287601        . |
+24366. | 20287601        . |
+24367. | 20287601        . |
+       |-------------------|
+24368. | 20287601        . |
+31539. | 31678401        0 |
+31540. | 31678401        1 |
+31541. | 31678401        1 |
+31542. | 31678401        1 |
+       |-------------------|
+31543. | 31678401        . |
+31544. | 31678401        . |
+32063. | 32344401        0 |
+32064. | 32344401        1 |
+32065. | 32344401        1 |
+       |-------------------|
+32066. | 32344401        1 |
+32067. | 32344401        1 |
+32068. | 32344401        1 |
+32069. | 32344401        . |
+32070. | 32344401        . |
+       |-------------------|
+32434. | 32825801        0 |
+32435. | 32825801        1 |
+32436. | 32825801        1 |
+32437. | 32825801        1 |
+32438. | 32825801        1 |
+       |-------------------|
+32439. | 32825801        1 |
+32440. | 32825801        . |
+32441. | 32825801        . |
+33006. | 34104601        0 |
+33007. | 34104601        0 |
+       |-------------------|
+33008. | 34104601        1 |
+33009. | 34104601        . |
+       +-------------------+
+
+. egen max_value = max(n_unique_st), by(pid)
+
+. * drop individuals that change gender
+. drop if  max_value ==2
+(37 observations deleted)
+
+. * sometimes individuals have missing values, replace by the values we know
+. egen newgender = max(gender), by(pid)
+(246 missing values generated)
+
+. replace gender = newgender
+(8,865 real changes made)
+
+. drop newgender
+
+. 
+. * Education
+. gen years_schooling = pgbilzeit
+(7,813 missing values generated)
+
+. replace years_schooling = . if pgbilzeit<0
+(1,544 real changes made, 1,544 to missing)
+
+. 
+. global control_variables "age gender years_schooling" /* xxx */
+
+. 
+. * STEP 1: 
+. * Keep only relevant variables
+. keep pid parid syear hid pli0043_h pli0044_h plc0014_h ///
+>      pgbilzeit sex gebjahr kidgeb01 kidsex01 biokids pld0026 ///
+>          birthregion_c $control_variables hghinc
+
+. 
+. * Drop invalid response codes for outcomes
+. foreach var in pli0043_h pli0044_h plc0014_h {
+  2.     replace `var' = . if `var' < 0
+  3. }
+(1,095 real changes made, 1,095 to missing)
+(1,338 real changes made, 1,338 to missing)
+(12,631 real changes made, 12,631 to missing)
+
+. 
+. * Generate total domestic hours
+. gen total_domestic_hours = pli0043_h + pli0044_h
+(9,946 missing values generated)
+
+. 
+. * STEP 2: Tag gender
+. gen is_female = (sex == 2)
+
+. gen is_male   = (sex == 1)
+
+. 
+. * STEP 3: Prepare female respondent file
+. preserve
+
+. keep if is_female
+(16,910 observations deleted)
+
+. rename pid pid_f
+
+. rename parid merge_key
+
+. rename pli0043_h housework_f
+
+. rename pli0044_h childcare_f
+
+. rename plc0014_h income_f
+
+. rename total_domestic_hours domhours_f
+
+. rename pgbilzeit educ_f
+
+. rename age age_f
+
+. rename gebjahr birthyear_f
+
+. rename kidgeb01 kidgeb01_f
+
+. rename kidsex01 kidsex01_f
+
+. rename biokids biokids_f
+
+. rename pld0026 pld0026_f
+
+. rename birthregion_clean birthregion_clean_f
+
+. rename hghinc hghinc_f
+
+. 
+. drop if merge_key <0
+(7,233 observations deleted)
+
+. save temp_female.dta, replace
+(file temp_female.dta not found)
+file temp_female.dta saved
+
+. restore
+
+. 
+. 
+. * STEP 4: Prepare male respondent file
+. keep if is_male
+(18,281 observations deleted)
+
+. 
+. rename pid pid_m
+
+. rename parid parid_m
+
+. rename pli0043_h housework_m
+
+. rename pli0044_h childcare_m
+
+. rename plc0014_h income_m
+
+. rename total_domestic_hours domhours_m
+
+. rename pgbilzeit educ_m
+
+. rename age age_m
+
+. rename gebjahr birthyear_m
+
+. rename kidgeb01 kidgeb01_m
+
+. rename kidsex01 kidsex01_m
+
+. rename biokids biokids_m
+
+. rename pld0026 pld0026_m
+
+. rename birthregion_clean birthregion_clean_m
+
+. rename hghinc hghinc_m
+
+. 
+. gen merge_key = pid_m
+
+. drop if merge_key<0
+(0 observations deleted)
+
+. * Ensure one record per male partner per household-year
+. bysort hid syear merge_key (pid_m): keep if _n == 1
+(265 observations deleted)
+
+. save temp_male_key.dta, replace
+(file temp_male_key.dta not found)
+file temp_male_key.dta saved
+
+. 
+. * STEP 5: Merge female and male partners
+. use temp_female.dta, clear
+
+. merge 1:1 hid syear merge_key using temp_male_key.dta, keep(match) nogen
+(variable merge_key was long, now double to accommodate using data's values)
+(label hghinc_EN already defined)
+(label hghinc already defined)
+(label pli0044_h_EN already defined)
+(label pli0043_h_EN already defined)
+(label pld0026_EN already defined)
+(label plc0014_h_EN already defined)
+(label syear_EN already defined)
+(label hid_EN already defined)
+(label pli0044_h already defined)
+(label pli0043_h already defined)
+(label pld0026 already defined)
+(label plc0014_h already defined)
+(label pgbilzeit_EN already defined)
+(label pgbilzeit already defined)
+(label biokids already defined)
+(label kidgeb01 already defined)
+(label kidsex01 already defined)
+(label pid_EN already defined)
+(label gebjahr_EN already defined)
+(label biokids_EN already defined)
+(label kidgeb01_EN already defined)
+(label kidsex01_EN already defined)
+(label sex_EN already defined)
+(label sex already defined)
+(label birthregion_lbl already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                             7,512  
+    -----------------------------------------
+
+. 
+. * STEP 6: Further prepare for analysis
+. 
+. * Drop households with missing outcome components
+. drop if missing(domhours_m, domhours_f)
+(1,756 observations deleted)
+
+. drop if missing(income_m, income_f)
+(3,406 observations deleted)
+
+. 
+. * Drop if first-born child gender is missing or non-binary
+. drop if missing(kidsex01_m)
+(0 observations deleted)
+
+. drop if !inlist(kidsex01_m, 1, 2)
+(326 observations deleted)
+
+. 
+. * Construct treatment: first_child_female from whichever partner has valid da
+> ta
+. gen first_child_female = .
+(2,024 missing values generated)
+
+. replace first_child_female = 1 if kidsex01_f == 2
+(804 real changes made)
+
+. replace first_child_female = 0 if kidsex01_f == 1
+(1,180 real changes made)
+
+. 
+. replace first_child_female = 1 if missing(first_child_female) & kidsex01_m ==
+>  2
+(18 real changes made)
+
+. replace first_child_female = 0 if missing(first_child_female) & kidsex01_m ==
+>  1
+(22 real changes made)
+
+. 
+. * Only compute when denominator is defined (i.e., no missing)
+. gen father_share_domestic = .
+(2,024 missing values generated)
+
+. replace father_share_domestic = domhours_m / (domhours_m + domhours_f) ///
+>     if !missing(domhours_m, domhours_f) & (domhours_m + domhours_f > 0)
+(2,006 real changes made)
+
+. replace father_share_domestic = 0.5 if father_share_domestic == . & (domhours
+> _m == domhours_f)
+(18 real changes made)
+
+. 
+. gen father_share_income = .
+(2,024 missing values generated)
+
+. replace father_share_income = income_m / (income_m + income_f) ///
+>     if !missing(income_m, income_f) & (income_m + income_f > 0)
+(2,024 real changes made)
+
+.         
+. * Construct education difference (father minus mother)
+. gen educ_diff = .
+(2,024 missing values generated)
+
+. replace educ_diff = educ_m - educ_f if !missing(educ_m, educ_f)
+(2,024 real changes made)
+
+. 
+. gen total_income = income_m + income_f
+
+. gen log_income = log(total_income) if total_income > 0
+
+. 
+. gen prop_daughters = .
+(2,024 missing values generated)
+
+. replace biokids_m = . if biokids_m <1
+(932 real changes made, 932 to missing)
+
+. replace pld0026_m = 0 if pld0026_m<1
+(1,807 real changes made)
+
+. replace prop_daughters = pld0026_m / biokids_m ///
+>     if biokids_m > 0 & !missing(pld0026_m, biokids_m)
+(1,092 real changes made)
+
+. replace prop_daughters = pld0026_f / biokids_f ///
+>     if prop_daughters ==. & (biokids_f > 0 & !missing(pld0026_f, biokids_f))
+(462 real changes made)
+
+. 
+. ***************************************************************
+. * STEP 7: Prepare for Regressions
+. ***************************************************************
+. * Create treatment year (first child's birth year)
+. gen treat_year = .
+(2,024 missing values generated)
+
+. replace treat_year = kidgeb01_f if !missing(kidgeb01_f)
+(2,024 real changes made)
+
+. replace treat_year = kidgeb01_m if missing(treat_year) & !missing(kidgeb01_m)
+(0 real changes made)
+
+. drop if kidgeb01_f < 0
+(37 observations deleted)
+
+. drop if kidgeb01_m < 0
+(10 observations deleted)
+
+. 
+.         
+. ***************************************************************
+. * STEP 7: Prepare for DiD
+. ***************************************************************
+. * Use only out-of-window treatment dates 
+. gen in_sample_birth = inrange(treat_year, 2000, 2020)
+
+. 
+. * Flag post-treatment observations
+. gen post = .
+(1,977 missing values generated)
+
+. replace post = 0 if (syear < treat_year) & (in_sample_birth==1)
+(71 real changes made)
+
+. replace post = 1 if (syear >= treat_year) & (in_sample_birth==1)
+(451 real changes made)
+
+. 
+. * Step 1: Distance from treatment year
+. gen rel_year = syear - treat_year 
+
+. 
+. * STEP 5: Define valid pre/post obs for diff-in-diff regression
+. gen pre1 = (rel_year < 0)
+
+. gen post1 = (rel_year > 0)
+
+. 
+. * tag each individual that has at least one valid pre and post obs
+. egen ever_pre1 = max(pre1), by(hid)
+
+. egen ever_post1 = max(post1), by(hid)
+
+. 
+. * tag and keep only individuals who meet both
+. gen include_in_did = (ever_pre == 1 & ever_post == 1)
+
+. 
+. * Create rel_year only for pre- and post-birth valid obs
+. gen rel_pre = rel_year if rel_year < 0 & include_in_did==1
+(1,927 missing values generated)
+
+. gen rel_post = rel_year if rel_year > 0 & include_in_did==1
+(1,873 missing values generated)
+
+. 
+. * For each individual, find closest pre and latest post
+. egen closest_pre = max(rel_pre), by(hid)
+(1,815 missing values generated)
+
+. egen latest_post = max(rel_post), by(hid)
+(1,815 missing values generated)
+
+. 
+. * STEP 7: check if we have individuals for whom we have one pre and one post 
+> observation
+. gen keep_pre = (rel_year == closest_pre & rel_year < 0 & include_in_did==1)
+
+. gen keep_post = (rel_year == latest_post & rel_year > 0 & include_in_did==1)
+
+. * Final tag: keep only one pre and one post observation
+. gen keep_obs = .
+(1,977 missing values generated)
+
+. replace keep_obs = 1 if keep_pre
+(20 real changes made)
+
+. replace keep_obs = 2 if keep_post
+(20 real changes made)
+
+. * Use only selected observations, 2 per individual
+. gen observations_for_dif = 1 if inlist(keep_obs, 1, 2)
+(1,937 missing values generated)
+
+. * check whether we have enough observations for diff-in-diff
+. sum observations_for_dif
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+observatio~f |         40           1           0          1          1
+
+. scalar num_two_obs = r(N)
+
+. dis num_two_obs
+40
+
+. 
+. 
+. * STEP 8: generate interaction terms
+. generate interaction = post*first_child_female
+(1,455 missing values generated)
+
+. 
+. save "$DATA/temp_hypotheses.dta", replace 
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/5%-sample/temp_hypotheses.dta not found)
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/5%-sample/temp_hypotheses.dta saved
+
+. 
+. * ------------------
+. * ANALYSIS FIRST MEASURE (father_share_income)
+. * ------------------
+. use "$DATA/temp_hypotheses.dta", clear
+
+. 
+. * STEP 9: Depending on our number of observations, either run first or second
+>  specification for our first measure
+. * cross section
+. gen check = 0
+
+. local num_two_obs1 = num_two_obs
+
+. while `num_two_obs1' < 550 {
+  2.     display "num_two_obs1 = `num_two_obs1'"
+  3.         * reg h1_index post1 first_child_female interaction if post1 == 1,
+>  cluster(pid)
+.     
+. bysort hid (syear): gen cs_sample = _n == _N
+  4. rename first_child_female treatment
+  5. reg father_share_income treatment ///
+>         age_f age_m educ_m educ_diff prop_daughters biokids_m log_income i.sy
+> ear i.birthregion_clean_m ///
+>                 if  cs_sample ==1
+  6.                         
+.         local num_two_obs1 = `num_two_obs1' + 550
+  7.     display "num_two_obs1 = `num_two_obs1'"
+  8.         
+.         gen number_obs = e(N)
+  9.         replace check = 1 if number_obs>=550
+ 10. rename treatment first_child_female
+ 11. 
+. }
+num_two_obs1 = 40
+
+      Source |       SS           df       MS      Number of obs   =       214
+-------------+----------------------------------   F(42, 171)      =      2.44
+       Model |   4.0651639        42  .096789617   Prob > F        =    0.0000
+    Residual |  6.77252954       171  .039605436   R-squared       =    0.3751
+-------------+----------------------------------   Adj R-squared   =    0.2216
+       Total |  10.8376934       213   .05088119   Root MSE        =    .19901
+
+------------------------------------------------------------------------------
+father_sha~e | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+   treatment |  -.0444445   .0309763    -1.43   0.153    -.1055896    .0167006
+       age_f |   .0053784   .0035005     1.54   0.126    -.0015314    .0122882
+       age_m |  -.0078998   .0034775    -2.27   0.024    -.0147641   -.0010354
+      educ_m |  -.0263858   .0067356    -3.92   0.000    -.0396813   -.0130902
+   educ_diff |    .032462   .0067196     4.83   0.000     .0191979     .045726
+prop_daugh~s |   .1752804   .0931123     1.88   0.061    -.0085172     .359078
+   biokids_m |   .0059574   .0143941     0.41   0.679    -.0224555    .0343704
+  log_income |   .1373936   .0273177     5.03   0.000     .0834701     .191317
+             |
+       syear |
+       2001  |  -.0231846   .1262297    -0.18   0.854    -.2723538    .2259846
+       2002  |  -.1225464   .1681839    -0.73   0.467    -.4545304    .2094376
+       2003  |  -.0528079   .1194381    -0.44   0.659    -.2885707     .182955
+       2004  |  -.0220841   .1204177    -0.18   0.855    -.2597807    .2156125
+       2005  |  -.0021867   .1325488    -0.02   0.987    -.2638293    .2594558
+       2006  |   .0102096   .1336868     0.08   0.939    -.2536794    .2740986
+       2007  |  -.0585101   .1236932    -0.47   0.637    -.3026723    .1856521
+       2008  |  -.1482234   .1240188    -1.20   0.234    -.3930283    .0965816
+       2009  |  -.0290064    .130798    -0.22   0.825     -.287193    .2291801
+       2010  |  -.0873159   .1205423    -0.72   0.470    -.3252585    .1506267
+       2011  |  -.1167949   .1227581    -0.95   0.343    -.3591113    .1255216
+       2012  |   -.028331   .1236274    -0.23   0.819    -.2723634    .2157014
+       2013  |  -.0988486   .1314957    -0.75   0.453    -.3584124    .1607151
+       2014  |  -.0081539    .175697    -0.05   0.963    -.3549681    .3386603
+       2015  |  -.0446514   .1269993    -0.35   0.726    -.2953396    .2060369
+       2016  |  -.2505261   .1650642    -1.52   0.131     -.576352    .0752999
+       2017  |  -.1169416   .1241619    -0.94   0.348    -.3620289    .1281458
+       2018  |  -.1395165   .1275708    -1.09   0.276    -.3913329    .1122998
+       2019  |  -.2245536   .1243949    -1.81   0.073    -.4701009    .0209938
+       2020  |  -.0997499   .1107788    -0.90   0.369    -.3184199    .1189201
+             |
+birthregio~m |
+Lower Sax..  |    .114761   .1335358     0.86   0.391    -.1488298    .3783519
+North Rhi..  |  -.0871239   .1407816    -0.62   0.537    -.3650175    .1907697
+      Hesse  |   .0275036   .1454552     0.19   0.850    -.2596154    .3146225
+Rhineland~e  |   .2595756   .1986638     1.31   0.193    -.1325736    .6517248
+Baden-Wue~g  |   .1149374   .1341824     0.86   0.393    -.1499298    .3798047
+    Bavaria  |   .0378986   .1327698     0.29   0.776    -.2241802    .2999775
+   Saarland  |   .1939819   .2365293     0.82   0.413    -.2729113    .6608751
+     Berlin  |  -.0217039   .1948076    -0.11   0.911    -.4062411    .3628334
+Brandenburg  |   -.176333   .1419175    -1.24   0.216    -.4564689    .1038028
+Mecklenbu..  |   -.272531   .1911775    -1.43   0.156    -.6499027    .1048407
+     Saxony  |  -.0983242   .1509323    -0.65   0.516    -.3962546    .1996062
+Saxony-An~t  |   .0677515   .1427324     0.47   0.636    -.2139928    .3494959
+  Thuringia  |   .0686515   .1496413     0.46   0.647    -.2267305    .3640336
+Outside o..  |   .0144511   .1228545     0.12   0.907    -.2280554    .2569577
+             |
+       _cons |    .067502   .2614739     0.26   0.797    -.4486302    .5836342
+------------------------------------------------------------------------------
+num_two_obs1 = 590
+(0 real changes made)
+
+. sum check
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+       check |      1,977           0           0          0          0
+
+. 
+. *  STEP 10: fixed effects model with year fixed effects, diff-in-diff structu
+> re
+. local num_two_obs2 = num_two_obs
+
+. while `num_two_obs2' >= 550 {
+  2. display "num_two_obs2 = `num_two_obs2'"
+  3. drop if observations_for_dif !=1
+  4. 
+. rename interaction treatment
+  5. bysort hid syear: keep if _n == 1
+  6. xtset hid syear
+  7. xtreg father_share_income post treatment ///
+>     if observations_for_dif == 1, fe cluster(hid)
+  8. 
+. local num_two_obs2 = 0 
+  9. display "num_two_obs2 = `num_two_obs2'"
+ 10.         
+. gen number_obs2 = e(N)
+ 11. replace check = 1 if number_obs2>=550
+ 12. rename treatment interaction
+ 13. }
+
+. sum check
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+       check |      1,977           0           0          0          0
+
+. 
+. *****************************************************************************
+> *****************************************************************************
+> **********************************************
+. * EXTRACT AND EXPORT RESULTS MEASURE 1 * 
+. * Extract the required statistics
+.                 * (i) coefficient estimate
+.                 local coefficient_a = _b[treatment]
+
+. 
+.                 * (ii) standard error
+.                 local se_a = _se[treatment]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family_a = "t"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 local df_residual_a = e(df_r)
+
+.                 local df_model_a = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 local p_value_a = _b[treatment] / _se[treatment]
+
+.                 local p_value_a = 2 * ttail(e(df_r), abs(`p_value_a'))
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs_a = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 local num_participants_a = e(N)*2
+
+. 
+.                 * (viii) interpretation of directionality
+.                 scalar coef_d_daughter_a = _b[treatment]
+
+.                 local interpretation1_a "negative coefficient is in line with
+>  hypothesis"
+
+.                 local interpretation1_b "negative coefficient is in line with
+>  hypothesis"
+
+.                 * (ix) do we have enough number of observations? ATTENTION AL
+> SO HERE WE HAVE TO SPECIFY THE NUMBER!
+.                 scalar a = sum(check)
+
+.                 if a ==1 {
+.                     local interpretation2_a "We have enough observations. Res
+> ults for the first measure (father_share_income) are reported below:"
+. } 
+
+.                 else {
+.                     local interpretation2_a "We do not have enough observatio
+> ns. Results for the first measure (father_share_income) should be disregarded
+> ."
+. }
+
+.                                 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient_a'"
+Coefficient: -.0444444938601594
+
+.         di "Standard Error: `se_a'"
+Standard Error: .0309762531034571
+
+.         di "Test Statistic Family: `test_stat_family_a'"
+Test Statistic Family: t
+
+.         di "Residual Degrees of Freedom: `df_residual_a'"
+Residual Degrees of Freedom: 171
+
+.         di "Model Degrees of Freedom: `df_model_a'"
+Model Degrees of Freedom: 42
+
+.         di "p-value: " `p_value_a'
+p-value: .15317263
+
+.         di "Number of observations: " `num_obs_a'
+Number of observations: 214
+
+.         di      "Number of participants: " `num_participants_a'
+Number of participants: 428
+
+.         di "Interpretation of directionality: " "`interpretation1_a'"
+Interpretation of directionality: negative coefficient is in line with hypothes
+> is
+
+.         di "Interpretation of directionality: " "`interpretation2_a'"
+Interpretation of directionality: We do not have enough observations. Results f
+> or the first measure (father_share_income) should be disregarded.
+
+.         
+. *****************************************************************************
+> ************************************************************************** 
+.         
+. 
+. * ------------------
+. * ANALYSIS SECOND MEASURE (father_share_domestic)
+. * ------------------
+. use "$DATA/temp_hypotheses.dta", clear
+
+. 
+. * STEP 9: Depending on our number of observations, either run first or second
+>  specification for our first measure
+. * cross section
+. gen check = 0
+
+. local num_two_obs3 = num_two_obs
+
+. while `num_two_obs3' < 550 {
+  2.     display "num_two_obs3 = `num_two_obs3'"
+  3.         * reg h1_index post1 first_child_female interaction if post1 == 1,
+>  cluster(pid)
+.     
+. bysort hid (syear): gen cs_sample = _n == _N
+  4. rename first_child_female treatment
+  5. reg father_share_domestic treatment ///
+>         age_f age_m educ_m educ_diff prop_daughters biokids_m log_income i.sy
+> ear i.birthregion_clean_m ///
+>                 if  cs_sample ==1
+  6.                         
+.         local num_two_obs3 = `num_two_obs3' + 550
+  7.     display "num_two_obs3 = `num_two_obs3'"
+  8.         
+.         gen number_obs = e(N)
+  9.         replace check = 1 if number_obs>=550
+ 10. rename treatment first_child_female
+ 11. 
+. }
+num_two_obs3 = 40
+
+      Source |       SS           df       MS      Number of obs   =       214
+-------------+----------------------------------   F(42, 171)      =      1.42
+       Model |  2.58392256        42  .061521966   Prob > F        =    0.0610
+    Residual |  7.38874619       171  .043209042   R-squared       =    0.2591
+-------------+----------------------------------   Adj R-squared   =    0.0771
+       Total |  9.97266875       213  .046820041   Root MSE        =    .20787
+
+------------------------------------------------------------------------------
+father_sha~c | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+   treatment |   .0235945   .0323548     0.73   0.467    -.0402718    .0874607
+       age_f |   .0029133   .0036563     0.80   0.427     -.004304    .0101306
+       age_m |  -.0016146   .0036323    -0.44   0.657    -.0087845    .0055552
+      educ_m |   .0100977   .0070353     1.44   0.153    -.0037896     .023985
+   educ_diff |  -.0129866   .0070186    -1.85   0.066    -.0268409    .0008678
+prop_daugh~s |  -.0317628   .0972562    -0.33   0.744    -.2237401    .1602145
+   biokids_m |  -.0042224   .0150347    -0.28   0.779    -.0338999     .025455
+  log_income |  -.0277164   .0285335    -0.97   0.333    -.0840397    .0286068
+             |
+       syear |
+       2001  |  -.0073399   .1318474    -0.06   0.956     -.267598    .2529182
+       2002  |   .0088104   .1756687     0.05   0.960    -.3379481    .3555688
+       2003  |  -.0043028   .1247535    -0.03   0.973    -.2505579    .2419523
+       2004  |   .0143956   .1257767     0.11   0.909    -.2338793    .2626705
+       2005  |  -.1109292   .1384477    -0.80   0.424    -.3842158    .1623573
+       2006  |   .0970915   .1396364     0.70   0.488    -.1785415    .3727244
+       2007  |   .0832074    .129198     0.64   0.520    -.1718209    .3382357
+       2008  |   .1706626   .1295381     1.32   0.189    -.0850371    .4263622
+       2009  |   .0626019    .136619     0.46   0.647    -.2070749    .3322787
+       2010  |   .0771298   .1259069     0.61   0.541    -.1714021    .3256617
+       2011  |   .0729709   .1282213     0.57   0.570    -.1801295    .3260714
+       2012  |  -.0943331   .1291293    -0.73   0.466    -.3492258    .1605596
+       2013  |   .0222185   .1373477     0.16   0.872    -.2488968    .2933338
+       2014  |   .2788936   .1835161     1.52   0.130    -.0833551    .6411422
+       2015  |   .0981862   .1326512     0.74   0.460    -.1636585     .360031
+       2016  |  -.0108947   .1724102    -0.06   0.950     -.351221    .3294317
+       2017  |   .1320353   .1296875     1.02   0.310    -.1239593    .3880299
+       2018  |   .0882964   .1332481     0.66   0.508    -.1747266    .3513194
+       2019  |   .2013746   .1299309     1.55   0.123    -.0551005    .4578496
+       2020  |   .1682922   .1157088     1.45   0.148    -.0601094    .3966938
+             |
+birthregio~m |
+Lower Sax..  |  -.3703507   .1394786    -2.66   0.009    -.6456722   -.0950291
+North Rhi..  |  -.2212768   .1470469    -1.50   0.134    -.5115376     .068984
+      Hesse  |  -.2442892   .1519285    -1.61   0.110    -.5441859    .0556076
+Rhineland~e  |  -.4269695   .2075051    -2.06   0.041    -.8365708   -.0173682
+Baden-Wue~g  |  -.3322608    .140154    -2.37   0.019    -.6089156   -.0556061
+    Bavaria  |  -.1459637   .1386785    -1.05   0.294     -.419706    .1277786
+   Saarland  |  -.4912615   .2470557    -1.99   0.048    -.9789332   -.0035899
+     Berlin  |  -.2358645   .2034772    -1.16   0.248     -.637515    .1657861
+Brandenburg  |  -.1233531   .1482334    -0.83   0.406    -.4159559    .1692498
+Mecklenbu..  |   .0158801   .1996856     0.08   0.937     -.378286    .4100462
+     Saxony  |  -.1040094   .1576493    -0.66   0.510    -.4151987      .20718
+Saxony-An~t  |  -.2561097   .1490845    -1.72   0.088    -.5503927    .0381732
+  Thuringia  |  -.4308554   .1563009    -2.76   0.006     -.739383   -.1223278
+Outside o..  |  -.2470816   .1283219    -1.93   0.056    -.5003806    .0062174
+             |
+       _cons |   .4570706   .2731104     1.67   0.096    -.0820314    .9961725
+------------------------------------------------------------------------------
+num_two_obs3 = 590
+(0 real changes made)
+
+. sum check
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+       check |      1,977           0           0          0          0
+
+. 
+. *  STEP 10: fixed effects model with year fixed effects, diff-in-diff structu
+> re
+. local num_two_obs4 = num_two_obs
+
+. while `num_two_obs4' >= 550 {
+  2. display "num_two_obs4 = `num_two_obs4'"
+  3. drop if observations_for_dif !=1
+  4. 
+. rename interaction treatment
+  5. bysort hid syear: keep if _n == 1
+  6. xtset hid syear
+  7. 
+. xtreg father_share_domestic post treatment ///
+>     if observations_for_dif == 1, fe cluster(hid)
+  8.         
+. local num_two_obs4 = 0 
+  9. display "num_two_obs4 = `num_two_obs4'"
+ 10.         
+. gen number_obs2 = e(N)
+ 11. replace check = 1 if number_obs2>=550
+ 12. rename treatment interaction
+ 13. }
+
+. sum check
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+       check |      1,977           0           0          0          0
+
+. 
+. *****************************************************************************
+> *****************************************************************************
+> **********************************************
+. * EXTRACT AND EXPORT RESULTS * 
+. * Extract the required statistics
+.                 * (i) coefficient estimate
+.                 local coefficient_b = _b[treatment]
+
+. 
+.                 * (ii) standard error
+.                 local se_b = _se[treatment]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family_b = "t"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 local df_residual_b = e(df_r)
+
+.                 local df_model_b = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 local p_value_b = _b[treatment] / _se[treatment]
+
+.                 local p_value_b = 2 * ttail(e(df_r), abs(`p_value_b'))
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs_b = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 local num_participants_b = e(N)*2
+
+. 
+.                 * (viii) interpretation of directionality
+.                 scalar coef_d_daughter_b = _b[treatment]
+
+.                 local interpretation "positive coefficient is in line with hy
+> pothesis"
+
+. 
+.                 * (ix) do we have enough number of observations? ATTENTION AL
+> SO HERE WE HAVE TO SPECIFY THE NUMBER!
+.                 scalar a = sum(check)
+
+.                 if a ==1 {
+.                     local interpretation2_b "We have enough observations. Res
+> ults for the second measure (father_share_domestic) are reported below:"
+. } 
+
+.                 else {
+.                     local interpretation2_b "We do not have enough observatio
+> ns. Results for the second measure (father_share_domestic) should be disregar
+> ded."
+. }
+
+.                                 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient_b'"
+Coefficient: .0235944553832695
+
+.         di "Standard Error: `se_b'"
+Standard Error: .032354806317261
+
+.         di "Test Statistic Family: `test_stat_family_b'"
+Test Statistic Family: t
+
+.         di "Residual Degrees of Freedom: `df_residual_b'"
+Residual Degrees of Freedom: 171
+
+.         di "Model Degrees of Freedom: `df_model_b'"
+Model Degrees of Freedom: 42
+
+.         di "p-value: " `p_value_b'
+p-value: .46685183
+
+.         di "Number of observations: " `num_obs_b'
+Number of observations: 214
+
+.         di      "Number of participants: " `num_participants_b'
+Number of participants: 428
+
+.         di "Interpretation of directionality: " "`interpretation1_b'"
+Interpretation of directionality: negative coefficient is in line with hypothes
+> is
+
+.         di "Interpretation of directionality: " "`interpretation2_b'"
+Interpretation of directionality: We do not have enough observations. Results f
+> or the second measure (father_share_domestic) should be disregarded.
+
+.         
+. 
+. * ============================================
+. * Take only one of the two measures
+. * ============================================
+. 
+. if a >= 1{
+. local modeltype         = "`modeltype_a'"
+. local coefficient       = "`coefficient_a'"    
+. local se                = "`se_a'"              
+. local test_stat_family  = "`test_stat_family_a'"
+. local df_residual       = "`df_residual_a'"     
+. local df_model          = "`df_model_a'"        
+. local t_stat            = "`t_stat_a'"          
+. local p_value           = "`p_value_a'"         
+. local num_obs           = "`num_obs_a'"         
+. local num_participants  = "`num_participants_a'"
+. local interpretation1   = "`interpretation1_a'"
+. }
+
+. else {
+. local modeltype         = "`modeltype_b'"
+. local coefficient       = "`coefficient_b'"     
+. local se                = "`se_b'"              
+. local test_stat_family  = "`test_stat_family_b'"
+. local df_residual       = "`df_residual_b'"     
+. local df_model          = "`df_model_b'"        
+. local t_stat            = "`t_stat_b'"         
+. local p_value           = "`p_value_b'"         
+. local num_obs           = "`num_obs_b'"         
+. local num_participants  = "`num_participants_b'"
+. local interpretation1   = "`interpretation1_b'" 
+. }
+
+.         
+. * ============================================
+. * EXPORT RESULTS TO CSV
+. * ============================================
+. 
+. file open myfile using "$OUT/h3_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/5_res
+    > ults/h3_results.csv not found)
+
+. *file write myfile "First output measure (h1_index)" _n
+. *file write myfile "`interpretation2_a'" _n
+. file write myfile "coefficient,se,family,residual_df,model_df,p_value,num_obs
+> ,num_participants,interpretation" _n
+
+. file write myfile "`coefficient', `se', `test_stat_family', `df_residual', `d
+> f_model',`p_value',`num_obs',`num_participants',`interpretation1'" _n
+
+. *file write myfile "Second output measure (gender_sharing_norm)" _n
+. *file write myfile "`interpretation2_b'" _n
+. *file write myfile "coefficient,se,family,residual_df,model_df,p_value,num_ob
+> s,num_participants,interpretation" _n
+. *file write myfile "`coefficient_b', `se_b', `test_stat_family_b', `df_residu
+> al_b', `df_model_b',`p_value_b',`num_obs_b',`num_participants_b',`interpretat
+> ion1_b'" _n
+. file close myfile
+
+. 
+end of do-file
+
+. 
+end of do-file

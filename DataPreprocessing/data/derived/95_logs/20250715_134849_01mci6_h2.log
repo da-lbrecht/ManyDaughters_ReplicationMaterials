@@ -1,0 +1,516 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmp1qrldfgb.do 
+
+. do "95%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. * the following code automatically sets paths based on the project location o
+> n your system *
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/95%-sample" // folder, in which the or
+> iginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/95%-sample
+
+. global DATA "$ROOT/data/derived_confidential/95%-sample" // folder for datase
+> ts
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/95%-sample
+
+. global OUT "$ROOT/data/derived/95_results" // folder for output (results, tab
+> les)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/95_results
+
+. 
+end of do-file
+
+. do "20250715_134849_01mci6_h2.do"
+
+. *****************************************************************************
+> ***
+. ********************** Do-File H2: #ManyDaughters Project *******************
+> ***
+. *****************************************************************************
+> ***
+. 
+. * Authors: [REDACTED] & [REDACTED]
+. 
+. * ============================
+. * Setup *
+. * ============================
+. 
+. * clear all
+. version 17 // indicate the version of stata you are using here
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. /*
+> * CONFIGURE FILE PATHS * (Please do not change)
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> */
+. 
+. * ============================
+. * Data Preparation                       * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA *
+. 
+.         use "$IN/ppathl.dta", clear
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches)
+(variable pid was long, now double to accommodate using data's values)
+(variable cid was long, now double to accommodate using data's values)
+(variable gebjahr was int, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches)
+(label cid_EN already defined)
+(label pid_EN already defined)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. 
+.         label language EN // change language of the labels to English
+
+.         
+.         save "$DATA/h2_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h2_dataset.dta saved
+
+. 
+. * ============================
+. * Analysis
+. * ============================
+. 
+. * FILTERS *
+.  
+.         * Reduce sample to private households
+.         keep if inlist(pop,1,2)
+(89,279 observations deleted)
+
+.         drop if netto != 10 
+(197,617 observations deleted)
+
+.         
+. * GENERATE VARIABLES *
+. 
+.                 * GENERATE DAUGHTER VARIABLE *  
+.                         
+.                 foreach v in kidgeb01 kidgeb02 kidgeb03 kidgeb04 kidgeb05 kid
+> geb06 ///
+>                 kidgeb07 kidgeb08 kidgeb09 kidgeb10 kidgeb11 kidgeb12 kidgeb1
+> 3 kidgeb14 ///
+>                 kidgeb15 kidgeb16 kidgeb17 kidgeb18 kidgeb19 {
+  2.                         gen cnt_`v' = 1 if `v' <= syear & `v' > 0
+  3.                 }
+(110,028 missing values generated)
+(188,041 missing values generated)
+(305,784 missing values generated)
+(354,005 missing values generated)
+(368,831 missing values generated)
+(373,296 missing values generated)
+(375,004 missing values generated)
+(375,663 missing values generated)
+(375,972 missing values generated)
+(376,058 missing values generated)
+(376,132 missing values generated)
+(376,168 missing values generated)
+(376,222 missing values generated)
+(376,223 missing values generated)
+(376,223 missing values generated)
+(376,223 missing values generated)
+(376,224 missing values generated)
+(376,227 missing values generated)
+(376,227 missing values generated)
+
+.                                 
+.                 foreach var of varlist kidsex01-kidsex19 {      
+  2.                         recode `var' (-2/1=0) (2=1), into(daughter`var')
+  3.                 }
+(376,227 differences between kidsex01 and daughterkidsex01)
+(376,227 differences between kidsex02 and daughterkidsex02)
+(376,227 differences between kidsex03 and daughterkidsex03)
+(376,227 differences between kidsex04 and daughterkidsex04)
+(376,227 differences between kidsex05 and daughterkidsex05)
+(376,227 differences between kidsex06 and daughterkidsex06)
+(376,227 differences between kidsex07 and daughterkidsex07)
+(376,227 differences between kidsex08 and daughterkidsex08)
+(376,227 differences between kidsex09 and daughterkidsex09)
+(376,227 differences between kidsex10 and daughterkidsex10)
+(376,227 differences between kidsex11 and daughterkidsex11)
+(376,227 differences between kidsex12 and daughterkidsex12)
+(376,227 differences between kidsex13 and daughterkidsex13)
+(376,227 differences between kidsex14 and daughterkidsex14)
+(376,227 differences between kidsex15 and daughterkidsex15)
+(376,227 differences between kidsex16 and daughterkidsex16)
+(376,227 differences between kidsex17 and daughterkidsex17)
+(376,227 differences between kidsex18 and daughterkidsex18)
+(376,227 differences between kidsex19 and daughterkidsex19)
+
+.                 
+.                 foreach x in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 
+> 17 18 19 {
+  2.                         replace cnt_kidgeb`x' = cnt_kidgeb`x' * daughterki
+> dsex`x' 
+  3.                 }
+(136,934 real changes made)
+(95,545 real changes made)
+(37,351 real changes made)
+(11,398 real changes made)
+(3,763 real changes made)
+(1,564 real changes made)
+(633 real changes made)
+(320 real changes made)
+(137 real changes made)
+(82 real changes made)
+(44 real changes made)
+(22 real changes made)
+(4 real changes made)
+(4 real changes made)
+(1 real change made)
+(4 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. 
+.                 egen daughter = rowmean(cnt_kidgeb01-cnt_kidgeb19)
+(109,884 missing values generated)
+
+.                 recode daughter (0 = 0) (0.01/1 = 1)
+(114,630 changes made to daughter)
+
+.                 recode daughter (. = 0) 
+(109,884 changes made to daughter)
+
+.                 
+.         * LEFT-LEANING POLITICAL PREFERENCES (AVAILABLE IN 2005, 2009, 2014 &
+>  2019)*
+. 
+.         tab plh0004, m
+
+                     Political attitude |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+[-8] Question this year not part of sur |    297,796       79.15       79.15
+                         [-1] No answer |      3,755        1.00       80.15
+                  [0] [de] 0 ganz links |      1,008        0.27       80.42
+                             [1] [de] 1 |      1,175        0.31       80.73
+                             [2] [de] 2 |      4,835        1.29       82.02
+                             [3] [de] 3 |      9,277        2.47       84.48
+                             [4] [de] 4 |      9,349        2.48       86.97
+                             [5] [de] 5 |     32,796        8.72       95.68
+                             [6] [de] 6 |      7,382        1.96       97.65
+                             [7] [de] 7 |      5,157        1.37       99.02
+                             [8] [de] 8 |      2,675        0.71       99.73
+                             [9] [de] 9 |        548        0.15       99.87
+               [10] [de] 10 ganz rechts |        474        0.13      100.00
+----------------------------------------+-----------------------------------
+                                  Total |    376,227      100.00
+
+.         recode plh0004 (-8 -1 = .)
+(301,551 changes made to plh0004)
+
+.         
+.         gen moreleft = 10-plh0004 // reverse item so that higher values indic
+> ate increasing left-wing preference
+(301,551 missing values generated)
+
+.         lab def left 10"fully left-wing" 0"fully right-wing"
+
+.         lab val moreleft left
+
+.         
+.         * CONTROLS *
+. 
+.         gen age = syear - gebjahr 
+
+.         replace age = . if age < 18 
+(11 real changes made, 11 to missing)
+
+.         
+.         recode sex (1=1) (2=0), into(male)
+(199,454 differences between sex and male)
+
+.         
+.         *REDUCE DATASET
+.         keep pid syear male age daughter moreleft phrf
+
+.                 
+.         drop if moreleft == .
+(301,551 observations deleted)
+
+.         
+.         bys pid: gen nowaves = _N
+
+.         tab nowaves
+
+    nowaves |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          1 |     22,992       30.79       30.79
+          2 |     24,456       32.75       63.54
+          3 |     14,292       19.14       82.68
+          4 |     12,936       17.32      100.00
+------------+-----------------------------------
+      Total |     74,676      100.00
+
+.         drop if nowaves == 1
+(22,992 observations deleted)
+
+.         
+.         sort pid syear
+
+.         bys pid: gen leftdiff = moreleft[_n] - moreleft[_n-1]
+(20,226 missing values generated)
+
+.         recode leftdiff (min/-6 =.) (6/max = .)
+(193 changes made to leftdiff)
+
+.                 
+.         * FILTER FOR VARIABLES
+.         gen filter = 0
+
+.         replace filter = 1 if leftdiff != . & daughter != . & male != . & age
+>  != .
+(31,265 real changes made)
+
+.         
+. * HYPOTHESIS TEST FOR H2 *
+. 
+.         *********************************************************************
+> *******
+.         *Verbal description of the model:       
+.         * Respondents' self-reported political attitude (variable: plh0004, 
+.         * collected in 2005, 2009, 2014, and 2019).
+.         * is used to measure left-leaning political preferences (hypothesis 2
+> ). 
+.         * The original item is reversed so that higher values indicate strong
+> er 
+.         * left-leaning political preferences.
+.         
+.         * Accordingly, we run a linear OLS regression analysis with the chang
+> e score 
+.         * of left-leaning political preferences (variable: leftdiff) 
+.         * as the dependent variable, and the dummy variable daughter as the 
+.         * independent variable.
+.         * We further control for age, sex, and survey year (variable: syear) 
+.         * in the model. 
+.         * We estimate cluster-robust standard errors (cluster variable: pid).
+>  
+.         * The regression is weighted (weight: phrf).
+.         *********************************************************************
+> *******
+.         
+.         reg leftdiff i.daughter male age i.syear if filter == 1 [aw=phrf], cl
+> uster(pid)
+(sum of wgt is 103,770,959.35)
+
+Linear regression                               Number of obs     =     30,948
+                                                F(5, 19936)       =       3.07
+                                                Prob > F          =     0.0091
+                                                R-squared         =     0.0012
+                                                Root MSE          =     1.5537
+
+                               (Std. err. adjusted for 19,937 clusters in pid)
+------------------------------------------------------------------------------
+             |               Robust
+    leftdiff | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  1.daughter |    .016648   .0236278     0.70   0.481    -.0296643    .0629604
+        male |   .0024689   .0232405     0.11   0.915    -.0430844    .0480223
+         age |  -.0008853   .0007155    -1.24   0.216    -.0022877    .0005171
+             |
+       syear |
+       2014  |  -.0887402   .0366245    -2.42   0.015    -.1605273   -.0169531
+       2019  |   .0524123   .0321013     1.63   0.103     -.010509    .1153336
+             |
+       _cons |   .0448433   .0448529     1.00   0.317    -.0430721    .1327588
+------------------------------------------------------------------------------
+
+. 
+. * EXTRACT AND EXPORT RESULTS *
+. 
+.         * Extract the required statistics
+. 
+.                 * (i) coefficient estimate
+.                 local coefficient = _b[1.daughter]
+
+. 
+.                 * (ii) standard error
+.                 local se = _se[1.daughter]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "t"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 local p_value = _b[1.daughter] / _se[1.daughter]
+
+.                 local p_value = 2 * ttail(e(df_r), abs(`p_value'))
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation of directionality
+.                 local interpretation "positive coefficient is in line with hy
+> pothesis"
+
+. 
+. 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: .0166480496108796
+
+.         di "Standard Error: `se'"
+Standard Error: .0236277586044567
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: t
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: 19936
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 5
+
+.         di "p-value: " `p_value'
+p-value: .48106925
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 30948
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 19937
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h2_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/95_re
+    > sults/h2_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

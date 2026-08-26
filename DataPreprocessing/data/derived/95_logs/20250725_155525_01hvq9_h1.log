@@ -1,0 +1,468 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmpv30k41ex.do 
+
+. do "95%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. * the following code automatically sets paths based on the project location o
+> n your system *
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/95%-sample" // folder, in which the or
+> iginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/95%-sample
+
+. global DATA "$ROOT/data/derived_confidential/95%-sample" // folder for datase
+> ts
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/95%-sample
+
+. global OUT "$ROOT/data/derived/95_results" // folder for output (results, tab
+> les)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/95_results
+
+. 
+end of do-file
+
+. do "20250725_155525_01hvq9_h1.do"
+
+. *****************************************************************************
+> ***
+. ************************** H1: #ManyDaughters Project ***********************
+> ***
+. *****************************************************************************
+> ***
+. 
+. * Authors: [REDACTED], [REDACTED]
+. 
+. * ============================
+. * Setup *
+. * ============================
+. 
+. *clear all
+. version 16.1 // indicate the version of stata you are using here
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. * INSTALL PACKAGES * 
+. ssc install outreg2
+checking outreg2 consistency and verifying not already installed...
+all files already exist and are up to date.
+
+. /*
+> * CONFIGURE FILE PATHS * (Please do not change)
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> */
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA *
+. 
+.         use "$IN/pl.dta", clear // use pl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+.         
+.         * Merge pl with biobirth, which contains information on fertility his
+> tory       
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches) ke
+> epusing(kidsex01 kidgeb01) 
+(variable pid was long, now double to accommodate using data's values)
+(label pid_EN already defined)
+(label cid_EN already defined)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         
+.         label language EN // change language of the labels to English
+
+. 
+.         save "$DATA/h1_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h1_dataset.dta saved
+
+. 
+. 
+. * ============================
+. * Analysis
+. * ============================
+. /* REMARKS: 
+> 
+> 1. The provided data set pl does not include the variable pla0009_h although 
+> it was listed on paneldata.org as being part of the data set. We use variable
+> s pla0009_v2 and pla0009_v3 to construct pla0009_h ourselves. 
+> 
+> 2. Our pre-analysis plan did not specify how we deal with cases where individ
+> uals provided inconsistent responses for their year of birth or sex. In this 
+> code, we set the corresponding variable to missing if an individual provided 
+> inconsistent responses across the years. 
+> 
+> */
+. 
+. 
+. * GENERATE VARIABLES Part I* (Regressors)
+. 
+.         * Generate dummy variable for whether participant has a first-born da
+> ughter (1) or first-born son (0)
+.         gen d_daughter = kidsex01==2
+
+.         replace d_daughter=. if kidsex01<1 | kidsex01==. // set invalid respo
+> nses to missing
+(216,893 real changes made, 216,893 to missing)
+
+.         
+.         * Generate variable for individual being male based on plh0009 (consi
+> dering sex observations across years)
+.         gen pla0009_h = pla0009_v2
+(148,633 missing values generated)
+
+.         replace pla0009_v3 = -2 if  pla0009_v3==3
+(15 real changes made)
+
+.         replace pla0009_h = pla0009_v3 if syear>=2019
+(57,324 real changes made)
+
+.         replace pla0009_h=. if pla0009_h<0 // set invalid responses to missin
+> g
+(46,789 real changes made, 46,789 to missing)
+
+.         bysort pid: egen sex_pla = mean(pla0009_h)
+(7,749 missing values generated)
+
+.         gen male = sex_pla==1
+
+.         replace male = . if sex_pla!=1&sex_pla!=2 // replace with missings if
+>  inconsistent responses across years 
+(7,982 real changes made, 7,982 to missing)
+
+.         
+.         * Generate categorical variable for age in 2012 (considering year of 
+> birth observations across years)
+.         replace ple0010_h=. if ple0010_h<0 // set invalid responses to missin
+> g
+(28,004 real changes made, 28,004 to missing)
+
+.         bysort pid: egen yearofbirth_min = min(ple0010_h)
+(14,984 missing values generated)
+
+.         bysort pid: egen yearofbirth_max = max(ple0010_h)
+(14,984 missing values generated)
+
+.         gen yearofbirth = yearofbirth_max if yearofbirth_min==yearofbirth_max
+>  // results in missing if inconsistent responses across years
+(18,269 missing values generated)
+
+.         gen age_2012 = 2012-yearofbirth
+(18,269 missing values generated)
+
+.         gen age_cat = 1 if age_2012>=18 & age_2012<=24
+(607,678 missing values generated)
+
+.         replace age_cat = 2 if age_2012>=25 & age_2012<=30
+(56,695 real changes made)
+
+.         replace age_cat = 3 if age_2012>=31 & age_2012<=40
+(104,016 real changes made)
+
+.         replace age_cat = 4 if age_2012>=41 & age_2012<=50
+(122,485 real changes made)
+
+.         replace age_cat = 5 if age_2012>=51 & age_2012<=64
+(128,193 real changes made)
+
+.         replace age_cat = 6 if age_2012>=65 & age_2012!=.
+(125,587 real changes made)
+
+. 
+. 
+. * FILTERS *
+.  
+.         * Exclude participants who have a missing/invalid value for one of th
+> e variables that are used to construct the outcome variable below
+.         keep if plh0301>0 & plh0301!=. & plh0303>0 & plh0303!=. & plh0307>0 &
+>  plh0307!=.
+(656,475 observations deleted)
+
+.         
+.         * Exclude participants with missing values in regressors (which also 
+> excludes individuals below 18 based on age variable and individuals without c
+> hildren)
+.         keep if d_daughter!=. & male!=. & age_cat!=.
+(1,857 observations deleted)
+
+.         
+.         * Exclude participants without hid
+.         keep if hid!=. 
+(0 observations deleted)
+
+.         
+.         * Exclude participants whose first-born child was born in 2012 or lat
+> er
+.         keep if kidgeb01<2012 & kidgeb01>0 
+(47 observations deleted)
+
+.         
+.         
+. * GENERATE VARIABLES Part II* (Outcome variable; generate here since standard
+> ization uses filtered sample)
+.         
+.         * Generate outcome variable based on plh0301, plh0303, and plh0307
+.         gen plh0303_reverse = 5-plh0303 // reverse code variable such that hi
+> gher values mean more gender equality
+
+.         foreach var in plh0301 plh0303_reverse plh0307 { // standardize input
+>  variables
+  2.                 gen base = `var' if d_daughter==0 
+  3.                 egen mbase = mean(base)
+  4.                 egen sdbase = sd(base)
+  5.                 replace `var' = (`var'-mbase)/sdbase
+  6.                 drop base mbase sdbase
+  7.         }
+(2,335 missing values generated)
+variable plh0301 was byte now float
+(4,744 real changes made)
+(2,335 missing values generated)
+(4,744 real changes made)
+(2,335 missing values generated)
+variable plh0307 was byte now float
+(4,744 real changes made)
+
+.         gen attitude = (plh0301 + plh0303_reverse + plh0307)/3 // create outc
+> ome variable
+
+.         
+.         
+. * HYPOTHESIS TEST FOR H1 *
+. 
+.         * Description of model: We conduct an OLS regression, where we regres
+> s the outcome variable (gender equality attitudes) on a dummy for whether the
+>  first-born child is female. We additionally include a dummy for whether the 
+> respondent is male and a categorical variable for the age of the respondent i
+> n 2012 as regressors. We cluster standard errors on the household level. To t
+> est the hypothesis, we test whether we can reject that the coefficient of the
+>  dummy for the first-born child being female is smaller than or equal to zero
+>  at the 5% significance level (based on a one-sided t-test).
+. 
+.         reg attitude d_daughter male i.age_cat, vce(cluster hid)        
+
+Linear regression                               Number of obs     =      4,744
+                                                F(7, 3070)        =      46.46
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.0542
+                                                Root MSE          =     .73895
+
+                                (Std. err. adjusted for 3,071 clusters in hid)
+------------------------------------------------------------------------------
+             |               Robust
+    attitude | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  d_daughter |   .0040639   .0242231     0.17   0.867    -.0434312    .0515589
+        male |  -.3179188   .0189474   -16.78   0.000    -.3550697   -.2807679
+             |
+     age_cat |
+          2  |   .0806084   .1063709     0.76   0.449    -.1279569    .2891737
+          3  |   .2639016   .1011659     2.61   0.009     .0655419    .4622613
+          4  |   .3909237   .1010489     3.87   0.000     .1927933    .5890541
+          5  |   .4466374    .107541     4.15   0.000     .2357778     .657497
+          6  |   .2432068   .2321837     1.05   0.295    -.2120445     .698458
+             |
+       _cons |  -.1798078   .1003147    -1.79   0.073    -.3764985    .0168829
+------------------------------------------------------------------------------
+
+.         
+. * EXTRACT AND EXPORT RESULTS *
+. 
+.         * Extract the required statistics
+. 
+.                 * (i) coefficient estimate
+.                 local coefficient = _b[d_daughter]
+
+. 
+.                 * (ii) standard error
+.                 local se = _se[d_daughter]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "t"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 local p_value = _b[d_daughter] / _se[d_daughter]
+
+.                 local p_value = ttail(e(df_r), `p_value')
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation of directionality
+.                 local interpretation "posititve coefficient is in line with h
+> ypothesis"
+
+.                 
+.                 
+.                 * (iv) check that sample size does not fall below pre-specifi
+> ed minimum 
+.                 if `num_participants' < 1500 {
+.                         local remark "DO NOT INTERPRET RESULTS SINCE EFFECTIV
+> E SAMPLE SIZE IS BELOW PRE-SPECIFIED MINIMUM (1500)"
+.                 } 
+
+.                 else {
+.                         local remark ""
+.                 }
+
+. 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: .0040638575243862
+
+.         di "Standard Error: `se'"
+Standard Error: .0242230598673255
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: t
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: 3070
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 7
+
+.         di "p-value: " `p_value'
+p-value: .43338837
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 4744
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 4744
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: posititve coefficient is in line with hypothe
+> sis
+
+.         di "Remark: `remark'"
+Remark: 
+
+.         
+.         * Export results to csv 
+.         file open myfile using "$OUT/h1_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/95_re
+    > sults/h1_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation,remark" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation',`rem
+> ark'" _n 
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

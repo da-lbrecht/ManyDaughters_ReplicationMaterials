@@ -1,0 +1,802 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmpex7hd_xl.do 
+
+. do "95%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. * the following code automatically sets paths based on the project location o
+> n your system *
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/95%-sample" // folder, in which the or
+> iginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/95%-sample
+
+. global DATA "$ROOT/data/derived_confidential/95%-sample" // folder for datase
+> ts
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/95%-sample
+
+. global OUT "$ROOT/data/derived/95_results" // folder for output (results, tab
+> les)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/95_results
+
+. 
+end of do-file
+
+. do "20250716_171250_01g9di_h1.do"
+
+. *****************************************************************************
+> ***
+. *********************** Do-File H1: #ManyDaughters Project ******************
+> ***
+. *****************************************************************************
+> ***
+. 
+. * Authors: [REDACTED], [REDACTED]
+. 
+. // This do-file is dedicated to David, who at the day of writing 
+. // the code (July 3) is celebrating his birthday
+. 
+. * ============================
+. **#  Setup * 
+. * ============================
+. 
+. *clear all
+. version 18 
+
+. set maxvar 10000 
+
+
+. 
+. * INSTALL PACKAGES * 
+. ssc install outreg2
+checking outreg2 consistency and verifying not already installed...
+all files already exist and are up to date.
+
+. /*
+> * CONFIGURE FILE PATHS * 
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw"
+> global DATA "$ROOT/data/derived" 
+> global OUT "$ROOT/out" 
+> 
+> */
+. * ============================
+. **#  Data Preparation * 
+. * ============================
+. 
+. use "$IN/ppathl.dta", clear
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. keep pid hid syear parid partner sex gebjahr migback phrf
+
+. 
+. * Merge month of interview
+. merge 1:1 pid syear using "$IN/pgen.dta",  keepusing(pgmonth pgpsbil) nogen
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. 
+. * Merge fertility information
+. merge m:1 pid using "$IN/biobirth.dta", keepusing(kidsex* kidmon* kidgeb*) no
+> gen
+(variable pid was long, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         
+. * Merge gender attitudes
+. merge 1:1 pid syear using "$IN/pl.dta", keepusing(plh0303 plh0307 plh0308_v1)
+>  nogen
+(label cid_EN already defined)
+(label pid_EN already defined)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         
+. * Merge state of residence. 
+. // NOTE: this is a deviation from the PAP. We assumed we would have access to
+>  
+. // pequiv data, where the state is contained in the variable  l11101
+. // This should have no impact on our empirical analysis
+. merge m:1 hid syear using "$IN/hgen.dta", keepusing(hgnuts1) nogen      
+(label iyear already defined)
+(label iyear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. ren hgnuts l11101 // to reflect the variable name in our PAP
+
+. 
+. label language EN
+
+. sort pid syear
+
+. 
+. 
+. * ============================
+. **#  Data editing 
+. * ============================
+. 
+. **********************************************
+. * Identify sex composition of children at time of survey
+. 
+. // set variables to missing if on information in data
+. qui recode kidgeb* kidmon* kidsex* pgmonth (-8 -5 -3 -2 -1 = .)
+
+. 
+. // rename variables for easier loop
+. forvalues x = 1/9 {
+  2.         rename kidgeb0`x' kidgeb`x'
+  3.         rename kidmon0`x' kidmon`x'
+  4.         rename kidsex0`x' kidsex`x'
+  5. }
+
+. 
+. // Loop over all children whether they were born by the time of survey
+. forvalues x = 1/19 {
+  2.         // 1 if monthly information available
+.         gen     child_exis`x'=1 if ym(kidgeb`x',kidmon`x')<ym(syear,pgmonth) 
+> & pgmonth<.
+  3.         // 2 if annual information available
+.         replace child_exis`x'=1 if kidgeb`x'<syear
+  4.         }
+(436,948 missing values generated)
+(199,036 real changes made)
+(491,992 missing values generated)
+(131,131 real changes made)
+(592,541 missing values generated)
+(50,192 real changes made)
+(639,381 missing values generated)
+(17,811 real changes made)
+(654,533 missing values generated)
+(6,686 real changes made)
+(659,552 missing values generated)
+(2,737 real changes made)
+(661,583 missing values generated)
+(1,355 real changes made)
+(662,399 missing values generated)
+(650 real changes made)
+(662,711 missing values generated)
+(309 real changes made)
+(662,866 missing values generated)
+(184 real changes made)
+(662,975 missing values generated)
+(101 real changes made)
+(663,045 missing values generated)
+(40 real changes made)
+(663,110 missing values generated)
+(14 real changes made)
+(663,114 missing values generated)
+(11 real changes made)
+(663,110 missing values generated)
+(6 real changes made)
+(663,110 missing values generated)
+(2 real changes made)
+(663,112 missing values generated)
+(0 real changes made)
+(663,118 missing values generated)
+(0 real changes made)
+(663,118 missing values generated)
+(0 real changes made)
+
+. 
+. // Recode children's sex to equal 1 if child is a girl  
+. recode kidsex* (1=0) (2=1)      
+(446,230 changes made to kidsex1)
+(322,634 changes made to kidsex2)
+(129,726 changes made to kidsex3)
+(45,208 changes made to kidsex4)
+(16,798 changes made to kidsex5)
+(7,011 changes made to kidsex6)
+(3,226 changes made to kidsex7)
+(1,469 changes made to kidsex8)
+(783 changes made to kidsex9)
+(478 changes made to kidsex10)
+(286 changes made to kidsex11)
+(141 changes made to kidsex12)
+(29 changes made to kidsex13)
+(20 changes made to kidsex14)
+(19 changes made to kidsex15)
+(16 changes made to kidsex16)
+(11 changes made to kidsex17)
+(5 changes made to kidsex18)
+(5 changes made to kidsex19)
+
+. forvalues x = 1/19 {
+  2.         gen child_sex`x'=kidsex`x' if child_exis`x'==1
+  3.         }       
+(238,154 missing values generated)
+(361,147 missing values generated)
+(542,544 missing values generated)
+(621,671 missing values generated)
+(647,872 missing values generated)
+(656,820 missing values generated)
+(660,230 missing values generated)
+(661,749 missing values generated)
+(662,402 missing values generated)
+(662,682 missing values generated)
+(662,874 missing values generated)
+(663,005 missing values generated)
+(663,096 missing values generated)
+(663,103 missing values generated)
+(663,104 missing values generated)
+(663,108 missing values generated)
+(663,112 missing values generated)
+(663,118 missing values generated)
+(663,118 missing values generated)
+
+.         
+. // Average sex of children per person-year
+. egen avg_sex=rowmean(child_sex*)        
+(237,593 missing values generated)
+
+. tab avg_sex
+
+    avg_sex |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    124,838       29.34       29.34
+   .1111111 |          9        0.00       29.34
+       .125 |         24        0.01       29.34
+   .1428571 |        123        0.03       29.37
+   .1666667 |        310        0.07       29.45
+         .2 |      1,724        0.41       29.85
+   .2222222 |         26        0.01       29.86
+        .25 |      6,726        1.58       31.44
+   .2727273 |         21        0.00       31.44
+   .2857143 |        209        0.05       31.49
+         .3 |          7        0.00       31.49
+   .3333333 |     30,124        7.08       38.57
+   .3636364 |         20        0.00       38.58
+       .375 |        112        0.03       38.60
+         .4 |      2,974        0.70       39.30
+   .4166667 |         34        0.01       39.31
+   .4285714 |        408        0.10       39.41
+   .4444444 |         66        0.02       39.42
+   .4545455 |         14        0.00       39.43
+   .4615385 |          5        0.00       39.43
+         .5 |    103,523       24.33       63.76
+   .5454546 |         17        0.00       63.76
+   .5555556 |         83        0.02       63.78
+   .5714286 |        368        0.09       63.87
+   .5833333 |          2        0.00       63.87
+         .6 |      2,349        0.55       64.42
+       .625 |        182        0.04       64.46
+   .6363636 |         24        0.01       64.47
+   .6666667 |     28,975        6.81       71.28
+         .7 |         21        0.00       71.28
+   .7142857 |        278        0.07       71.35
+   .7272727 |         33        0.01       71.35
+        .75 |      6,538        1.54       72.89
+   .7777778 |         22        0.01       72.89
+         .8 |      1,396        0.33       73.22
+   .8181818 |          5        0.00       73.22
+   .8333333 |        458        0.11       73.33
+   .8571429 |        130        0.03       73.36
+       .875 |         17        0.00       73.37
+         .9 |          4        0.00       73.37
+          1 |    113,331       26.63      100.00
+------------+-----------------------------------
+      Total |    425,530      100.00
+
+. 
+. // Define treatment indicator
+. gen     daughters = 1 if avg_sex==1     
+(549,792 missing values generated)
+
+. replace daughters = 0 if avg_sex==0     
+(124,838 real changes made)
+
+. lab var daughters "Treatment indicator (only daughters vs. only sons)"
+
+. tab daughters
+
+  Treatment |
+  indicator |
+      (only |
+  daughters |
+   vs. only |
+      sons) |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    124,838       52.42       52.42
+          1 |    113,331       47.58      100.00
+------------+-----------------------------------
+      Total |    238,169      100.00
+
+. 
+. // Only keep these observations
+. keep if daughters<.     
+(424,954 observations deleted)
+
+. 
+. **********************************************
+. * Edit sample restrictions
+. 
+. // Age of youngest child
+. forvalues x = 1/19 {
+  2.         gen age_child`x'=int((ym(syear,pgmonth)-ym(kidgeb`x',kidmon`x'))/1
+> 2) // interview 
+  3.         replace age_child`x'=syear-kidgeb`x' if age_child`x'==. 
+  4.         replace age_child`x'=. if child_exis`x'!=1
+  5. }
+(105,590 missing values generated)
+(105,460 real changes made)
+(0 real changes made)
+(159,419 missing values generated)
+(47,879 real changes made)
+(11,690 real changes made, 11,690 to missing)
+(217,533 missing values generated)
+(10,755 real changes made)
+(5,010 real changes made, 5,010 to missing)
+(234,261 missing values generated)
+(2,027 real changes made)
+(1,307 real changes made, 1,307 to missing)
+(237,341 missing values generated)
+(322 real changes made)
+(373 real changes made, 373 to missing)
+(237,986 missing values generated)
+(67 real changes made)
+(73 real changes made, 73 to missing)
+(238,115 missing values generated)
+(31 real changes made)
+(32 real changes made, 32 to missing)
+(238,160 missing values generated)
+(14 real changes made)
+(0 real changes made)
+(238,169 missing values generated)
+(2 real changes made)
+(0 real changes made)
+(238,169 missing values generated)
+(11 real changes made)
+(0 real changes made)
+(238,169 missing values generated)
+(4 real changes made)
+(0 real changes made)
+(238,169 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(238,169 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(238,169 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(238,169 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(238,169 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(238,169 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(238,169 missing values generated)
+(0 real changes made)
+(0 real changes made)
+(238,169 missing values generated)
+(0 real changes made)
+(0 real changes made)
+
+. egen age_youngest_child=rowmin(age_child*)
+
+. lab var age_youngest_child "Age of the oldest child"
+
+. 
+. // Household with youngest child aged 0 to 5
+. keep if age_youngest_child<=5
+(184,172 observations deleted)
+
+. 
+. // two-parent different sex households
+. bys hid syear: keep if _N==2 
+(11,343 observations deleted)
+
+. 
+. sort hid syear pid
+
+. bys hid syear: egen m1=mean(sex)
+
+. gen diff_sex=(m1==1.5)  
+
+. 
+. keep if diff_sex==1
+(40 observations deleted)
+
+.         
+. **********************************************
+. * Editing control variables in estimation
+. 
+. gen age_first_birth = kidgeb1-gebjahr   
+(1 missing value generated)
+
+. lab var age_first_birth "Age at first birth"
+
+.         
+. egen num_child=rowtotal(child_exis*)    
+
+. lab var num_child "Number of children"  
+
+. 
+. gen age_old_child=int((ym(syear,pgmonth)-ym(kidgeb1,kidmon1))/12) // intervie
+> w month available
+(8,181 missing values generated)
+
+. replace age_old_child=syear-kidgeb1 if age_old_child==. 
+(8,180 real changes made)
+
+. lab var age_old_child "Age of the oldest child"
+
+. 
+. **********************************************
+. * Create dependent variable
+. // Note: Deviation from PAP. Item about even division of paid work and unpaid
+.         // work in 2012 is called plh0308_v1 not plh0308_v2
+. 
+. recode plh* (-8 -5 -3 -2 -1 = .)
+(34,672 changes made to plh0303)
+(34,676 changes made to plh0307)
+(34,679 changes made to plh0308_v1)
+
+. gen index_H1 = (5 - plh0303) + plh0307 + (5 - plh0308_v1)
+(41,103 missing values generated)
+
+. egen std_index_H1=std(index_H1)
+(41,103 missing values generated)
+
+. lab var std_index_H1 "Index of support for gender equality"
+
+. 
+. * ============================
+. **# Analysis
+. * ============================
+. 
+. * FILTERS *
+. 
+. // Keep every observation with non-missing data for all variables specified i
+> n PAP
+. global analysis_var phrf hid age_old_child num_child l11101 migback sex ///
+>                                         age_first_birth daughters std_index_H
+> 1 pgpsbil pid
+
+. keep $analysis_var
+
+. recode $analysis_var (-8 -5 -3 -2 -1 =.) 
+(0 changes made to phrf)
+(12 changes made to hid)
+(0 changes made to age_old_child)
+(0 changes made to num_child)
+(0 changes made to l11101)
+(0 changes made to migback)
+(0 changes made to sex)
+(0 changes made to age_first_birth)
+(0 changes made to daughters)
+(0 changes made to std_index_H1)
+(862 changes made to pgpsbil)
+(0 changes made to pid)
+
+. qui reg $analysis_var
+
+. keep if e(sample)
+(41,111 observations deleted)
+
+. 
+. 
+. * HYPOTHESIS TEST FOR H1 * 
+. // The dependent variable is a standardised index of gender equality
+. // Higher values indicate more support for gender equality
+. // Variable of interest is the independent variables daughters, which equals 
+> 1
+.         // if respondents only have daughters vs. only sons
+. // We run a linear OLS regression analysis with additional 
+.         // pre-determined covariates
+.         
+. reg std_index_H1 daughters i.age_first_birth i.sex i.migback i.l11101 ///
+> i.pgpsbil i.num_child i.age_old_child [aw=phrf], vce(cluster hid)
+(sum of wgt is 1,214,706.21)
+
+Linear regression                               Number of obs     =      1,503
+                                                F(82, 788)        =          .
+                                                Prob > F          =          .
+                                                R-squared         =     0.2334
+                                                Root MSE          =     .90917
+
+                                  (Std. err. adjusted for 789 clusters in hid)
+------------------------------------------------------------------------------
+             |               Robust
+std_index_H1 | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+   daughters |   .0324324   .0678385     0.48   0.633    -.1007331    .1655979
+             |
+age_first_~h |
+         16  |  -.9209095   .5049674    -1.82   0.069     -1.91215     .070331
+         17  |   .1437518    .427129     0.34   0.737    -.6946935     .982197
+         18  |   -1.03098   .6045635    -1.71   0.089    -2.217726    .1557649
+         19  |   -.517348   .4854379    -1.07   0.287    -1.470252    .4355564
+         20  |  -.3364601   .4930916    -0.68   0.495    -1.304389    .6314684
+         21  |  -.2630576    .474257    -0.55   0.579    -1.194014     .667899
+         22  |  -.8621252   .4837549    -1.78   0.075    -1.811726    .0874755
+         23  |  -.6252986   .4859797    -1.29   0.199    -1.579266    .3286693
+         24  |  -.6447994   .4695717    -1.37   0.170    -1.566559    .2769601
+         25  |  -.4870573   .4787372    -1.02   0.309    -1.426808    .4526937
+         26  |   -.397728   .4748195    -0.84   0.402    -1.329789    .5343328
+         27  |  -.4840442   .4730285    -1.02   0.306    -1.412589    .4445009
+         28  |  -.2239218   .4655039    -0.48   0.631    -1.137696    .6898527
+         29  |  -.6565551   .4721068    -1.39   0.165    -1.583291    .2701807
+         30  |  -.5487189   .4673167    -1.17   0.241    -1.466052    .3686139
+         31  |  -.4400388   .4722957    -0.93   0.352    -1.367145    .4870677
+         32  |  -.2626103   .4717104    -0.56   0.578    -1.188568    .6633472
+         33  |  -.5939328   .4881292    -1.22   0.224     -1.55212    .3642546
+         34  |    -.25578   .4880072    -0.52   0.600    -1.213728    .7021679
+         35  |  -.2359994   .4751893    -0.50   0.620    -1.168786    .6967872
+         36  |  -.5339291   .4813677    -1.11   0.268    -1.478844    .4109857
+         37  |  -.5002359   .5026138    -1.00   0.320    -1.486856    .4863845
+         38  |  -.0756381   .4869917    -0.16   0.877    -1.031593    .8803163
+         39  |  -.0984602   .4912585    -0.20   0.841     -1.06279      .86587
+         40  |  -.2533552   .5249785    -0.48   0.630    -1.283877    .7771667
+         41  |  -.7080047   .5317819    -1.33   0.183    -1.751881    .3358721
+         42  |  -.6071212   .5630816    -1.08   0.281    -1.712439    .4981962
+         43  |  -.1157175   .6989474    -0.17   0.869    -1.487737    1.256301
+         44  |   .1089416   .5094626     0.21   0.831    -.8911229    1.109006
+         45  |  -1.726108   .5038644    -3.43   0.001    -2.715184    -.737033
+         46  |  -.0594096   .7211311    -0.08   0.934    -1.474975    1.356156
+         47  |  -1.249095   .6080973    -2.05   0.040    -2.442777   -.0554124
+         48  |   .0143935   .8155245     0.02   0.986    -1.586464    1.615251
+         49  |  -.7589354   .4835911    -1.57   0.117    -1.708214    .1903437
+         51  |  -1.133252   .5003951    -2.26   0.024    -2.115517   -.1509871
+             |
+         sex |
+ [2] Female  |   .3704473   .0573644     6.46   0.000     .2578422    .4830523
+             |
+     migback |
+[2] direc..  |  -.2325551   .1308148    -1.78   0.076    -.4893419    .0242316
+[3] indir..  |  -.0291172   .1214662    -0.24   0.811    -.2675529    .2093184
+             |
+      l11101 |
+[2] Bavaria  |   .2998065   .1322296     2.27   0.024     .0402426    .5593704
+ [3] Berlin  |   .8821656   .2034236     4.34   0.000     .4828493    1.281482
+[4] Brand..  |   .5536531   .1721929     3.22   0.001     .2156421    .8916641
+ [5] Bremen  |   .6391007   .3043149     2.10   0.036      .041737    1.236464
+[6] Hamburg  |   .3067819   .1373016     2.23   0.026     .0372617     .576302
+  [7] Hesse  |   .0903339   .1545214     0.58   0.559    -.2129885    .3936562
+[8] Meckl..  |   .6967483   .2178348     3.20   0.001     .2691431    1.124353
+[9] Lower..  |   .4418925   .1538766     2.87   0.004     .1398359    .7439491
+[10] Nort..  |   .3579643   .1233305     2.90   0.004     .1158691    .6000596
+[11] Rhin..  |   .2967954   .1748589     1.70   0.090    -.0464489    .6400397
+[12] Saar..  |   .3178591    .314759     1.01   0.313    -.3000062    .9357244
+[13] Saxony  |   .6625248   .1714915     3.86   0.000     .3258906    .9991591
+[14] Saxo..  |   .7013545   .2283066     3.07   0.002     .2531933    1.149516
+[15] Schl..  |   .4569728   .1640628     2.79   0.005     .1349209    .7790246
+[16] Thur..  |   .6652308   .1662308     4.00   0.000     .3389231    .9915384
+             |
+     pgpsbil |
+[2] Inter..  |   .1645608   .0992849     1.66   0.098    -.0303335    .3594551
+[3] Techn..  |   .2236957    .119917     1.87   0.062    -.0116989    .4590903
+[4] Upper..  |   .3049732   .1099012     2.77   0.006     .0892395    .5207069
+[5] Other..  |   .3234648   .1484029     2.18   0.030      .032153    .6147767
+[6] Dropo..  |  -.6243804   .2474262    -2.52   0.012    -1.110073   -.1386879
+             |
+   num_child |
+          2  |  -.1192162   .0974629    -1.22   0.222    -.3105339    .0721014
+          3  |  -.1275212   .1469857    -0.87   0.386    -.4160512    .1610087
+          4  |  -.2097023   .2437174    -0.86   0.390    -.6881145    .2687099
+          5  |  -.7540949   .8039917    -0.94   0.349    -2.332314     .824124
+          6  |   .3477696   .9365356     0.37   0.710     -1.49063    2.186169
+             |
+age_old_ch~d |
+          1  |   .6491983    .663106     0.98   0.328    -.6524649    1.950861
+          2  |   .4318699   .6155977     0.70   0.483    -.7765354    1.640275
+          3  |   .3183891   .6209273     0.51   0.608    -.9004782    1.537256
+          4  |   .3874435     .61542     0.63   0.529    -.8206129      1.5955
+          5  |   .1927889   .6221139     0.31   0.757    -1.028408    1.413986
+          6  |   .6025158   .6342458     0.95   0.342    -.6424955    1.847527
+          7  |   .2813371   .6245253     0.45   0.652     -.944593    1.507267
+          8  |   .5756709    .626089     0.92   0.358    -.6533286     1.80467
+          9  |   .2146499   .6418631     0.33   0.738    -1.045314    1.474614
+         10  |   .4973417   .6347714     0.78   0.434    -.7487013    1.743385
+         11  |   .1003521    .652183     0.15   0.878    -1.179869    1.380574
+         12  |   .5147208   .6325191     0.81   0.416    -.7269009    1.756342
+         13  |     .69432   .6895968     1.01   0.314    -.6593441    2.047984
+         14  |   .8853379   .6453882     1.37   0.171    -.3815456    2.152221
+         15  |   .1223591   .6485784     0.19   0.850    -1.150787    1.395505
+         16  |  -.2485002   .6505553    -0.38   0.703    -1.525527    1.028526
+         17  |  -.4683293   .6426674    -0.73   0.466    -1.729872    .7932133
+         18  |  -.2937888   .6327894    -0.46   0.643    -1.535941    .9483636
+         19  |  -.4232316   .9215831    -0.46   0.646     -2.23228    1.385817
+         20  |   .2919523   .8071917     0.36   0.718    -1.292548    1.876453
+         21  |  -.6627747   .6772804    -0.98   0.328    -1.992262    .6667126
+         22  |  -.0880439   .6606153    -0.13   0.894    -1.384818     1.20873
+         23  |   .3757109   1.087299     0.35   0.730    -1.758634    2.510055
+         24  |  -.3049593   .7010476    -0.44   0.664    -1.681101    1.071182
+         25  |  -.5117387   .6578924    -0.78   0.437    -1.803168    .7796904
+         26  |   .5085703   .6296424     0.81   0.419    -.7274046    1.744545
+         29  |   .3330439   .6856127     0.49   0.627      -1.0128    1.678887
+         30  |   .9600667   1.024029     0.94   0.349     -1.05008    2.970214
+             |
+       _cons |  -.5103634   .7742109    -0.66   0.510    -2.030123    1.009396
+------------------------------------------------------------------------------
+
+. 
+. 
+. **# EXTRACT AND EXPORT RESULTS * 
+. 
+. * Extract the required statistics
+. 
+.         * (i) coefficient estimate
+.         local coefficient = r(table)[1,1]
+
+. 
+.         * (ii) standard error
+.         local se = r(table)[2,1]
+
+. 
+.         * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.         local test_stat_family = "t"
+
+. 
+.         * (iv) residual and model degrees of freedom (DFs) if applicable
+.         local df_residual = e(df_r)
+
+.         local df_model = e(df_m)
+
+. 
+.         * (v) p-value
+.         local p_value =  r(table)[4,1]
+
+. 
+.         * (vi) number of observations
+.         local num_obs = e(N)
+
+. 
+.         * (vii) number of participants
+.         quietly levelsof pid if e(sample), local(participants)
+
+.         local num_participants : word count `participants'
+
+. 
+.         * (viii) interpretation of directionality
+.         local interpretation "positive coefficient is in line with hypothesis
+> "
+
+.         
+. 
+. // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: .0324324282405956
+
+.         di "Standard Error: `se'"
+Standard Error: .0678384724546043
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: t
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: 788
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 82
+
+.         di "p-value: " `p_value'
+p-value: .63272365
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 1503
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 1503
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h1_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/95_re
+    > sults/h1_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

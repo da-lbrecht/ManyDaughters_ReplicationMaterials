@@ -1,0 +1,1550 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmpve7205eu.do 
+
+. do "95%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. * the following code automatically sets paths based on the project location o
+> n your system *
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/95%-sample" // folder, in which the or
+> iginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/95%-sample
+
+. global DATA "$ROOT/data/derived_confidential/95%-sample" // folder for datase
+> ts
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/95%-sample
+
+. global OUT "$ROOT/data/derived/95_results" // folder for output (results, tab
+> les)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/95_results
+
+. 
+end of do-file
+
+. do "20250730_154212_01qxtn_h3.do"
+
+. *****************************************************************************
+> ***
+. ****************** Do-File H3: #ManyDaughters Project ******************
+. *****************************************************************************
+> ***
+. 
+. * Authors: [REDACTED], [REDACTED] (working with a template by Tina Wang,
+>  David Albrecht)
+. 
+. * ============================
+. * Setup * 
+. * ============================
+. 
+. * clear all
+. * version 19.5 // indicate the version of stata you are using here
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. * INSTALL PACKAGES * 
+. ssc install outreg2
+checking outreg2 consistency and verifying not already installed...
+all files already exist and are up to date.
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. /*
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> */
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. 
+. * LOAD AND MERGE DATA * 
+. * FOR WOMEN *
+.  
+.         use "$IN/ppathl.dta", clear
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+.         keep cid pid hid syear parid partner sex gebjahr psample sampreg pop 
+> netto sexor phrf0 phrf1 piyear
+
+. 
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches) //
+> /
+>         keepusing(sumkids kidpnr?? kidgeb?? kidsex?? kidmon??)
+(variable pid was long, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         
+.         * pgen contains user-friendly data on the individual level that are c
+> onsolidated from different sources
+.         merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches) 
+> ///
+>         keepusing(pid syear pgcasmin pgbilzeit pgmonth pgpiyear pgfamstd pgem
+> plst pglfs pgpartz pgpartnr)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         
+.         * pl contains all variables from the individual questionnaire
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches) //
+> /
+>         keepusing(plh0004 pld0152 plh0301 plh0303 plh0307 plh0301 plh0308_v1 
+> plh0308_v2 plj0620 plj0621 plj0622 plj0623 plj0624 plj0625 pli0010 pli0036 pl
+> i0051 pli0044_h pli0019_h pli0022_h)
+(label cid_EN already defined)
+(label pid_EN already defined)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         sort pgpartnr syear
+
+.         keep if sex == 2                                                     
+>    //keep only women
+(319,356 observations deleted)
+
+.         drop if pgpartnr == -2 | pgpartnr == .          // keep only women wi
+> th  valid partner pid
+(164,269 observations deleted)
+
+.         save "$DATA/h3_dataset_wom.dta", replace        // save merged datase
+> t for women
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h3_dataset_wom.dta not found)
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h3_dataset_wom.dta saved
+
+.         
+.         
+. * Prepare data from male partner *
+.         use "$IN/ppathl.dta", clear
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+.         keep pid syear sex gebjahr 
+
+.         
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches) //
+> /
+>         keepusing(syear pid pli0010 pli0036 pli0051 pli0019_h pli0044_h pli00
+> 22_h)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         
+.         merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches) 
+> ///
+>         keepusing(pid syear pgcasmin pgemplst)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         
+.         keep if sex == 1                                                     
+>    //keep only men
+(343,780 observations deleted)
+
+.         
+.         foreach u in pgcasmin gebjahr pgemplst pli0010 pli0036 pli0051 pli001
+> 9_h pli0044_h pli0022_h{
+  2.                 rename `u' part_`u'     
+  3.         }
+
+.         
+.         rename pid pgpartnr
+
+.         
+.         drop if pgpartnr == -2 | pgpartnr == . //nothing should be dropped he
+> re (safety measure for merging with the large sample)
+(0 observations deleted)
+
+.         
+.         keep pgpartnr syear part*
+
+.         sort pgpartnr syear
+
+.         merge 1:1 pgpartnr syear using "$DATA/h3_dataset_wom.dta"
+(label pld0152 already defined)
+(label plh0004 already defined)
+(label plh0301 already defined)
+(label plh0303 already defined)
+(label plh0307 already defined)
+(label plh0308_v1 already defined)
+(label plh0308_v2 already defined)
+(label pli0010 already defined)
+(label pli0019_h already defined)
+(label pli0022_h already defined)
+(label pli0036 already defined)
+(label pli0044_h already defined)
+(label pli0051 already defined)
+(label plj0620 already defined)
+(label plj0621 already defined)
+(label plj0622 already defined)
+(label plj0623 already defined)
+(label plj0624 already defined)
+(label plj0625 already defined)
+(label syear_EN already defined)
+(label pld0152_EN already defined)
+(label plh0004_EN already defined)
+(label plh0301_EN already defined)
+(label plh0303_EN already defined)
+(label plh0307_EN already defined)
+(label plh0308_v1_EN already defined)
+(label plh0308_v2_EN already defined)
+(label pli0010_EN already defined)
+(label pli0019_h_EN already defined)
+(label pli0022_h_EN already defined)
+(label pli0036_EN already defined)
+(label pli0044_h_EN already defined)
+(label pli0051_EN already defined)
+(label plj0620_EN already defined)
+(label plj0621_EN already defined)
+(label plj0622_EN already defined)
+(label plj0623_EN already defined)
+(label plj0624_EN already defined)
+(label plj0625_EN already defined)
+(label pid_EN already defined)
+(label partner already defined)
+(label sex already defined)
+(label psample already defined)
+(label sampreg already defined)
+(label netto already defined)
+(label pop already defined)
+(label sexor already defined)
+(label partner_EN already defined)
+(label sex_EN already defined)
+(label psample_EN already defined)
+(label sampreg_EN already defined)
+(label netto_EN already defined)
+(label pop_EN already defined)
+(label sexor_EN already defined)
+(label pgpiyear_EN already defined)
+(label pgmonth_EN already defined)
+(label pgbilzeit_EN already defined)
+(label pgcasmin_EN already defined)
+(label pglfs_EN already defined)
+(label pgemplst_EN already defined)
+(label pgfamstd_EN already defined)
+(label pgpartnr_EN already defined)
+(label pgpartz_EN already defined)
+(label pgpiyear already defined)
+(label pgmonth already defined)
+(label pgbilzeit already defined)
+(label pgcasmin already defined)
+(label pglfs already defined)
+(label pgemplst already defined)
+(label pgfamstd already defined)
+(label pgpartnr already defined)
+(label pgpartz already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                       164,603
+        from master                   152,224  (_merge==1)
+        from using                     12,379  (_merge==2)
+
+    Matched                           167,119  (_merge==3)
+    -----------------------------------------
+
+.         
+.         keep if _merge==3 //keep only matched couples (outcome: differnce in 
+> care work between couples)
+(164,603 observations deleted)
+
+.         drop _merge
+
+.         
+. * English labels *      
+.         label language EN // change language of the labels to English
+
+. 
+. * Missings *    
+.         mvdecode _all, mv(-8/-1 = .)
+part_gebjahr: 2 missing values generated
+part_pli0010: 86909 missing values generated
+part_pli~9_h: 88705 missing values generated
+part_pli~2_h: 88743 missing values generated
+part_pli0036: 86857 missing values generated
+part_pli~4_h: 8378 missing values generated
+part_pli0051: 4485 missing values generated
+part_pgemp~t: 1 missing value generated
+part_pgcas~n: 1834 missing values generated
+     gebjahr: 2 missing values generated
+     sampreg: 4 missing values generated
+    kidpnr01: 60170 missing values generated
+    kidpnr02: 80527 missing values generated
+    kidpnr03: 131529 missing values generated
+    kidpnr04: 155127 missing values generated
+    kidpnr05: 162850 missing values generated
+    kidpnr06: 165353 missing values generated
+    kidpnr07: 166343 missing values generated
+    kidpnr08: 166780 missing values generated
+    kidpnr09: 166936 missing values generated
+    kidpnr10: 166997 missing values generated
+    kidpnr11: 167050 missing values generated
+    kidpnr12: 167094 missing values generated
+    kidpnr13: 167119 missing values generated
+    kidpnr14: 167119 missing values generated
+    kidpnr15: 167119 missing values generated
+    kidpnr16: 167119 missing values generated
+    kidpnr17: 167119 missing values generated
+    kidpnr18: 167119 missing values generated
+    kidpnr19: 167119 missing values generated
+    kidgeb01: 18433 missing values generated
+    kidgeb02: 53739 missing values generated
+    kidgeb03: 122554 missing values generated
+    kidgeb04: 152264 missing values generated
+    kidgeb05: 161947 missing values generated
+    kidgeb06: 164980 missing values generated
+    kidgeb07: 166178 missing values generated
+    kidgeb08: 166723 missing values generated
+    kidgeb09: 166915 missing values generated
+    kidgeb10: 166997 missing values generated
+    kidgeb11: 167050 missing values generated
+    kidgeb12: 167094 missing values generated
+    kidgeb13: 167119 missing values generated
+    kidgeb14: 167119 missing values generated
+    kidgeb15: 167119 missing values generated
+    kidgeb16: 167119 missing values generated
+    kidgeb17: 167119 missing values generated
+    kidgeb18: 167119 missing values generated
+    kidgeb19: 167119 missing values generated
+    kidsex01: 18415 missing values generated
+    kidsex02: 53810 missing values generated
+    kidsex03: 122594 missing values generated
+    kidsex04: 152308 missing values generated
+    kidsex05: 161959 missing values generated
+    kidsex06: 164980 missing values generated
+    kidsex07: 166184 missing values generated
+    kidsex08: 166723 missing values generated
+    kidsex09: 166915 missing values generated
+    kidsex10: 166997 missing values generated
+    kidsex11: 167050 missing values generated
+    kidsex12: 167094 missing values generated
+    kidsex13: 167119 missing values generated
+    kidsex14: 167119 missing values generated
+    kidsex15: 167119 missing values generated
+    kidsex16: 167119 missing values generated
+    kidsex17: 167119 missing values generated
+    kidsex18: 167119 missing values generated
+    kidsex19: 167119 missing values generated
+    kidmon01: 68117 missing values generated
+    kidmon02: 85905 missing values generated
+    kidmon03: 133529 missing values generated
+    kidmon04: 155749 missing values generated
+    kidmon05: 163063 missing values generated
+    kidmon06: 165430 missing values generated
+    kidmon07: 166388 missing values generated
+    kidmon08: 166783 missing values generated
+    kidmon09: 166945 missing values generated
+    kidmon11: 167056 missing values generated
+    kidmon10: 167003 missing values generated
+    kidmon12: 167094 missing values generated
+    kidmon13: 167119 missing values generated
+    kidmon14: 167119 missing values generated
+    kidmon15: 167119 missing values generated
+    kidmon16: 167119 missing values generated
+    kidmon17: 167119 missing values generated
+    kidmon18: 167119 missing values generated
+    kidmon19: 167119 missing values generated
+    pgfamstd: 247 missing values generated
+    pgemplst: 2 missing values generated
+       pglfs: 1 missing value generated
+    pgcasmin: 2032 missing values generated
+   pgbilzeit: 2536 missing values generated
+     pgmonth: 3 missing values generated
+    pgpiyear: 126599 missing values generated
+     pld0152: 161452 missing values generated
+     plh0004: 139495 missing values generated
+     plh0301: 164712 missing values generated
+     plh0303: 164698 missing values generated
+     plh0307: 164713 missing values generated
+  plh0308_v1: 164720 missing values generated
+  plh0308_v2: 159527 missing values generated
+     pli0010: 91387 missing values generated
+   pli0019_h: 93168 missing values generated
+   pli0022_h: 93222 missing values generated
+     pli0036: 91377 missing values generated
+   pli0044_h: 8209 missing values generated
+     pli0051: 4444 missing values generated
+     plj0620: 165461 missing values generated
+     plj0621: 165420 missing values generated
+     plj0622: 165420 missing values generated
+     plj0623: 165452 missing values generated
+     plj0624: 165405 missing values generated
+     plj0625: 165386 missing values generated
+
+.         save "$DATA/h3_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h3_dataset.dta saved
+
+. 
+. 
+. * ============================
+. * Analysis
+. * ============================
+. 
+. * FILTERS * 
+. 
+.         * The analysis sample consists of individuals from private households
+>  who conducted an individual questionnaire
+.         keep if inlist(pop,1,2,5,6) & inrange(netto,10,19) 
+(914 observations deleted)
+
+.         sort pid syear
+
+. 
+. *Controls*
+. 
+.         * age
+.         gen age = syear - gebjahr if gebjahr<.
+(2 missing values generated)
+
+.         
+.         gen part_age = syear - part_gebjahr if part_gebjahr<.
+(1 missing value generated)
+
+.         
+.         * education (CASMIN)
+.         recode pgcasmin (1/3 = 1 "Low education") (4/7 = 2 "Intermediate educ
+> ation") (8/9 = 3 "High Education") (0 . = 4 "Other"), gen(edu)
+(161,621 differences between pgcasmin and edu)
+
+.         tab pgcasmin edu, mis
+
+                      | RECODE of pgcasmin (CASMIN Classification)
+CASMIN Classification | Low educa  Intermedi  High Educ      Other |     Total
+----------------------+--------------------------------------------+----------
+    [0] (0) In School |         0          0          0        104 |       104 
+[1] (1a) Inadequately |     4,584          0          0          0 |     4,584 
+[2] (1b) General Elem |    17,004          0          0          0 |    17,004 
+[3] (1c) Basic Vocati |    36,243          0          0          0 |    36,243 
+[4] (2b) Intermediate |         0      3,346          0          0 |     3,346 
+[5] (2a) Intermediate |         0     46,375          0          0 |    46,375 
+[6] (2c_gen) General  |         0      5,057          0          0 |     5,057 
+[7] (2c_voc) Vocation |         0     16,406          0          0 |    16,406 
+[8] (3a) Lower Tertia |         0          0     11,982          0 |    11,982 
+[9] (3b) Higher Terti |         0          0     23,129          0 |    23,129 
+                    . |         0          0          0      1,975 |     1,975 
+----------------------+--------------------------------------------+----------
+                Total |    57,831     71,184     35,111      2,079 |   166,205 
+
+.         
+.         recode part_pgcasmin (1/3 = 1 "Low education (partner)") (4/7 = 2 "In
+> termediate education (partner)") (8/9 = 3 "High Education (partner)") (0 . = 
+> 4 "Other (partner)"), gen(part_edu)
+(162,351 differences between part_pgcasmin and part_edu)
+
+.         tab part_pgcasmin part_edu, mis
+
+                      |       RECODE of part_pgcasmin (CASMIN
+                      |               Classification)
+CASMIN Classification | Low educa  Intermedi  High Educ  Other (pa |     Total
+----------------------+--------------------------------------------+----------
+    [0] (0) In School |         0          0          0         46 |        46 
+[1] (1a) Inadequately |     3,854          0          0          0 |     3,854 
+[2] (1b) General Elem |     9,016          0          0          0 |     9,016 
+[3] (1c) Basic Vocati |    49,316          0          0          0 |    49,316 
+[4] (2b) Intermediate |         0      1,217          0          0 |     1,217 
+[5] (2a) Intermediate |         0     33,935          0          0 |    33,935 
+[6] (2c_gen) General  |         0      3,564          0          0 |     3,564 
+[7] (2c_voc) Vocation |         0     12,391          0          0 |    12,391 
+[8] (3a) Lower Tertia |         0          0     15,539          0 |    15,539 
+[9] (3b) Higher Terti |         0          0     28,119          0 |    28,119 
+                    . |         0          0          0      9,208 |     9,208 
+----------------------+--------------------------------------------+----------
+                Total |    62,186     51,107     43,658      9,254 |   166,205 
+
+.         
+. 
+.         * marital status
+.         recode pgfamstd (1 2 6 = 1 "Married" ) (3 4 5 7 8 = 0 "Other" ), gen(
+> fam) 
+(21,328 differences between pgfamstd and fam)
+
+.         ta pgfamstd fam, mis
+
+                      |   RECODE of pgfamstd (Marital
+    Marital Status In |      Status In Survey Year)
+          Survey Year |     Other    Married          . |     Total
+----------------------+---------------------------------+----------
+          [1] Married |         0    144,632          0 |   144,632 
+[2] Married, But Sepa |         0      1,334          0 |     1,334 
+           [3] Single |    13,297          0          0 |    13,297 
+         [4] Divorced |     5,020          0          0 |     5,020 
+[5] [de] Verwitwet /  |     1,628          0          0 |     1,628 
+[7] Registered Same-S |        43          0          0 |        43 
+[8] Registered Same-S |         6          0          0 |         6 
+                    . |         0          0        245 |       245 
+----------------------+---------------------------------+----------
+                Total |    19,994    145,966        245 |   166,205 
+
+.                 
+.         * east/west
+.         recode sampreg (2=0), gen(west)
+(36,921 differences between sampreg and west)
+
+.         tab sampreg west, m
+
+                      |    RECODE of sampreg (Current
+                      |      sample region (Berlin,
+Current sample region |           West-East))
+  (Berlin, West-East) |         0          1          . |     Total
+----------------------+---------------------------------+----------
+     [1] West-Germany |         0    129,280          0 |   129,280 
+     [2] East-Germany |    36,921          0          0 |    36,921 
+                    . |         0          0          4 |         4 
+----------------------+---------------------------------+----------
+                Total |    36,921    129,280          4 |   166,205 
+
+.         
+.         * labor force status
+.         tab pgemplst, mis
+
+                      Employment Status |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+               [1] Full-Time Employment |     36,470       21.94       21.94
+       [2] Regular Part-Time Employment |     41,747       25.12       47.06
+                [3] Vocational Training |      1,059        0.64       47.70
+[4] Marginal, Irregular Part-Time Emplo |     12,527        7.54       55.23
+                       [5] Not Employed |     74,354       44.74       99.97
+                 [6] Sheltered workshop |         47        0.03      100.00
+                                      . |          1        0.00      100.00
+----------------------------------------+-----------------------------------
+                                  Total |    166,205      100.00
+
+.         recode pgemplst (1 = 1 "full-time") (2 = 2 "part-time") (5 = 3 "not e
+> mployed") (3 4 6 = 4 "other"), gen(work)
+(75,460 differences between pgemplst and work)
+
+.         ta pgemplst work, mis
+
+                      |   RECODE of pgemplst (Employment Status)
+    Employment Status | full-time  part-time  not emplo      other |     Total
+----------------------+--------------------------------------------+----------
+[1] Full-Time Employm |    36,470          0          0          0 |    36,470 
+[2] Regular Part-Time |         0     41,747          0          0 |    41,747 
+[3] Vocational Traini |         0          0          0      1,059 |     1,059 
+[4] Marginal, Irregul |         0          0          0     12,527 |    12,527 
+     [5] Not Employed |         0          0     74,354          0 |    74,354 
+[6] Sheltered worksho |         0          0          0         47 |        47 
+                    . |         0          0          0          0 |         1 
+----------------------+--------------------------------------------+----------
+                Total |    36,470     41,747     74,354     13,633 |   166,205 
+
+
+                      | RECODE of
+                      |  pgemplst
+                      | (Employmen
+                      | t Status)
+    Employment Status |         . |     Total
+----------------------+-----------+----------
+[1] Full-Time Employm |         0 |    36,470 
+[2] Regular Part-Time |         0 |    41,747 
+[3] Vocational Traini |         0 |     1,059 
+[4] Marginal, Irregul |         0 |    12,527 
+     [5] Not Employed |         0 |    74,354 
+[6] Sheltered worksho |         0 |        47 
+                    . |         1 |         1 
+----------------------+-----------+----------
+                Total |         1 |   166,205 
+
+.         
+.         tab part_pgemplst, mis
+
+                      Employment Status |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+               [1] Full-Time Employment |     96,709       58.19       58.19
+       [2] Regular Part-Time Employment |      4,792        2.88       61.07
+                [3] Vocational Training |        624        0.38       61.45
+[4] Marginal, Irregular Part-Time Emplo |      3,592        2.16       63.61
+                       [5] Not Employed |     53,024       31.90       95.51
+                 [6] Sheltered workshop |         41        0.02       95.53
+                                      . |      7,423        4.47      100.00
+----------------------------------------+-----------------------------------
+                                  Total |    166,205      100.00
+
+.         recode part_pgemplst (1 = 1 "full-time (partner)") (2 = 2 "part-time 
+> (partner)") (5 = 3 "not employed (partner)") (3 4 6 = 4 "other (partner)"), g
+> en(part_work)
+(53,689 differences between part_pgemplst and part_work)
+
+.         ta part_pgemplst part_work, mis
+
+                      | RECODE of part_pgemplst (Employment Status)
+    Employment Status | full-time  part-time  not emplo  other (pa |     Total
+----------------------+--------------------------------------------+----------
+[1] Full-Time Employm |    96,709          0          0          0 |    96,709 
+[2] Regular Part-Time |         0      4,792          0          0 |     4,792 
+[3] Vocational Traini |         0          0          0        624 |       624 
+[4] Marginal, Irregul |         0          0          0      3,592 |     3,592 
+     [5] Not Employed |         0          0     53,024          0 |    53,024 
+[6] Sheltered worksho |         0          0          0         41 |        41 
+                    . |         0          0          0          0 |     7,423 
+----------------------+--------------------------------------------+----------
+                Total |    96,709      4,792     53,024      4,257 |   166,205 
+
+
+                      | RECODE of
+                      | part_pgemp
+                      |    lst
+                      | (Employmen
+                      | t Status)
+    Employment Status |         . |     Total
+----------------------+-----------+----------
+[1] Full-Time Employm |         0 |    96,709 
+[2] Regular Part-Time |         0 |     4,792 
+[3] Vocational Traini |         0 |       624 
+[4] Marginal, Irregul |         0 |     3,592 
+     [5] Not Employed |         0 |    53,024 
+[6] Sheltered worksho |         0 |        41 
+                    . |     7,423 |     7,423 
+----------------------+-----------+----------
+                Total |     7,423 |   166,205 
+
+.         
+.         * sex
+.         recode sex (1 = 0 "male")(2 = 1 "female"), gen(gender)
+(166,205 differences between sex and gender)
+
+.         
+. * Treatment var *
+. 
+.         * Generate dummy variable for whether first kid was daughter (1) or s
+> on (0) 
+.         gen daughter = cond(kidsex01 == 1,0,cond(kidsex01 == 2,1,.z))        
+>            
+(18,341 missing values generated)
+
+.         tab daughter kidsex01, mis                                           
+>                            
+
+           |          Sex 1st. Child
+  daughter |  [1] Male  [2] Femal          . |     Total
+-----------+---------------------------------+----------
+         0 |    75,619          0          0 |    75,619 
+         1 |         0     72,245          0 |    72,245 
+        .z |         0          0     18,341 |    18,341 
+-----------+---------------------------------+----------
+     Total |    75,619     72,245     18,341 |   166,205 
+
+. 
+.         * Generate indicator for child born 1-12 months before interview
+.         gen int_year = syear
+
+.         replace int_year = pgpiyear if syear!=pgpiyear & pgpiyear !=.        
+>    // correct, if interview year is differnt than survey year
+(740 real changes made)
+
+. 
+.         gen int_mth = ((int_year-1984)*12+pgmonth)                           
+>                            // Monthly timepoint of interview
+(3 missing values generated)
+
+.         gen geb_mth = (((kidgeb01-1984)*12+kidmon01))                        
+>                    // Monthly timepoint of birth first child
+(67,767 missing values generated)
+
+.         
+.         gen msb = int_mth-geb_mth 
+(67,769 missing values generated)
+
+.         recode msb (1/12 = 1) (else = 0), into(valid)                        
+>                    // indicator: child born 1-24 months before interview   
+(165,935 differences between msb and valid)
+
+.         
+.         * Check for mutliple births *
+.         gen multiple = (kidgeb01 == kidgeb02 & kidmon01 == kidmon02) & (kidge
+> b01 < . & kidmon01 < .)
+
+.         ta multiple valid
+
+           |     RECODE of msb
+  multiple |         0          1 |     Total
+-----------+----------------------+----------
+         0 |   162,625      2,268 |   164,893 
+         1 |     1,255         57 |     1,312 
+-----------+----------------------+----------
+     Total |   163,880      2,325 |   166,205 
+
+.         
+. * Dependent var * 
+.         gen care_gap_fem = part_pli0044_h - pli0044_h   //pos. value means ma
+> le partner takes on more carework
+(18,686 missing values generated)
+
+.         
+.         bys daughter: ta care_gap_fem                                   //che
+> ck care gaps by daughters/sons
+
+-------------------------------------------------------------------------------
+-> daughter = 0
+
+care_gap_fe |
+          m |      Freq.     Percent        Cum.
+------------+-----------------------------------
+        -24 |        139        0.21        0.21
+        -23 |        313        0.46        0.67
+        -22 |        344        0.51        1.18
+        -21 |        172        0.26        1.44
+        -20 |        142        0.21        1.65
+        -19 |        115        0.17        1.82
+        -18 |        120        0.18        1.99
+        -17 |        129        0.19        2.19
+        -16 |        158        0.23        2.42
+        -15 |        161        0.24        2.66
+        -14 |        229        0.34        3.00
+        -13 |        288        0.43        3.43
+        -12 |        545        0.81        4.23
+        -11 |        730        1.08        5.32
+        -10 |        956        1.42        6.73
+         -9 |        906        1.34        8.08
+         -8 |      1,252        1.86        9.93
+         -7 |      1,509        2.24       12.17
+         -6 |      1,863        2.76       14.93
+         -5 |      2,030        3.01       17.94
+         -4 |      2,602        3.86       21.80
+         -3 |      2,977        4.41       26.22
+         -2 |      4,052        6.01       32.23
+         -1 |      5,151        7.64       39.87
+          0 |     37,572       55.72       95.58
+          1 |      1,603        2.38       97.96
+          2 |        606        0.90       98.86
+          3 |        271        0.40       99.26
+          4 |        154        0.23       99.49
+          5 |        100        0.15       99.64
+          6 |         82        0.12       99.76
+          7 |         34        0.05       99.81
+          8 |         34        0.05       99.86
+          9 |         27        0.04       99.90
+         10 |         18        0.03       99.92
+         11 |         10        0.01       99.94
+         12 |         10        0.01       99.95
+         13 |          6        0.01       99.96
+         14 |          3        0.00       99.97
+         15 |          3        0.00       99.97
+         16 |          4        0.01       99.98
+         17 |          2        0.00       99.98
+         18 |          4        0.01       99.99
+         19 |          5        0.01       99.99
+         21 |          2        0.00      100.00
+         22 |          1        0.00      100.00
+         23 |          1        0.00      100.00
+------------+-----------------------------------
+      Total |     67,435      100.00
+
+-------------------------------------------------------------------------------
+-> daughter = 1
+
+care_gap_fe |
+          m |      Freq.     Percent        Cum.
+------------+-----------------------------------
+        -24 |        182        0.28        0.28
+        -23 |        356        0.55        0.84
+        -22 |        319        0.50        1.33
+        -21 |        156        0.24        1.58
+        -20 |        145        0.23        1.80
+        -19 |        113        0.18        1.98
+        -18 |        128        0.20        2.18
+        -17 |        129        0.20        2.38
+        -16 |        140        0.22        2.60
+        -15 |        151        0.24        2.83
+        -14 |        222        0.35        3.18
+        -13 |        251        0.39        3.57
+        -12 |        522        0.81        4.38
+        -11 |        749        1.17        5.55
+        -10 |        901        1.40        6.95
+         -9 |        893        1.39        8.34
+         -8 |      1,280        1.99       10.33
+         -7 |      1,421        2.21       12.55
+         -6 |      1,824        2.84       15.39
+         -5 |      2,123        3.31       18.69
+         -4 |      2,733        4.26       22.95
+         -3 |      3,031        4.72       27.67
+         -2 |      4,058        6.32       33.99
+         -1 |      5,031        7.83       41.82
+          0 |     34,484       53.69       95.51
+          1 |      1,562        2.43       97.94
+          2 |        607        0.95       98.89
+          3 |        250        0.39       99.28
+          4 |        160        0.25       99.53
+          5 |         89        0.14       99.67
+          6 |         68        0.11       99.77
+          7 |         38        0.06       99.83
+          8 |         33        0.05       99.88
+          9 |         16        0.02       99.91
+         10 |         16        0.02       99.93
+         11 |          8        0.01       99.95
+         12 |         14        0.02       99.97
+         13 |          3        0.00       99.97
+         14 |          2        0.00       99.98
+         15 |          2        0.00       99.98
+         16 |          4        0.01       99.98
+         17 |          4        0.01       99.99
+         18 |          1        0.00       99.99
+         19 |          1        0.00       99.99
+         21 |          1        0.00      100.00
+         22 |          2        0.00      100.00
+         24 |          1        0.00      100.00
+------------+-----------------------------------
+      Total |     64,224      100.00
+
+-------------------------------------------------------------------------------
+-> daughter = .z
+
+care_gap_fe |
+          m |      Freq.     Percent        Cum.
+------------+-----------------------------------
+        -24 |          2        0.01        0.01
+        -22 |          1        0.01        0.02
+        -19 |          1        0.01        0.03
+        -15 |          1        0.01        0.03
+        -13 |          1        0.01        0.04
+        -12 |          1        0.01        0.04
+        -11 |          1        0.01        0.05
+        -10 |          5        0.03        0.08
+         -9 |          9        0.06        0.14
+         -8 |          5        0.03        0.17
+         -7 |          6        0.04        0.21
+         -6 |         15        0.09        0.30
+         -5 |         11        0.07        0.37
+         -4 |         27        0.17        0.54
+         -3 |         31        0.20        0.74
+         -2 |         78        0.49        1.23
+         -1 |        152        0.96        2.19
+          0 |     15,332       96.67       98.86
+          1 |        103        0.65       99.51
+          2 |         49        0.31       99.82
+          3 |         14        0.09       99.91
+          4 |          4        0.03       99.93
+          5 |          5        0.03       99.96
+          6 |          3        0.02       99.98
+          7 |          1        0.01       99.99
+          8 |          1        0.01       99.99
+         20 |          1        0.01      100.00
+------------+-----------------------------------
+      Total |     15,860      100.00
+
+
+.         bys valid: ta care_gap_fem                                           
+>    //check care gaps by sample
+
+-------------------------------------------------------------------------------
+-> valid = 0
+
+care_gap_fe |
+          m |      Freq.     Percent        Cum.
+------------+-----------------------------------
+        -24 |        295        0.20        0.20
+        -23 |        572        0.39        0.60
+        -22 |        567        0.39        0.99
+        -21 |        282        0.19        1.18
+        -20 |        241        0.17        1.35
+        -19 |        198        0.14        1.48
+        -18 |        216        0.15        1.63
+        -17 |        236        0.16        1.79
+        -16 |        268        0.18        1.98
+        -15 |        289        0.20        2.18
+        -14 |        404        0.28        2.45
+        -13 |        479        0.33        2.78
+        -12 |        966        0.66        3.45
+        -11 |      1,344        0.92        4.37
+        -10 |      1,674        1.15        5.52
+         -9 |      1,636        1.13        6.65
+         -8 |      2,342        1.61        8.26
+         -7 |      2,778        1.91       10.17
+         -6 |      3,575        2.46       12.63
+         -5 |      4,061        2.79       15.42
+         -4 |      5,280        3.63       19.06
+         -3 |      5,983        4.12       23.17
+         -2 |      8,137        5.60       28.77
+         -1 |     10,294        7.08       35.85
+          0 |     87,287       60.04       95.89
+          1 |      3,256        2.24       98.13
+          2 |      1,247        0.86       98.99
+          3 |        531        0.37       99.35
+          4 |        312        0.21       99.57
+          5 |        191        0.13       99.70
+          6 |        149        0.10       99.80
+          7 |         70        0.05       99.85
+          8 |         62        0.04       99.89
+          9 |         42        0.03       99.92
+         10 |         31        0.02       99.94
+         11 |         18        0.01       99.95
+         12 |         20        0.01       99.97
+         13 |          9        0.01       99.97
+         14 |          5        0.00       99.98
+         15 |          4        0.00       99.98
+         16 |          6        0.00       99.98
+         17 |          6        0.00       99.99
+         18 |          5        0.00       99.99
+         19 |          4        0.00       99.99
+         20 |          1        0.00       99.99
+         21 |          3        0.00      100.00
+         22 |          3        0.00      100.00
+         23 |          1        0.00      100.00
+         24 |          1        0.00      100.00
+------------+-----------------------------------
+      Total |    145,381      100.00
+
+-------------------------------------------------------------------------------
+-> valid = 1
+
+care_gap_fe |
+          m |      Freq.     Percent        Cum.
+------------+-----------------------------------
+        -24 |         28        1.31        1.31
+        -23 |         97        4.54        5.85
+        -22 |         97        4.54       10.38
+        -21 |         46        2.15       12.54
+        -20 |         46        2.15       14.69
+        -19 |         31        1.45       16.14
+        -18 |         32        1.50       17.63
+        -17 |         22        1.03       18.66
+        -16 |         30        1.40       20.07
+        -15 |         24        1.12       21.19
+        -14 |         47        2.20       23.39
+        -13 |         61        2.85       26.24
+        -12 |        102        4.77       31.01
+        -11 |        136        6.36       37.37
+        -10 |        188        8.79       46.16
+         -9 |        172        8.04       54.21
+         -8 |        195        9.12       63.33
+         -7 |        158        7.39       70.72
+         -6 |        127        5.94       76.66
+         -5 |        103        4.82       81.48
+         -4 |         82        3.84       85.31
+         -3 |         56        2.62       87.93
+         -2 |         51        2.39       90.32
+         -1 |         40        1.87       92.19
+          0 |        101        4.72       96.91
+          1 |         12        0.56       97.47
+          2 |         15        0.70       98.18
+          3 |          4        0.19       98.36
+          4 |          6        0.28       98.64
+          5 |          3        0.14       98.78
+          6 |          4        0.19       98.97
+          7 |          3        0.14       99.11
+          8 |          6        0.28       99.39
+          9 |          1        0.05       99.44
+         10 |          3        0.14       99.58
+         12 |          4        0.19       99.77
+         15 |          1        0.05       99.81
+         16 |          2        0.09       99.91
+         19 |          2        0.09      100.00
+------------+-----------------------------------
+      Total |      2,138      100.00
+
+
+.         ta sexor valid                                                       
+>            //check sexual orientation by sample
+
+                      |     RECODE of msb
+   Sexual Orientation |         0          1 |     Total
+----------------------+----------------------+----------
+[0] probably heterose |   161,198      2,253 |   163,451 
+[1] probably bi/homos |       845         28 |       873 
+[2] insufficient info |     1,837         44 |     1,881 
+----------------------+----------------------+----------
+                Total |   163,880      2,325 |   166,205 
+
+.         
+. * Housekeeping *
+.         
+.         keep if valid==1 & sexor==0
+(163,952 observations deleted)
+
+.         
+.         sort pid syear
+
+.         quietly bys pid:  gen dup = cond(_N==1,0,_n)    //check for duplicate
+> s
+
+.         ta dup, m
+
+        dup |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |      2,023       89.79       89.79
+          1 |        115        5.10       94.90
+          2 |        115        5.10      100.00
+------------+-----------------------------------
+      Total |      2,253      100.00
+
+.         list syear pid hid daughter msb dup if dup>0    //check
+
+      +---------------------------------------------------+
+      | syear        pid       hid   daughter   msb   dup |
+      |---------------------------------------------------|
+   4. |  2013      18804     97055          1     3     1 |
+   5. |  2014      18804     97055          1    11     2 |
+   8. |  2000      28803    101451          0     4     1 |
+   9. |  2001      28803    101451          0    12     2 |
+  29. |  2009      93903     91030          0     1     1 |
+      |---------------------------------------------------|
+  30. |  2010      93903     91030          0    12     2 |
+  77. |  2003     234403    100870          1     4     1 |
+  78. |  2004     234403    100870          1    11     2 |
+  90. |  2001     283404    105813          0     1     1 |
+  91. |  2002     283404    105813          0    12     2 |
+      |---------------------------------------------------|
+  97. |  2011     305703    112461          0     1     1 |
+  98. |  2012     305703    112461          0    11     2 |
+ 118. |  2006     358303    123838          1     1     1 |
+ 119. |  2007     358303    123838          1    12     2 |
+ 121. |  2004     358603     97640          1     1     1 |
+      |---------------------------------------------------|
+ 122. |  2005     358603     97640          1    12     2 |
+ 125. |  2006     362502     36250          0     1     1 |
+ 126. |  2007     362502     36250          0    11     2 |
+ 140. |  2002     413404    116815          1     1     1 |
+ 141. |  2003     413404    116815          1    11     2 |
+      |---------------------------------------------------|
+ 176. |  2000     503104    107255          0     3     1 |
+ 177. |  2001     503104    107255          0    12     2 |
+ 180. |  2000     506408    109541          0     2     1 |
+ 181. |  2001     506408    109541          0    12     2 |
+ 200. |  2006     568904    126985          0     3     1 |
+      |---------------------------------------------------|
+ 201. |  2007     568904    126985          0    12     2 |
+ 207. |  2000     576614    112739          0     1     1 |
+ 208. |  2001     576614    112739          0    12     2 |
+ 217. |  2002     588008    113476          0     6     1 |
+ 218. |  2003     588008    113476          0    12     2 |
+      |---------------------------------------------------|
+ 225. |  2001     612604     61263          0     1     1 |
+ 226. |  2002     612604     61263          0    12     2 |
+ 239. |  2001     762403     76244          0     4     1 |
+ 240. |  2002     762403     76244          0     9     2 |
+ 292. |  2000     961602     96164          0     2     1 |
+      |---------------------------------------------------|
+ 293. |  2001     961602     96164          0     5     2 |
+ 303. |  2003     979102     97918          1     1     1 |
+ 304. |  2004     979102     97918          1    12     2 |
+ 309. |  2011    1001602    100161          1     4     1 |
+ 310. |  2012    1001602    100161          1    10     2 |
+      |---------------------------------------------------|
+ 322. |  2005    1023205    102326          1     3     1 |
+ 323. |  2006    1023205    102326          1    12     2 |
+ 325. |  2000    1023702    102377          1     2     1 |
+ 326. |  2001    1023702    102377          1    12     2 |
+ 337. |  2005    1058303    105830          1     1     1 |
+      |---------------------------------------------------|
+ 338. |  2006    1058303    105830          1    12     2 |
+ 350. |  2000    1089102    108910          0     2     1 |
+ 351. |  2001    1089102    108910          0    12     2 |
+ 353. |  2000    1094702    109479          1     1     1 |
+ 354. |  2001    1094702    109479          1    12     2 |
+      |---------------------------------------------------|
+ 388. |  2000    1132002    113204          1     3     1 |
+ 389. |  2001    1132002    113204          1    10     2 |
+ 394. |  2001    1135402    113549          1     1     1 |
+ 395. |  2002    1135402    113549          1    11     2 |
+ 400. |  2001    1139302    113930          1     1     1 |
+      |---------------------------------------------------|
+ 401. |  2002    1139302    113930          1    11     2 |
+ 420. |  2003    1176502    117650          0     4     1 |
+ 421. |  2004    1176502    117650          0    11     2 |
+ 440. |  2007    1196902    119695          1     4     1 |
+ 441. |  2008    1196902    119695          1    11     2 |
+      |---------------------------------------------------|
+ 457. |  2008    1222202    122220          0     1     1 |
+ 458. |  2009    1222202    122220          0    12     2 |
+ 461. |  2006    1224602    122467          1     3     1 |
+ 462. |  2007    1224602    122467          1     7     2 |
+ 482. |  2008    1274502    127450          0     3     1 |
+      |---------------------------------------------------|
+ 483. |  2009    1274502    127450          0    10     2 |
+ 527. |  2018    1421502    142158          1     3     1 |
+ 528. |  2019    1421502    142158          1    12     2 |
+ 538. |  2013    1457002    145700          1     1     1 |
+ 539. |  2014    1457002    145700          1    10     2 |
+      |---------------------------------------------------|
+ 547. |  2015    1501002    150100          0     2     1 |
+ 548. |  2016    1501002    150100          0    12     2 |
+ 571. |  2009    2068904    206890          1     1     1 |
+ 572. |  2010    2068904    206890          1    12     2 |
+ 594. |  2001    2184201    218421          1     2     1 |
+      |---------------------------------------------------|
+ 595. |  2002    2184201    218421          1    12     2 |
+ 599. |  2001    2304102    230413          1     2     1 |
+ 600. |  2002    2304102    230413          1    12     2 |
+ 613. |  2005    2526502    388165          1     1     1 |
+ 614. |  2006    2526502    388165          1     8     2 |
+      |---------------------------------------------------|
+ 617. |  2012    2530602    253065          0     4     1 |
+ 618. |  2013    2530602    253065          0    12     2 |
+ 622. |  2000    2541902    254193          0     2     1 |
+ 623. |  2001    2541902    254193          0     9     2 |
+ 633. |  2000    2554801    255483          1     2     1 |
+      |---------------------------------------------------|
+ 634. |  2001    2554801    255483          1    12     2 |
+ 640. |  2001    2569402    256943          0     1     1 |
+ 641. |  2002    2569402    256943          0     9     2 |
+ 646. |  2004    2579102    257915          0     1     1 |
+ 647. |  2005    2579102    257915          0    12     2 |
+      |---------------------------------------------------|
+ 662. |  2001    2598102    259810          0     1     1 |
+ 663. |  2002    2598102    259810          0    10     2 |
+ 664. |  2005    2599003    259900          1     2     1 |
+ 665. |  2006    2599003    259900          1    10     2 |
+ 681. |  2002    2640401    264040          0     2     1 |
+      |---------------------------------------------------|
+ 682. |  2003    2640401    264040          0     8     2 |
+ 695. |  2000    2677602    267767          1     2     1 |
+ 696. |  2001    2677602    267767          1    11     2 |
+ 710. |  2013    2709004    270903          1     1     1 |
+ 711. |  2014    2709004    270903          1    12     2 |
+      |---------------------------------------------------|
+ 740. |  2001    2754702    275476          0     3     1 |
+ 741. |  2002    2754702    275476          0    12     2 |
+ 748. |  2005    2773003    383970          1     5     1 |
+ 749. |  2006    2773003    383970          1    12     2 |
+ 754. |  2013    2791803    384488          1     1     1 |
+      |---------------------------------------------------|
+ 755. |  2014    2791803    384488          1    12     2 |
+ 795. |  2001    2869602    286966          1     2     1 |
+ 796. |  2002    2869602    286966          1    12     2 |
+ 866. |  2001    3011902    301191          1     4     1 |
+ 867. |  2002    3011902    301191          1    10     2 |
+      |---------------------------------------------------|
+ 876. |  2006    3032903    389447          1     1     1 |
+ 877. |  2007    3032903    389447          1    10     2 |
+ 889. |  2001    3046803    380555          1     1     1 |
+ 890. |  2002    3046803    380555          1    11     2 |
+ 893. |  2005    3056202    305626          1     1     1 |
+      |---------------------------------------------------|
+ 894. |  2006    3056202    305626          1    11     2 |
+ 902. |  2001    3073602    307360          0     6     1 |
+ 903. |  2002    3073602    307360          0    11     2 |
+ 906. |  2003    3075002    307505          0     1     1 |
+ 907. |  2004    3075002    307505          0    12     2 |
+      |---------------------------------------------------|
+ 932. |  2006    3193202    319325          1     2     1 |
+ 933. |  2007    3193202    319325          1    11     2 |
+ 935. |  2019    3216402    321648          0     1     1 |
+ 936. |  2020    3216402    321648          0    11     2 |
+ 939. |  2009    3237102    323713          1     1     1 |
+      |---------------------------------------------------|
+ 940. |  2010    3237102    323713          1    12     2 |
+ 997. |  2017    3840702    384070          0     1     1 |
+ 998. |  2018    3840702    384070          0     9     2 |
+1070. |  2006    5063603    128910          0     3     1 |
+1071. |  2007    5063603    128910          0    12     2 |
+      |---------------------------------------------------|
+1077. |  2018    5069805    140180          1     2     1 |
+1078. |  2019    5069805    140180          1    11     2 |
+1122. |  2001    5150403    568864          0     2     1 |
+1123. |  2002    5150403    568864          0    11     2 |
+1142. |  2004    5183003    518301          0     1     1 |
+      |---------------------------------------------------|
+1143. |  2005    5183003    518301          0    11     2 |
+1174. |  2002    5623502    568210          0     2     1 |
+1175. |  2003    5623502    568210          0    12     2 |
+1176. |  2006    5623503    562351          0     1     1 |
+1177. |  2007    5623503    562351          0    12     2 |
+      |---------------------------------------------------|
+1179. |  2003    5624602    562467          0     1     1 |
+1180. |  2004    5624602    562467          0    11     2 |
+1230. |  2007    7003005    129585          0     2     1 |
+1231. |  2008    7003005    129585          0     9     2 |
+1233. |  2002    7004003    726087          1     2     1 |
+      |---------------------------------------------------|
+1234. |  2003    7004003    726087          1    11     2 |
+1249. |  2004    7023104    725730          0     3     1 |
+1250. |  2005    7023104    725730          0    10     2 |
+1315. |  2008    8262702    826278          0     2     1 |
+1316. |  2009    8262702    826278          0    10     2 |
+      |---------------------------------------------------|
+1327. |  2015    8278902    827894          0     1     1 |
+1328. |  2016    8278902    827894          0    12     2 |
+1357. |  2014   20053002   2044377          1     1     1 |
+1358. |  2015   20053002   2044377          1    10     2 |
+1362. |  2016   20077405   2049689          0     2     1 |
+      |---------------------------------------------------|
+1363. |  2017   20077405   2049689          0    12     2 |
+1370. |  2016   20153206   2049778          0     2     1 |
+1371. |  2017   20153206   2049778          0    12     2 |
+1610. |  2017   21480410   2148040          1     1     1 |
+1611. |  2018   21480410   2148040          1    12     2 |
+      |---------------------------------------------------|
+1721. |  2019   21630902   2163090          0     1     1 |
+1722. |  2020   21630902   2163090          0    11     2 |
+1724. |  2017   21648102   2164810          1     1     1 |
+1725. |  2018   21648102   2164810          1    12     2 |
+1735. |  2019   21685601   2168564          0     2     1 |
+      |---------------------------------------------------|
+1736. |  2020   21685601   2168564          0    11     2 |
+1746. |  2017   21751601   2175161          0     3     1 |
+1747. |  2018   21751601   2175161          0    12     2 |
+1768. |  2019   23799802   2379980          1     3     1 |
+1769. |  2020   23799802   2379980          1    10     2 |
+      |---------------------------------------------------|
+1779. |  2016   30020501   3002054          0     2     1 |
+1780. |  2017   30020501   3002054          0    11     2 |
+1835. |  2018   30646902   3064696          1     3     1 |
+1836. |  2019   30646902   3064696          1    12     2 |
+1838. |  2011   30647902   3064793          1     1     1 |
+      |---------------------------------------------------|
+1839. |  2012   30647902   3064793          1     8     2 |
+1857. |  2015   30917702   3501093          1     3     1 |
+1858. |  2016   30917702   3501093          1    12     2 |
+1885. |  2012   31151501   3115150          1     5     1 |
+1886. |  2013   31151501   3115150          1    12     2 |
+      |---------------------------------------------------|
+1889. |  2013   31164002   3116408          0     2     1 |
+1890. |  2014   31164002   3116408          0    12     2 |
+1897. |  2012   31227602   3122769          0     2     1 |
+1898. |  2013   31227602   3122769          0    12     2 |
+1930. |  2013   31471302   3147133          1     6     1 |
+      |---------------------------------------------------|
+1931. |  2014   31471302   3147133          1    12     2 |
+1933. |  2015   31518102   3343480          1     2     1 |
+1934. |  2016   31518102   3343480          1    11     2 |
+1938. |  2018   31545904   3348392          1     1     1 |
+1939. |  2019   31545904   3348392          1    10     2 |
+      |---------------------------------------------------|
+1986. |  2014   32325102   3232513          0     2     1 |
+1987. |  2015   32325102   3232513          0    12     2 |
+2004. |  2013   32545201   3254525          1     3     1 |
+2005. |  2014   32545201   3254525          1    11     2 |
+2010. |  2015   32644202   3264423          0     1     1 |
+      |---------------------------------------------------|
+2011. |  2016   32644202   3264423          0    12     2 |
+2012. |  2017   32670001   3344818          0     1     1 |
+2013. |  2018   32670001   3344818          0    11     2 |
+2042. |  2018   33243702   3324370          1     2     1 |
+2043. |  2019   33243702   3324370          1    12     2 |
+      |---------------------------------------------------|
+2063. |  2019   33450306   3347647          0     2     1 |
+2064. |  2020   33450306   3347647          0    12     2 |
+2066. |  2015   33456502   3345652          1     4     1 |
+2067. |  2016   33456502   3345652          1     9     2 |
+2091. |  2015   34274401   3427446          0     3     1 |
+      |---------------------------------------------------|
+2092. |  2016   34274401   3427446          0    12     2 |
+2102. |  2016   34415303   3346489          0     1     1 |
+2103. |  2017   34415303   3346489          0    12     2 |
+2105. |  2015   34448101   3444812          0     1     1 |
+2106. |  2016   34448101   3444812          0    12     2 |
+      |---------------------------------------------------|
+2109. |  2018   34464401   3446440          0     1     1 |
+2110. |  2019   34464401   3446440          0    12     2 |
+2114. |  2015   34479502   3447951          1     2     1 |
+2115. |  2016   34479502   3447951          1    12     2 |
+2135. |  2015   34877702   3487775          1     2     1 |
+      |---------------------------------------------------|
+2136. |  2016   34877702   3487775          1    11     2 |
+2137. |  2015   34880201   3488020          0     1     1 |
+2138. |  2016   34880201   3488020          0    11     2 |
+2142. |  2016   34948602   3494860          1     2     1 |
+2143. |  2017   34948602   3494860          1    10     2 |
+      |---------------------------------------------------|
+2147. |  2015   34986401   3498645          1     2     1 |
+2148. |  2016   34986401   3498645          1    12     2 |
+2154. |  2015   35014602   3501468          1     1     1 |
+2155. |  2016   35014602   3501468          1    12     2 |
+2170. |  2019   36454602   3645460          1     1     1 |
+      |---------------------------------------------------|
+2171. |  2020   36454602   3645460          1    12     2 |
+2180. |  2018   36654502   3665453          0     2     1 |
+2181. |  2019   36654502   3665453          0    10     2 |
+2235. |  2018   38944405   3868362          1     1     1 |
+2236. |  2019   38944405   3868362          1    11     2 |
+      +---------------------------------------------------+
+
+.         drop if dup > 1                                                      
+>            //keep only first interviews 
+(115 observations deleted)
+
+.         
+.         keep pid *gap* daughter age west edu* fam hid syear msb part_pli0044_
+> h ///
+>         part_age part_edu part_work pli0044_h gender *work
+
+.         
+.         ta daughter, m 
+
+   daughter |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |      1,065       49.81       49.81
+          1 |      1,073       50.19      100.00
+------------+-----------------------------------
+      Total |      2,138      100.00
+
+.         
+. 
+. 
+. * HYPOTHESIS TEST FOR H3 *
+. 
+.         * Model descritption: 
+.         reg care_gap_fem i.daughter c.age c.part_age i.edu i.part_edu i.fam i
+> .west i.work i.part_work i.syear
+
+      Source |       SS           df       MS      Number of obs   =     1,962
+-------------+----------------------------------   F(37, 1924)     =     10.94
+       Model |  16483.9865        37  445.513148   Prob > F        =    0.0000
+    Residual |  78343.7959     1,924  40.7192286   R-squared       =    0.1738
+-------------+----------------------------------   Adj R-squared   =    0.1579
+       Total |  94827.7824     1,961  48.3568498   Root MSE        =    6.3812
+
+------------------------------------------------------------------------------
+care_gap_fem | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  1.daughter |   .3036712   .2903893     1.05   0.296    -.2658396     .873182
+         age |  -.0596306   .0428447    -1.39   0.164    -.1436575    .0243963
+    part_age |   .0426453   .0330857     1.29   0.198    -.0222424    .1075329
+             |
+         edu |
+Intermedi..  |   .2861782   .4521054     0.63   0.527      -.60049    1.172846
+High Educ..  |   .6909881   .5442244     1.27   0.204    -.3763435     1.75832
+      Other  |   .1799096   .9306847     0.19   0.847    -1.645347    2.005166
+             |
+    part_edu |
+Intermed..)  |   -.465454   .3985844    -1.17   0.243    -1.247157    .3162488
+High Edu..)  |  -.4637937    .462302    -1.00   0.316    -1.370459    .4428719
+Other (p..)  |  -4.280366   1.089291    -3.93   0.000    -6.416681   -2.144052
+             |
+         fam |
+    Married  |   .4864182   .3479018     1.40   0.162    -.1958859    1.168722
+      1.west |  -.0354594    .396261    -0.09   0.929    -.8126055    .7416868
+             |
+        work |
+  part-time  |  -5.427377   .9836436    -5.52   0.000    -7.356497   -3.498257
+not emplo..  |  -9.040852   .7573592   -11.94   0.000    -10.52618   -7.555521
+      other  |  -8.259988   1.040918    -7.94   0.000    -10.30143   -6.218542
+             |
+   part_work |
+part-tim..)  |   2.070693    .763509     2.71   0.007     .5733004    3.568085
+not empl..)  |   4.876704    .456146    10.69   0.000     3.982111    5.771296
+other (p..)  |   2.159296    .797272     2.71   0.007     .5956883    3.722904
+             |
+       syear |
+       2001  |   .3800789   .8786798     0.43   0.665    -1.343186    2.103344
+       2002  |   1.719964    .946394     1.82   0.069    -.1361014     3.57603
+       2003  |  -.3788794   .9134627    -0.41   0.678     -2.17036    1.412602
+       2004  |   .4530653   .9605705     0.47   0.637    -1.430803    2.336934
+       2005  |   -.548184   .9619869    -0.57   0.569    -2.434831    1.338462
+       2006  |   .1959874   .8979899     0.22   0.827    -1.565148    1.957123
+       2007  |  -2.479342   .9520748    -2.60   0.009    -4.346549   -.6121354
+       2008  |  -.6848669   1.035643    -0.66   0.509    -2.715968    1.346234
+       2009  |  -.2522313    1.04577    -0.24   0.809    -2.303194    1.798731
+       2010  |  -.6090353    .710734    -0.86   0.392    -2.002925    .7848545
+       2011  |  -1.308125   1.055061    -1.24   0.215    -3.377307    .7610582
+       2012  |  -1.159664   1.016262    -1.14   0.254    -3.152755    .8334273
+       2013  |  -2.322598   .9882035    -2.35   0.019     -4.26066   -.3845351
+       2014  |  -2.220747   1.006737    -2.21   0.028    -4.195157   -.2463372
+       2015  |   .6385236   .9001088     0.71   0.478    -1.126768    2.403815
+       2016  |  -.8843656   .9150293    -0.97   0.334    -2.678919    .9101879
+       2017  |  -.7925938   .8924227    -0.89   0.375    -2.542811    .9576237
+       2018  |     -1.573   .9327337    -1.69   0.092    -3.402276    .2562748
+       2019  |  -1.456247   .9007999    -1.62   0.106    -3.222893    .3104001
+       2020  |  -.8360633   1.112309    -0.75   0.452     -3.01752    1.345394
+             |
+       _cons |  -1.707972   1.440009    -1.19   0.236    -4.532115    1.116171
+------------------------------------------------------------------------------
+
+. 
+. * EXTRACT AND EXPORT RESULTS * 
+. 
+.         * Extract the required statistics
+. 
+.                 * (i) coefficient estimate
+.                 local coefficient = _b[1.daughter]
+
+. 
+.                 * (ii) standard error
+.                 local se = _se[1.daughter]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "t"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 local p_value = _b[1.daughter] / _se[1.daughter]
+
+.                 local p_value = 2 * ttail(e(df_r), abs(`p_value'))
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation of directionality
+.                 scalar coef_d_daughter = _b[1.daughter]
+
+.                 local interpretation "positive coefficient is in line with hy
+> pothesis"
+
+. 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: .3036712162707821
+
+.         di "Standard Error: `se'"
+Standard Error: .2903892760402275
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: t
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: 1924
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 37
+
+.         di "p-value: " `p_value'
+p-value: .29581319
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 1962
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 1962
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h3_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/95_re
+    > sults/h3_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

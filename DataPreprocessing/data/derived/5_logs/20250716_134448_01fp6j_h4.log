@@ -1,0 +1,1063 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmp_gcewi6_.do 
+
+. do "5%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. 
+. * the following code automatically sets paths based on the project location o
+> n your system *local curdir = c(pwd)
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/5%-sample" // folder, in which the ori
+> ginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/5%-sample
+
+. global DATA "$ROOT/data/derived_confidential/5%-sample" // folder for dataset
+> s
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/5%-sample
+
+. global OUT "$ROOT/data/derived/5_results" // folder for output (results, tabl
+> es)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/5_results
+
+. 
+end of do-file
+
+. do "20250716_134448_01fp6j_h4.do"
+
+. *****************************************************************************
+> ***
+. ****************** Do-File H4: #ManyDaughters Project ******************
+. *****************************************************************************
+> ***
+. 
+. * Authors: [REDACTED], [REDACTED] (Team ID: 01fp6j)
+. 
+. *********
+. * Setup * 
+. *********
+. 
+. * clear all
+. version 18
+
+. set maxvar 10000
+
+
+. set seed 8942
+
+. 
+. * INSTALL PACKAGES *
+. * net install st0718_1.pkg, from(http://www.stata-journal.com/software/sj24-3
+> /)
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. /*
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> */
+. 
+. ********************
+. * Data Preparation * 
+. ********************
+. 
+. * LOAD AND MERGE DATA *
+. 
+. use pid cid syear sex phrf gebjahr using "$IN/ppathl.dta"  , clear // use ppa
+> thl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+.         
+. /*gebjahr retrieved from ppathl instead of ppath as planned in the PAP (ident
+> ical information)*/
+. 
+. * Merge ppathl with datasets
+. 
+. * biobirth contains information on fertility history
+. merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches) keepusing(
+> kidsex01 kidgeb01 kidgeb02 kidmon01 kidmon02)
+(variable pid was long, now double to accommodate using data's values)
+(label sex already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+. * pgen contains user-friendly data on the individual level that are consolida
+> ted from different sources
+. merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches) keepusin
+> g(pgtatzeit pgemplst pgpartz pgisced97 pgpiyear pgmonth)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+. * pl contains all variables from the individual questionnaire
+. merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches) keepusing(
+> plh0301 plh0303 plh0004 pli0043_h)
+(label cid already defined)
+(label pid_EN already defined)
+(label cid_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+. 
+. label language EN // change language of the labels to English
+
+. compress
+  variable pgemplst was float now byte
+  variable pgmonth was float now byte
+  variable pgpiyear was float now int
+  variable pid was double now long
+  variable syear was double now int
+  variable kidgeb01 was double now int
+  variable kidgeb02 was double now int
+  variable kidsex01 was double now byte
+  variable kidmon01 was double now byte
+  variable kidmon02 was double now byte
+  variable pgpartz was double now byte
+  variable pgisced97 was double now byte
+  (2,289,820 bytes saved)
+
+. save "$DATA/h1_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/5%-sample/h1_dataset.dta saved
+
+. 
+. 
+. **********************
+. * GENERATE VARIABLES *
+. **********************
+. 
+. ******************
+. * Help-Variables *
+. ******************
+. 
+. * Birthdate first child
+. recode kidgeb01 (-100/-1=.)
+(10,693 changes made to kidgeb01)
+
+. recode kidmon01 (-100/-1=.)
+(20,201 changes made to kidmon01)
+
+. gen birthdate_1=mdy(kidmon01, 15, kidgeb01) //day not recorded, set to the 15
+> th of the month
+(20,201 missing values generated)
+
+. lab var birthdate_1 "Birthdate of first child"
+
+. 
+. * Birthdate second child
+. recode kidgeb02 (-100/-1=.)
+(17,388 changes made to kidgeb02)
+
+. recode kidmon02 (-100/-1=.)
+(23,109 changes made to kidmon02)
+
+. gen birthdate_2=mdy(kidmon02, 15, kidgeb02) //day not recorded, set to the 15
+> th of the month
+(23,109 missing values generated)
+
+. lab var birthdate_2 "Birthdate of second child"
+
+. 
+. * Date of interview
+. recode pgpiyear (-100/-1=.)
+(20,116 changes made to pgpiyear)
+
+. replace pgpiyear=syear if pgpiyear>=. /*not mentioned in PAP, we did not know
+>  about the high number of missing*/
+(27,939 real changes made)
+
+. recode pgmonth (-100/-1=.)
+(1 changes made to pgmonth)
+
+. replace pgmonth=2 if pgmonth>=. /*not mentioned in PAP, we did not know about
+>  the high number of missing, February=mode*/
+(7,824 real changes made)
+
+. 
+. gen intdate =mdy(pgmonth, 15, pgpiyear)
+
+. format intdate %td
+
+. lab var intdate "Date of interview"
+
+. 
+. 
+. **********************
+. * Treatment-Variable *
+. **********************
+. 
+. * Daughter-Variable, Hypotheses 1, 2, 3, 4
+. gen daughters=1 if intdate-birthdate_1>0 & kidsex01==2 //respondent has a fem
+> ale child
+(24,358 missing values generated)
+
+. replace daughters=0 if intdate-birthdate_1>0 & kidsex01==1 //respondent has a
+>  male child
+(12,626 real changes made)
+
+. replace daughters=. if intdate-birthdate_1<=0 // respondent does not (yet) ha
+> ve a child
+(0 real changes made)
+
+. replace daughters=. if intdate>=. // missing date of interview
+(0 real changes made)
+
+. replace daughters=. if birthdate_1>=. /*typo in PAP: ">0." --> corrected to "
+> >=." */
+(9,564 real changes made, 9,564 to missing)
+
+. lab var daughters "Daughter"
+
+. lab define daughterslbl 1 "daughter" 0 "son"
+
+. lab value daughters daughterslbl
+
+. *tab daughters kidsex01, m
+. 
+. 
+. 
+. *************
+. * Moderator *
+. *************
+. 
+. * Sex of respondent (female-dummy), Hypotheses 3, 4
+. gen female=1 if sex==2
+(16,910 missing values generated)
+
+. replace female=0 if sex==1
+(16,910 real changes made)
+
+. replace female=. if sex<=0
+(0 real changes made)
+
+. tab female sex, m
+
+           |        Gender
+    female |  [1] Male  [2] Femal |     Total
+-----------+----------------------+----------
+         0 |    16,910          0 |    16,910 
+         1 |         0     18,318 |    18,318 
+-----------+----------------------+----------
+     Total |    16,910     18,318 |    35,228 
+
+. lab var female "female respondent"
+
+. lab define femalelbl 1 "female" 0 "male"
+
+. lab value female femalelbl
+
+. *tab female sex, m
+. 
+. ************
+. * Controls *
+. ************
+. 
+. * Year of birth, Hypotheses 3, 4
+. recode gebjahr (-100/-1=.), gen(birthyear)
+(0 differences between gebjahr and birthyear)
+
+. lab var birthyear "Year of birth"
+
+. 
+. * Education, Hypotheses 3, 4
+. recode pgisced97 (-100/-1=.) (0 1 2=0 "low") (3 4=1 "middle") (5 6=2 "high"),
+>  gen(educ)
+(26,675 differences between pgisced97 and educ)
+
+. lab var educ "Education"
+
+. *tab pgisced97 educ , m
+. 
+. 
+. ************
+. * Outcomes *
+. ************
+. 
+. 
+. * Family versus Career Attitudes, Hypotheses 1,4 
+. recode plh0301 (-100/-1=.), gen (famvscareer) // no need to recode any furthe
+> r, as high values already indicate gender equality. Incorrect in the prelimin
+> ary stata code submitted within the PAP.
+(26,741 differences between plh0301 and famvscareer)
+
+. lab var famvscareer "Gender equality attitudes: family versus career"
+
+. lab define attlbl 1 "gender inequality" 4 "gender equality"
+
+. lab value famvscareer attlbl
+
+. *tab famvscareer plh0301, m
+.         
+. * Men should invole in Housework Attitudes, , Hypotheses 1,4 
+. recode plh0303 (-100/-1=.) (4=1) (3=2) (2=3) (1=4), gen(menhousework)
+(27,106 differences between plh0303 and menhousework)
+
+. lab var menhousework "Gender equality attitudes: men should involve in housew
+> ork"
+
+. lab value menhousework attlbl
+
+. *tab menhousework plh0303, m
+. 
+. /*
+> * Left versus right political ideology, Hypothesis 2    
+> recode plh0004 (-100/-1=.) (10=0) (9=1) (8=2) (7=3) (6=4) (5=5) (4=6) (3=7) (
+> 2=8) (1=9) (0=10), gen(left)       
+> lab var left "left political ideology"
+> lab define lftlbl 0 "right" 10 "left"
+> lab value left lftlbl
+> tab left plh0004, m
+> 
+> 
+> * Working hours, Hypothesis 3
+> recode pgtatzeit (-100/-1=.), gen(workhours)
+> replace workhours=0 if pgemplst==5 // not working equals 0 hours
+> lab var workhours "Working hours"
+> tab workhours, m
+> 
+> * Housework, Hypothesis 3
+> recode pli0043_h (-100/-1=.) (16/24=16), gen(housework) //top coded to 16 hou
+> rs per day
+> lab var housework "Hours of housework"
+> tab housework, m
+> */
+. 
+. ************************
+. *** Filter Variables ***
+. ************************
+. 
+. * Parity 2 Indicator (Defining Analytic Sample), Hypotheses 1, 2, 3, 4
+. gen parity2=1 if intdate-birthdate_2>0 & intdate-birthdate_2<.
+(24,229 missing values generated)
+
+. lab var parity2 "Second child is born"
+
+. * if parity2=1: a second child is already born
+. 
+. /*
+> * Cohabitation, Hypothesis 3
+> gen cohab=1 if pgpartz!=0 & pgpartz!=5
+> lab var cohab "cohabiting with a partner"
+> */
+. 
+. *********************************
+. *** Apply sample restrictions ***
+. *********************************
+. 
+. * We estimate the following regressions using a sample restricted to responde
+> nts with exactly one child.
+. * Note: There was a typo in the preliminary Stata code provided in the PAP. A
+> lthough the verbal description 
+. * of the sample restriction was correct, the code mistakenly included `parity
+> 2==1`, which would select 
+. * respondents with at least two children—contradicting the intended analytic 
+> sample.
+. 
+. 
+. keep if parity2!=1 // Hypotheses 1, 2, 3, 4
+(10,999 observations deleted)
+
+. 
+. * Restrict the analyses to cohabiting couples 
+. *keep if cohab==1 // Hypothesis 3
+. 
+. keep if !missing(female, educ , birthyear, phrf) & phrf!=0
+(7,117 observations deleted)
+
+. keep if !missing(famvscareer) | !missing(menhousework)
+(17,008 observations deleted)
+
+. 
+. count
+  104
+
+. 
+. *********************************
+. *********************************
+. 
+.          *HYPOTHESIS TEST FOR H4 
+. 
+.         *********************************************************************
+> *****************************************************************************
+> ***************
+.         *  We assume that gender-specific causal effects of having a daughter
+>  are identified wihin strata defined by gender [female], cohort [birthyear] a
+> nd education [educ] 
+.         * in a sample of parents of a single child (see PAP)
+.         * !! NOTE THIS IS THE AVERAGE CAUSAL EFFECT IN THE POPULATION OF PARE
+> NTS OF A SINGLE CHILD !!
+.         * We further assume that agreement to statements "Women should rather
+>  care about family than career" [plh0301] and "Men should involve in housewor
+> k" [plh0303] 
+.         * are good measures of support for gender equality (hypothesis 1): 
+.         * Less agreement to the former and more agreement to the latter is mo
+> re likely to indicate support for gender equality.
+.         * Accordingly, we run a seemingly unrelated ordered probit regression
+>  analysis with famvscareer [plh0301] and menhousework [plh0303] as dependent 
+> variables
+.         * and the dummy variable daughter as independent variable in a sample
+>  of respondents with a single child (parity2!=1), adjusted for covariates
+.         * We apply weights cross-sectionally calibrated weights (phrf)
+.         * To account for non-independence of observatons, we cluster standard
+>  errors at the household level
+.         * The null we test against is that the effect of having daughters for
+>  men is <= the effect of having daughters for women on both outcomes
+.         * I.e., we have to consider a one-sided test adjusted for multiple te
+> sting
+.         * Since the used method provides a joint confidence band, this is equ
+> al to assessing whether there is at least 1 significant effect
+.         * We report all coefficients and statistics but only export the resul
+> t with the smallest p-value to comply to the provided template
+.         * !! NOTE THAT AT AN A PRIORI CONFIDENCE LEVEL OF 0.05 WITHOUT PREDER
+> MINED SIGN OF THE EFFECT, THE CONFIDENCE LEVEL BECOMES 0.025
+.         *********************************************************************
+> *****************************************************************************
+> ***************
+.         * The below code follows the conception outlined in the PAP
+.         * There are two deviations, one of which reflects perceived risk (2) 
+> already anticipated in the PAP:
+.         * as full stratification was not possible, we had to impose some cons
+> traints.
+.         * We decided to only include all pairwise interactions (in addition t
+> o all main effects) in the model and omit higher order interactions        
+.         * We refrained from more refined methods to determine the functional 
+> form on a 5% subsample.
+.         * We considered switching to a matching or IPW-weighting based approa
+> ch but abandonded the idea in compliance with out PAP - but note that our app
+> roach would
+.         * call for sensitivity analysis w.r.t. to functional form assumptions
+>  when applied to the full estimation sample.
+.         * Furthermore, the preliminary code in the PAP mistakenly did not inc
+> lude the contrasting of effects by gender.
+.         * The code provided below rectifies this error and is in line with th
+> e conceptual part of the PAP which targets the gender difference ("delta" in 
+> the PAP) rather
+.         * then the gender-specific effects themselves ("beta" in the PAP)
+.         * Note that the sample restriction is already implemented in the data
+>  preparation and therefore omitted for redundancy
+.         *********************************************************************
+> *****************************************************************************
+> ***************
+. 
+.         *obtain point esttimates for daughter effects on both outcomes
+.         oprobit famvscareer i.daughters i.female i.educ c.birthyear daughters
+> #female daughters#educ daughters#c.birthyear female#educ female#c.birthyear e
+> duc#c.birthyear [iw=phrf]
+
+Iteration 0:  Log likelihood = -105943.31  
+Iteration 1:  Log likelihood = -90853.763  
+Iteration 2:  Log likelihood = -90690.179  
+Iteration 3:  Log likelihood =  -90689.61  
+Iteration 4:  Log likelihood =  -90689.61  
+
+Ordered probit regression                             Number of obs =       75
+                                                      LR chi2(14)   = 30507.40
+                                                      Prob > chi2   =   0.0000
+Log likelihood = -90689.61                            Pseudo R2     =   0.1440
+
+------------------------------------------------------------------------------
+ famvscareer | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+   daughters |
+   daughter  |   55.26585   2.342331    23.59   0.000     50.67496    59.85673
+             |
+      female |
+     female  |   98.10386   2.206682    44.46   0.000     93.77884    102.4289
+             |
+        educ |
+     middle  |  -71.39242   3.162066   -22.58   0.000    -77.58995   -65.19488
+       high  |  -198.3062   3.664223   -54.12   0.000    -205.4879   -191.1244
+             |
+   birthyear |  -.0370329   .0010802   -34.28   0.000    -.0391502   -.0349157
+             |
+   daughters#|
+      female |
+   daughter #|
+     female  |   -.210199   .0177294   -11.86   0.000    -.2449481     -.17545
+             |
+   daughters#|
+        educ |
+   daughter #|
+     middle  |   1.420598   .0348036    40.82   0.000     1.352384    1.488812
+   daughter #|
+       high  |   2.590007   .0392037    66.07   0.000     2.513169    2.666845
+             |
+   daughters#|
+ c.birthyear |
+   daughter  |  -.0286912   .0011792   -24.33   0.000    -.0310025     -.02638
+             |
+ female#educ |
+     female #|
+     middle  |  -2.006993   .0355345   -56.48   0.000     -2.07664   -1.937347
+female#high  |  -3.795939   .0431335   -88.00   0.000    -3.880479   -3.711399
+             |
+      female#|
+ c.birthyear |
+     female  |   -.048518   .0011097   -43.72   0.000    -.0506929   -.0463431
+             |
+        educ#|
+ c.birthyear |
+     middle  |   .0360968   .0016037    22.51   0.000     .0329536    .0392399
+       high  |   .1012185   .0018606    54.40   0.000     .0975719    .1048652
+-------------+----------------------------------------------------------------
+       /cut1 |   -73.9214    2.12876                     -78.09369   -69.74911
+       /cut2 |   -72.9005   2.128454                     -77.07219    -68.7288
+       /cut3 |  -71.78464   2.128206                     -75.95584   -67.61343
+------------------------------------------------------------------------------
+
+.         est sto e1
+
+.         oprobit menhousework i.daughters i.female i.educ c.birthyear daughter
+> s#female daughters#educ daughters#c.birthyear female#educ female#c.birthyear 
+> educ#c.birthyear [iw=phrf]
+
+Iteration 0:  Log likelihood = -75083.488  
+Iteration 1:  Log likelihood = -59563.012  
+Iteration 2:  Log likelihood = -59098.655  
+Iteration 3:  Log likelihood = -59097.202  
+Iteration 4:  Log likelihood = -59097.202  
+
+Ordered probit regression                             Number of obs =       75
+                                                      LR chi2(14)   = 31972.57
+                                                      Prob > chi2   =   0.0000
+Log likelihood = -59097.202                           Pseudo R2     =   0.2129
+
+------------------------------------------------------------------------------
+menhousework | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+   daughters |
+   daughter  |   55.12054    3.12604    17.63   0.000     48.99362    61.24747
+             |
+      female |
+     female  |  -222.5239   3.230456   -68.88   0.000    -228.8555   -216.1923
+             |
+        educ |
+     middle  |   237.8805   3.889885    61.15   0.000     230.2564    245.5045
+       high  |   238.1266   4.590971    51.87   0.000     229.1285    247.1248
+             |
+   birthyear |  -.0028883   .0010886    -2.65   0.008    -.0050219   -.0007547
+             |
+   daughters#|
+      female |
+   daughter #|
+     female  |   .7692875   .0196624    39.12   0.000       .73075    .8078251
+             |
+   daughters#|
+        educ |
+   daughter #|
+     middle  |  -1.319354   .0345497   -38.19   0.000     -1.38707   -1.251638
+   daughter #|
+       high  |   .2677522   .0385225     6.95   0.000     .1922494     .343255
+             |
+   daughters#|
+ c.birthyear |
+   daughter  |  -.0274026   .0015733   -17.42   0.000    -.0304861    -.024319
+             |
+ female#educ |
+     female #|
+     middle  |   1.775486   .0355809    49.90   0.000     1.705749    1.845224
+female#high  |   1.110137   .0396835    27.97   0.000     1.032359    1.187915
+             |
+      female#|
+ c.birthyear |
+     female  |   .1119798   .0016263    68.86   0.000     .1087924    .1151673
+             |
+        educ#|
+ c.birthyear |
+     middle  |  -.1201869   .0019712   -60.97   0.000    -.1240503   -.1163235
+       high  |  -.1206873   .0023274   -51.85   0.000     -.125249   -.1161256
+-------------+----------------------------------------------------------------
+       /cut1 |  -6.479767   2.145918                     -10.68569   -2.273845
+       /cut2 |  -4.966131   2.145936                     -9.172088   -.7601741
+------------------------------------------------------------------------------
+Note: 1 observation completely determined. Standard errors questionable.
+
+.         est sto e2
+
+.         
+.                 *for later reporting [N, df]
+.                 oprobit famvscareer i.daughters i.female i.educ c.birthyear d
+> aughters#female daughters#educ daughters#c.birthyear female#educ female#c.bir
+> thyear educ#c.birthyear [pw=phrf], vce(cluster cid)
+
+Iteration 0:  Log pseudolikelihood = -105943.31  
+Iteration 1:  Log pseudolikelihood = -90853.763  
+Iteration 2:  Log pseudolikelihood = -90690.179  
+Iteration 3:  Log pseudolikelihood =  -90689.61  
+Iteration 4:  Log pseudolikelihood =  -90689.61  
+
+Ordered probit regression                               Number of obs =     75
+                                                        Wald chi2(14) =  52.63
+                                                        Prob > chi2   = 0.0000
+Log pseudolikelihood = -90689.61                        Pseudo R2     = 0.1440
+
+                                   (Std. err. adjusted for 57 clusters in cid)
+------------------------------------------------------------------------------
+             |               Robust
+ famvscareer | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+   daughters |
+   daughter  |   55.26585   101.9172     0.54   0.588    -144.4883      255.02
+             |
+      female |
+     female  |   98.10386   72.04017     1.36   0.173    -43.09228       239.3
+             |
+        educ |
+     middle  |  -71.39242   113.0513    -0.63   0.528    -292.9688     150.184
+       high  |  -198.3062   99.80708    -1.99   0.047    -393.9245   -2.687913
+             |
+   birthyear |  -.0370329    .023448    -1.58   0.114    -.0829901    .0089242
+             |
+   daughters#|
+      female |
+   daughter #|
+     female  |   -.210199   .5621412    -0.37   0.708    -1.311976    .8915775
+             |
+   daughters#|
+        educ |
+   daughter #|
+     middle  |   1.420598   1.225063     1.16   0.246    -.9804809    3.821677
+   daughter #|
+       high  |   2.590007   1.119161     2.31   0.021     .3964909    4.783523
+             |
+   daughters#|
+ c.birthyear |
+   daughter  |  -.0286912   .0513527    -0.56   0.576    -.1293406    .0719581
+             |
+ female#educ |
+     female #|
+     middle  |  -2.006993    .767959    -2.61   0.009    -3.512165   -.5018215
+female#high  |  -3.795939   .9648205    -3.93   0.000    -5.686952   -1.904925
+             |
+      female#|
+ c.birthyear |
+     female  |   -.048518   .0362139    -1.34   0.180     -.119496    .0224599
+             |
+        educ#|
+ c.birthyear |
+     middle  |   .0360968   .0572669     0.63   0.528    -.0761443    .1483378
+       high  |   .1012185   .0507806     1.99   0.046     .0016903    .2007468
+-------------+----------------------------------------------------------------
+       /cut1 |   -73.9214   45.90003                     -163.8838    16.04101
+       /cut2 |   -72.9005   45.84277                     -162.7507    16.94969
+       /cut3 |  -71.78464   45.84467                     -161.6385    18.06926
+------------------------------------------------------------------------------
+
+.                 est sto e1w
+
+.                 oprobit menhousework i.daughters i.female i.educ c.birthyear 
+> daughters#female daughters#educ daughters#c.birthyear female#educ female#c.bi
+> rthyear educ#c.birthyear [pw=phrf], vce(cluster cid)
+
+Iteration 0:  Log pseudolikelihood = -75083.488  
+Iteration 1:  Log pseudolikelihood = -59563.012  
+Iteration 2:  Log pseudolikelihood = -59098.655  
+Iteration 3:  Log pseudolikelihood = -59097.202  
+Iteration 4:  Log pseudolikelihood = -59097.202  
+
+Ordered probit regression                               Number of obs =     75
+                                                        Wald chi2(14) =  56.82
+                                                        Prob > chi2   = 0.0000
+Log pseudolikelihood = -59097.202                       Pseudo R2     = 0.2129
+
+                                   (Std. err. adjusted for 57 clusters in cid)
+------------------------------------------------------------------------------
+             |               Robust
+menhousework | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+   daughters |
+   daughter  |   55.12054   107.9228     0.51   0.610    -156.4043    266.6454
+             |
+      female |
+     female  |  -222.5239   94.53254    -2.35   0.019    -407.8043   -37.24354
+             |
+        educ |
+     middle  |   237.8805   103.2594     2.30   0.021     35.49573    440.2652
+       high  |   238.1266    107.867     2.21   0.027     26.71122     449.542
+             |
+   birthyear |  -.0028883   .0246307    -0.12   0.907    -.0511636     .045387
+             |
+   daughters#|
+      female |
+   daughter #|
+     female  |   .7692875   .6560099     1.17   0.241    -.5164682    2.055043
+             |
+   daughters#|
+        educ |
+   daughter #|
+     middle  |  -1.319354   1.432321    -0.92   0.357    -4.126652    1.487944
+   daughter #|
+       high  |   .2677522   1.212523     0.22   0.825    -2.108749    2.644253
+             |
+   daughters#|
+ c.birthyear |
+   daughter  |  -.0274026   .0543662    -0.50   0.614    -.1339584    .0791533
+             |
+ female#educ |
+     female #|
+     middle  |   1.775486   1.374713     1.29   0.197    -.9189013    4.469874
+female#high  |   1.110137   1.322181     0.84   0.401    -1.481291    3.701565
+             |
+      female#|
+ c.birthyear |
+     female  |   .1119798   .0475134     2.36   0.018     .0188552    .2051045
+             |
+        educ#|
+ c.birthyear |
+     middle  |  -.1201869   .0525844    -2.29   0.022    -.2232505   -.0171233
+       high  |  -.1206873   .0548129    -2.20   0.028    -.2281187   -.0132559
+-------------+----------------------------------------------------------------
+       /cut1 |  -6.479767   48.04248                     -100.6413    87.68177
+       /cut2 |  -4.966131   48.03016                     -99.10352    89.17125
+------------------------------------------------------------------------------
+Note: 1 observation completely determined. Standard errors questionable.
+
+.                 est sto e2w
+
+.         
+.         *obtain standard errors accounting for correlated errors of outcomes 
+> and dependence of observations
+.         suest e1 e2, vce(cluster cid)
+
+Simultaneous results for e1, e2                             Number of obs = 75
+
+                                   (Std. err. adjusted for 57 clusters in cid)
+------------------------------------------------------------------------------
+             |               Robust
+             | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+e1_famvsca~r |
+   daughters |
+   daughter  |   55.26585   101.9172     0.54   0.588    -144.4883      255.02
+             |
+      female |
+     female  |   98.10386   72.04017     1.36   0.173    -43.09228       239.3
+             |
+        educ |
+     middle  |  -71.39242   113.0513    -0.63   0.528    -292.9688     150.184
+       high  |  -198.3062   99.80708    -1.99   0.047    -393.9245   -2.687913
+             |
+   birthyear |  -.0370329    .023448    -1.58   0.114    -.0829901    .0089242
+             |
+   daughters#|
+      female |
+   daughter #|
+     female  |   -.210199   .5621412    -0.37   0.708    -1.311976    .8915775
+             |
+   daughters#|
+        educ |
+   daughter #|
+     middle  |   1.420598   1.225063     1.16   0.246    -.9804809    3.821677
+   daughter #|
+       high  |   2.590007   1.119161     2.31   0.021     .3964909    4.783523
+             |
+   daughters#|
+ c.birthyear |
+   daughter  |  -.0286912   .0513527    -0.56   0.576    -.1293406    .0719581
+             |
+ female#educ |
+     female #|
+     middle  |  -2.006993    .767959    -2.61   0.009    -3.512165   -.5018215
+female#high  |  -3.795939   .9648205    -3.93   0.000    -5.686952   -1.904925
+             |
+      female#|
+ c.birthyear |
+     female  |   -.048518   .0362139    -1.34   0.180     -.119496    .0224599
+             |
+        educ#|
+ c.birthyear |
+     middle  |   .0360968   .0572669     0.63   0.528    -.0761443    .1483378
+       high  |   .1012185   .0507806     1.99   0.046     .0016903    .2007468
+-------------+----------------------------------------------------------------
+/e1          |
+        cut1 |   -73.9214   45.90003                     -163.8838    16.04101
+        cut2 |   -72.9005   45.84277                     -162.7507    16.94969
+        cut3 |  -71.78464   45.84467                     -161.6385    18.06926
+-------------+----------------------------------------------------------------
+e2_menhous~k |
+   daughters |
+   daughter  |   55.12054   107.9228     0.51   0.610    -156.4043    266.6454
+             |
+      female |
+     female  |  -222.5239   94.53254    -2.35   0.019    -407.8043   -37.24354
+             |
+        educ |
+     middle  |   237.8805   103.2594     2.30   0.021     35.49574    440.2652
+       high  |   238.1266    107.867     2.21   0.027     26.71122     449.542
+             |
+   birthyear |  -.0028883   .0246307    -0.12   0.907    -.0511636     .045387
+             |
+   daughters#|
+      female |
+   daughter #|
+     female  |   .7692875   .6560099     1.17   0.241    -.5164682    2.055043
+             |
+   daughters#|
+        educ |
+   daughter #|
+     middle  |  -1.319354   1.432321    -0.92   0.357    -4.126652    1.487944
+   daughter #|
+       high  |   .2677522   1.212523     0.22   0.825    -2.108749    2.644253
+             |
+   daughters#|
+ c.birthyear |
+   daughter  |  -.0274026   .0543662    -0.50   0.614    -.1339584    .0791533
+             |
+ female#educ |
+     female #|
+     middle  |   1.775486   1.374713     1.29   0.197    -.9189013    4.469874
+female#high  |   1.110137   1.322181     0.84   0.401    -1.481291    3.701565
+             |
+      female#|
+ c.birthyear |
+     female  |   .1119798   .0475134     2.36   0.018     .0188552    .2051045
+             |
+        educ#|
+ c.birthyear |
+     middle  |  -.1201869   .0525844    -2.29   0.022    -.2232505   -.0171233
+       high  |  -.1206873   .0548129    -2.20   0.028    -.2281187   -.0132559
+-------------+----------------------------------------------------------------
+/e2          |
+        cut1 |  -6.479767   48.04248                     -100.6413    87.68177
+        cut2 |  -4.966131   48.03016                     -99.10352    89.17125
+------------------------------------------------------------------------------
+
+.         
+.         *obtain conditional marginal effect 
+.         margins, dydx(daughters) predict(xb equation(e1_famvscareer)) predict
+> (xb equation(e2_menhousework)) at(female=(0 1) (mean) educ birthyear) post
+warning: cannot perform check for estimable functions.
+
+Conditional marginal effects                                Number of obs = 75
+Model VCE: Robust
+
+dy/dx wrt: 1.daughters
+
+1._predict: Linear prediction, predict(xb equation(e1_famvscareer))
+2._predict: Linear prediction, predict(xb equation(e2_menhousework))
+
+1._at: female    =        0
+       0.educ    = .1482422 (mean)
+       1.educ    = .6588689 (mean)
+       2.educ    = .1928889 (mean)
+       birthyear = 1975.157 (mean)
+2._at: female    =        1
+       0.educ    = .1482422 (mean)
+       1.educ    = .6588689 (mean)
+       2.educ    = .1928889 (mean)
+       birthyear = 1975.157 (mean)
+
+------------------------------------------------------------------------------
+             |            Delta-method
+             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+0.daughters  |  (base outcome)
+-------------+----------------------------------------------------------------
+1.daughters  |
+_predict#_at |
+        1 1  |   .0317103   .5914995     0.05   0.957    -1.127607    1.191028
+        1 2  |  -.1784887   .3328542    -0.54   0.592     -.830871    .4738936
+        2 1  |   .1785513   .5982432     0.30   0.765    -.9939839    1.351087
+        2 2  |   .9478389    .436677     2.17   0.030     .0919677     1.80371
+------------------------------------------------------------------------------
+Note: dy/dx for factor levels is the discrete change from the base level.
+
+.         // equivalent to running above regression with sample-demeaned covari
+> ates
+.         
+.         *obtain gender differences in effect estimates
+.         nlcom (_b[1.daughters:1._predict#1._at] - _b[1.daughters:1._predict#2
+> ._at]) (_b[1.daughters:2._predict#1._at] - _b[1.daughters:2._predict#2._at]),
+>  post
+
+       _nl_1: _b[1.daughters:1._predict#1._at] - _b[1.daughters:1._predict#2._a
+> t]
+       _nl_2: _b[1.daughters:2._predict#1._at] - _b[1.daughters:2._predict#2._a
+> t]
+
+------------------------------------------------------------------------------
+             | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+       _nl_1 |    .210199   .5621412     0.37   0.708    -.8915775    1.311976
+       _nl_2 |  -.7692875   .6560099    -1.17   0.241    -2.055043    .5164682
+------------------------------------------------------------------------------
+
+.                 
+.         *obtain inference statistics accounting for one-sided multiple testin
+> g
+.         sotable, alternative(upper)
+
+Max-t results
+       p-value = 0.559
+Critical value = 2.236  
+-----------------------------------------------------------------------------
+      depvar |      Coef.   Std. Err.      z    P>|z|      [97.5% Conf. Band]
+-------------+---------------------------------------------------------------
+       _nl_1 |    .210199   .5621412     0.374  0.559   -1.046605          .
+       _nl_2 |  -.7692875   .6560099    -1.173  0.978   -2.235958          .
+-----------------------------------------------------------------------------
+
+.         // yields same betas and SEs as above but corrects p-values and CIs f
+> or multiple one-sided testing
+.         
+.         *post-processing output
+.         mat r = r(results)                                                   
+>                    // full results table
+
+.         mata: st_matrix("R", sort(st_matrix("r")',4))           // this sorts
+>  results accoring to pvalues (lowest first)
+
+.         mat colnames R = b se z pvalues low up 
+
+.         mata: st_matrix("O",order(st_matrix("r")',4)')
+
+.         tokenize "famvscareer menhousework"
+
+.         local rn  "``=O[1,1]''  ``=O[1,2]''" 
+
+.         mat rownames R =  `rn'
+
+.         est resto e`=O[1,1]'w
+(results e1w are active now)
+
+. 
+. 
+.                 qui {
+-------------------------------------------------------------------------------
+RESULTS
+Seemingly unrelated ordered probit regression of  menhousework & famvscareer on
+>  daughters
+P-value and lower CI band adjusted for multiple one-sided testing
+-------------------------------------------------------------------------------
+
+             |      b      se       z  pval~s     low 
+-------------+---------------------------------------
+ famvscareer |  0.210   0.562   0.374   0.559  -1.047 
+menhousework | -0.769   0.656  -1.173   0.978  -2.236 
+-------------------------------------------------------------------------------
+
+Exported statistics for outcome with highest z / lowest p
+
+Coefficient: .210199015878942
+Standard Error: .5621412299613816
+Test Statistic Family: z
+Residual Degrees of Freedom: .
+Model Degrees of Freedom: 14
+p-value: .558841
+Number of observations: 75
+Number of participants: 75
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+*Statistical assessment on H1: cannot reject H0
+-------------------------------------------------------------------------------
+
+.         
+.         * Export results to csv 
+.         file open myfile using "$OUT/h4_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/5_res
+    > ults/h4_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+.         
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

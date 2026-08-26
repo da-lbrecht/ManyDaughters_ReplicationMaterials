@@ -1,0 +1,1686 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmp0v33eliy.do 
+
+. do "95%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. * the following code automatically sets paths based on the project location o
+> n your system *
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/95%-sample" // folder, in which the or
+> iginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/95%-sample
+
+. global DATA "$ROOT/data/derived_confidential/95%-sample" // folder for datase
+> ts
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/95%-sample
+
+. global OUT "$ROOT/data/derived/95_results" // folder for output (results, tab
+> les)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/95_results
+
+. 
+end of do-file
+
+. do "20250807_084948_0168sb_h2.do"
+
+. *****************************************************************************
+> ***
+. ********************** Do-File H3: #ManyDaughters Project (RT 0168sb) *******
+> ***
+. *****************************************************************************
+> ***
+. 
+. * Authors: [REDACTED], [REDACTED] 
+. * (based on the example do file by Tina Wang and David Albrecht)
+. 
+. * ============================
+. * Setup *
+. * ============================
+. 
+. * clear all
+. version 16.1 // indicate the version of stata you are using here
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. set type double
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. /*
+> * the following code automatically sets paths based on where you saved the 
+> * distributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> */
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA * General Logic: Stata just sees rows and variables, if
+>  we 
+. * are matching pid and syear 1:1, then we are matching a panel to another pan
+> el. 
+. * If we are matching pid without syear m:1, we are matching variables for a p
+> erson 
+. * in a dataset that is cross-sectional to ALL years of that person in the pan
+> el
+. 
+.         use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+.         // This dataset contains matching information, e.g., between partners
+>  in 
+.         // relationships (respondent’s pid and the unique partner’s pid) or b
+> etween 
+.         // samples of SOEP in which the respondent was interviewed (26 differ
+> ent samples)
+.         keep cid pid hid syear parid partner sex gebjahr sampreg pop todjahr 
+> immiyear ///
+>         germborn corigin migback miginfo sexor birthregion birthregion_ew are
+> fback phrf /// 
+>         phrf0 phrf1 piyear
+
+. 
+.         // Merge the ‘pgen’ dataset: consolidated person-level variables from
+>  
+.         // various sources, providing user-friendly individual metrics
+.         merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. 
+.         // Drop unneeded ‘pgen’ variables to streamline the dataset
+.         drop pgstib pgjobch pgisco88 pgisco08 pgisei08 pgisei88 pgkldb92 pgkl
+> db2010 ///
+>                  pgmps08 pgmps92 pgsiops88 pgsiops08 pgegp88 pgegp08 pgerljob
+>  pgausb ///
+>                  pgerwzeit pgbetr pgjobend pgisced97 pgisced11 pgcasmin pgbil
+> zeit ///
+>                  pgpsbilo pgpbbilo pgpsbila pgpbbila pgfield pgdegree pgtrain
+> b pgtraina ///
+>                  pgtraind pgtrainc pgfdt_f pgbilztch pgbilztev pgpicoriga pgp
+> icorigb ///
+>                  pgpicorigc pgsndtyp1 pgsndtyp2 pghonor1 pghonor2 pghonor3 //
+> /
+>                  pgimpsnd3 pgimpsnd2 pgsndtyp3 pgsndjob2 pgsndjob3 pgimpsnd1 
+> ///
+>                  pgsndjob1 pgmode inputdataset
+
+. 
+.         // Merge the ‘hgen’ dataset: household-level generated variables; kee
+> p only 
+.         // household net income (hghinc) for analyses
+.         merge m:1 hid syear using "$IN/hgen.dta", nogen keep(master matches) 
+> ///
+>         keepusing(hid syear hghinc)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. 
+.         // Merge data on respondents’ biological parents from ‘bioparen’
+.         merge m:1 pid using "$IN/bioparen.dta", nogen keep(master matches)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. 
+.         // Merge additional household evaluation variables from ‘hl’
+.         merge m:1 hid syear using "$IN/hl.dta", nogen keep(master matches)
+(label iyear already defined)
+(label iyear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. 
+.         // Merge migration and country-of-origin details from ‘biol’
+.         merge 1:1 pid syear using "$IN/biol.dta", nogen keep(master matches)
+(variable inputdataset was str6, now str8 to accommodate using data's values)
+(label intid_EN already defined)
+(label iyear_EN already defined)
+(label instrument_EN already defined)
+(label tranche_EN already defined)
+(label syear_EN already defined)
+(label cid_EN already defined)
+(label hid_EN already defined)
+(label intid already defined)
+(label iyear already defined)
+(label instrument already defined)
+(label tranche already defined)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. 
+.         // Merge fertility history records from ‘biobirth’
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches)
+(variable pid was long, now double to accommodate using data's values)
+(variable cid was long, now double to accommodate using data's values)
+(variable gebjahr was int, now double to accommodate using data's values)
+(variable bioyear was float, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+(label pid_EN already defined)
+(label cid_EN already defined)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. 
+.         // Merge complete individual questionnaire data from ‘pl’
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches)
+(variable inputdataset was str8, now str9 to accommodate using data's values)
+(label instrument_EN already defined)
+(label intid_EN already defined)
+(label iyear_EN already defined)
+(label p_buh11_EN already defined)
+(label p_buh10_EN already defined)
+(label p_buh9_EN already defined)
+(label p_buh8_EN already defined)
+(label p_buh7_EN already defined)
+(label p_buh6_EN already defined)
+(label p_buh5_EN already defined)
+(label p_buh4_EN already defined)
+(label p_buh3_EN already defined)
+(label p_buh2_EN already defined)
+(label p_buh1_EN already defined)
+(label p_anker_EN already defined)
+(label syear_EN already defined)
+(label pnr_EN already defined)
+(label cid_EN already defined)
+(label hid_EN already defined)
+(label pid_EN already defined)
+(label instrument already defined)
+(label intid already defined)
+(label iyear already defined)
+(label p_buh11 already defined)
+(label p_buh10 already defined)
+(label p_buh9 already defined)
+(label p_buh8 already defined)
+(label p_buh7 already defined)
+(label p_buh6 already defined)
+(label p_buh5 already defined)
+(label p_buh4 already defined)
+(label p_buh3 already defined)
+(label p_buh2 already defined)
+(label p_buh1 already defined)
+(label p_anker already defined)
+(label pnr already defined)
+(label cid already defined)
+(label hid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. 
+.         // Recode ‘not applicable’ responses (-2) in the child variables so t
+> hey are 
+.         //treated as valid non-missing categories
+.         
+.         forvalues i = 1/19 {
+  2.                 local yearname : display %02.0f `i'
+  3.                 recode kidsex`yearname' (-2 = 3)
+  4.                 recode kidgeb`yearname' (-2 = 1)
+  5.         }
+(216,116 changes made to kidsex01)
+(216,061 changes made to kidgeb01)
+(340,019 changes made to kidsex02)
+(339,945 changes made to kidgeb02)
+(533,107 changes made to kidsex03)
+(533,070 changes made to kidgeb03)
+(617,724 changes made to kidsex04)
+(617,707 changes made to kidgeb04)
+(646,208 changes made to kidsex05)
+(646,208 changes made to kidgeb05)
+(656,060 changes made to kidsex06)
+(656,060 changes made to kidgeb06)
+(659,855 changes made to kidsex07)
+(659,855 changes made to kidgeb07)
+(661,641 changes made to kidsex08)
+(661,641 changes made to kidgeb08)
+(662,333 changes made to kidsex09)
+(662,333 changes made to kidgeb09)
+(662,641 changes made to kidsex10)
+(662,641 changes made to kidgeb10)
+(662,834 changes made to kidsex11)
+(662,834 changes made to kidgeb11)
+(662,982 changes made to kidsex12)
+(662,982 changes made to kidgeb12)
+(663,094 changes made to kidsex13)
+(663,094 changes made to kidgeb13)
+(663,103 changes made to kidsex14)
+(663,103 changes made to kidgeb14)
+(663,104 changes made to kidsex15)
+(663,104 changes made to kidgeb15)
+(663,107 changes made to kidsex16)
+(663,107 changes made to kidgeb16)
+(663,112 changes made to kidsex17)
+(663,112 changes made to kidgeb17)
+(663,118 changes made to kidsex18)
+(663,118 changes made to kidgeb18)
+(663,118 changes made to kidsex19)
+(663,118 changes made to kidgeb19)
+
+.         
+.         label language EN // change language of the labels to English
+
+. 
+.         save "$DATA/h2_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h2_dataset.dta saved
+
+.         
+. * ============================
+. * DATA MANIPULATION *
+. * ============================
+. 
+. * Calculate age at interview year
+. gen double age_at_int = cond(gebjahr > 0, syear - gebjahr, .)
+(8 missing values generated)
+
+. 
+. * Keep only respondents in private households (pop codes 1 or 2)
+. keep if inlist(pop, 1, 2)
+(89,279 observations deleted)
+
+. drop pop
+
+. 
+. * Keep only respondents with at least one biological child
+. keep if sumkids > 0
+(182,948 observations deleted)
+
+. 
+. * Flag respondents with at least one daughter born before the interview year
+. gen double having_daughter = 0
+
+. forvalues i = 1/19 {
+  2.     local yy: display %02.0f `i'
+  3.     replace having_daughter = 1 if kidsex`yy' == 2 & kidgeb`yy' < syear
+  4. }
+(179,468 real changes made)
+(65,685 real changes made)
+(12,414 real changes made)
+(2,381 real changes made)
+(509 real changes made)
+(90 real changes made)
+(41 real changes made)
+(10 real changes made)
+(16 real changes made)
+(3 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. drop kidsex* kidgeb*
+
+. 
+. 
+. * ============================
+. * IMPUTE RELIGIOUS AFFILIATION *
+. * ============================
+. tempfile tmp
+
+. preserve
+
+. 
+. keep plh0258_v9 plh0258_v10 plh0258_v11 pid syear
+
+. rename plh0258_v9 religious_affil
+
+. reshape wide religious_affil plh0258_v10 plh0258_v11, i(pid) j(syear)
+(j = 2000 2001 2002 2003 2004 2005 2006 2007 2008 2009 2010 2011 2012 2013 2014
+>  2015 2016 2017 2018 2019 2020)
+
+Data                               Long   ->   Wide
+-----------------------------------------------------------------------------
+Number of observations          390,896   ->   55,268      
+Number of variables                   5   ->   64          
+j variable (21 values)            syear   ->   (dropped)
+xij variables:
+                        religious_affil   ->   religious_affil2000 religious_af
+> fil2001 ... religious_affil2020
+                            plh0258_v10   ->   plh0258_v102000 plh0258_v102001 
+> ... plh0258_v102020
+                            plh0258_v11   ->   plh0258_v112000 plh0258_v112001 
+> ... plh0258_v112020
+-----------------------------------------------------------------------------
+
+. 
+. * For each target panel year (2009, 2014, 2019), carry forward/match from lat
+> er waves
+. * if the corresponding religion information is the same in one preceding and 
+> one subsequent 
+. * year assuming that religiosity was the same in between these two years
+. foreach tyr in 2009 2014 2019 {
+  2.     foreach yr in 2004 2006 2007 2008 2010 2011 2012 2013 2015 2016 2017 2
+> 018 2020 {
+  3.         local lyr = 2020 - `tyr'
+  4.         forvalues j = 1/`lyr' {
+  5.             local ty2 = `tyr' + `j'
+  6.             
+.             * exact-match carry forward if original missing or invalid
+.             replace religious_affil`tyr' = religious_affil`ty2'              
+>                ///
+>                 if (missing(religious_affil`tyr') | religious_affil`tyr' < 0)
+>              ///
+>                    & !missing(religious_affil`ty2')                          
+>             ///
+>                    & !missing(religious_affil`yr')                           
+>             ///
+>                    & religious_affil`yr' == religious_affil`ty2'             
+>              ///
+>                    & `yr' < `ty2'
+  7.             
+.             * use plh0258_v11 indicator  
+.             replace religious_affil`tyr' = 4                                 
+>             ///
+>                 if (missing(religious_affil`tyr') | religious_affil`tyr' < 0)
+>              ///
+>                    & !missing(plh0258_v11`ty2')                              
+>            ///
+>                    & !missing(plh0258_v11`yr')                               
+>            ///
+>                    & plh0258_v11`yr' == plh0258_v11`ty2'                     
+>             ///
+>                    & plh0258_v11`ty2' > 0                                    
+>            ///
+>                    & `yr' < `ty2'
+  8.             
+.             * use plh0258_v10 indicator  
+.             replace religious_affil`tyr' = 7                                 
+>             ///
+>                 if (missing(religious_affil`tyr') | religious_affil`tyr' < 0)
+>              ///
+>                    & !missing(plh0258_v10`ty2')                              
+>            ///
+>                    & !missing(plh0258_v10`yr')                               
+>            ///
+>                    & plh0258_v10`yr' == plh0258_v10`ty2'                     
+>             ///
+>                    & plh0258_v10`ty2' > 0                                    
+>            ///
+>                    & `yr' < `ty2'
+  9.         }
+ 10.     }
+ 11. }
+(120 real changes made)
+(0 real changes made)
+(0 real changes made)
+(14 real changes made)
+(0 real changes made)
+(0 real changes made)
+(4 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(5 real changes made)
+(0 real changes made)
+(0 real changes made)
+(7 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(18 real changes made)
+(0 real changes made)
+(0 real changes made)
+(2 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(1 real change made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(6 real changes made)
+(0 real changes made)
+(0 real changes made)
+(2 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(2 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(5,524 real changes made)
+(0 real changes made)
+(0 real changes made)
+(286 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(24 real changes made)
+(0 real changes made)
+(0 real changes made)
+(1 real change made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(4,279 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(96 real changes made)
+(0 real changes made)
+(0 real changes made)
+(17 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(1,492 real changes made)
+(0 real changes made)
+(0 real changes made)
+(34 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(249 real changes made)
+(770 real changes made)
+(14,294 real changes made)
+(0 real changes made)
+(0 real changes made)
+(387 real changes made)
+(0 real changes made)
+(0 real changes made)
+(35 real changes made)
+(0 real changes made)
+(0 real changes made)
+(322 real changes made)
+(0 real changes made)
+(0 real changes made)
+(28 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(55 real changes made)
+(243 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(1,183 real changes made)
+(0 real changes made)
+(0 real changes made)
+(76 real changes made)
+(0 real changes made)
+(0 real changes made)
+(873 real changes made)
+(0 real changes made)
+(0 real changes made)
+(5 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(2,788 real changes made)
+(0 real changes made)
+(0 real changes made)
+(594 real changes made)
+(0 real changes made)
+(0 real changes made)
+(120 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(138 real changes made)
+(0 real changes made)
+(0 real changes made)
+(890 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(96 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(21 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(4 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(2 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(271 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(160 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(34 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(249 real changes made)
+(770 real changes made)
+(14,294 real changes made)
+(0 real changes made)
+(0 real changes made)
+(387 real changes made)
+(0 real changes made)
+(0 real changes made)
+(35 real changes made)
+(0 real changes made)
+(0 real changes made)
+(322 real changes made)
+(0 real changes made)
+(0 real changes made)
+(28 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(55 real changes made)
+(243 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(1,183 real changes made)
+(0 real changes made)
+(0 real changes made)
+(76 real changes made)
+(0 real changes made)
+(0 real changes made)
+(873 real changes made)
+(0 real changes made)
+(0 real changes made)
+(5 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(2,788 real changes made)
+(0 real changes made)
+(0 real changes made)
+(594 real changes made)
+(0 real changes made)
+(0 real changes made)
+(120 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(138 real changes made)
+(0 real changes made)
+(0 real changes made)
+(890 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(405 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(151 real changes made)
+(0 real changes made)
+(0 real changes made)
+(288 real changes made)
+(0 real changes made)
+(0 real changes made)
+(188 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. 
+. drop plh0258_v1*
+
+. reshape long religious_affil, i(pid) j(syear)
+(j = 2000 2001 2002 2003 2004 2005 2006 2007 2008 2009 2010 2011 2012 2013 2014
+>  2015 2016 2017 2018 2019 2020)
+
+Data                               Wide   ->   Long
+-----------------------------------------------------------------------------
+Number of observations           55,268   ->   1,160,628   
+Number of variables                  22   ->   3           
+j variable (21 values)                    ->   syear
+xij variables:
+religious_affil2000 religious_affil2001 ... religious_affil2020->religious_affi
+> l
+-----------------------------------------------------------------------------
+
+. save `tmp'
+file C:\Users\DALBRE~1\AppData\Local\Temp\ST_23f4_000002.tmp saved as .dta
+    format
+
+. restore
+
+. merge 1:1 pid syear using `tmp'
+(label syear_EN already defined)
+(label pid_EN already defined)
+(label plh0258_v9 already defined)
+(label plh0258_v9_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                       769,732
+        from master                         0  (_merge==1)
+        from using                    769,732  (_merge==2)
+
+    Matched                           390,896  (_merge==3)
+    -----------------------------------------
+
+. 
+. 
+. * ============================
+. * CLEAN & RECODE OTHER CONTROLS *
+. * ============================
+. 
+. * Marital status: use pld0131_v1 if v2 missing/invalid, then drop invalid cod
+> es
+. replace pld0131_v2 = pld0131_v1 if missing(pld0131_v2) | pld0131_v2 < 0
+(338,606 real changes made)
+
+. replace pld0131_v2 = .                  if pld0131_v2 < 0
+(39,036 real changes made, 39,036 to missing)
+
+. 
+. * Drop invalid religion codes
+. replace religious_affil = .     if religious_affil < 0
+(369,950 real changes made, 369,950 to missing)
+
+. 
+. * Collapse employment status into four categories
+. gen double erwerb = cond(plb0022_h == 9, 1,                                  
+>                            ///
+>                   cond(inlist(plb0022_h, 3, 4, 5, 6, 7, 8, 10, 11), 2,  ///
+>                   cond(plb0022_h == 2, 3,                                    
+>                            ///
+>                   cond(plb0022_h == 1, 4, .))))
+(785,093 missing values generated)
+
+. drop plb0022_h
+
+. 
+. * Rename sex for clarity
+. rename sex female
+
+. 
+. * Label employment categories
+. label define erwerb_lab                                                      
+>            ///
+>     1 "[1] Nicht erwerbstaetig"                         ///
+>     2 "[2] Nichtreguläre Erwerbs- und Dienstphasen"            ///
+>     3 "[3] Teilzeit"                                    ///
+>     4 "[4] Vollzeit"
+
+. label values erwerb erwerb_lab
+
+. 
+. * Household net income: drop invalid
+. replace hghinc = . if hghinc < 0
+(20,420 real changes made, 20,420 to missing)
+
+. 
+. * Restrict to target survey years
+. keep if inlist(syear, 2009, 2014, 2019)
+(994,824 observations deleted)
+
+. 
+. * Political attitudes index: drop missing/invalid, invert so higher = more pr
+> ogressive
+. drop if plh0004 < 0
+(4,843 observations deleted)
+
+. replace plh0004 = 10 - plh0004
+(27,108 real changes made)
+
+. label define prog_lab           ///
+>     0  "[0] ganz rechts"        ///
+>     1  "[1]"                    ///
+>     2  "[2]"                    ///
+>     3  "[3]"                    ///
+>     4  "[4]"                    ///
+>     5  "[5]"                    ///
+>     6  "[6]"                    ///
+>     7  "[7]"                    ///
+>     8  "[8]"                    ///
+>     9  "[9]"                    ///
+>     10 "[10] ganz links"
+
+. label values plh0004 prog_lab
+
+. 
+. * Clean freli and mreli
+. replace freli = . if freli < 0
+(18,415 real changes made, 18,415 to missing)
+
+. replace mreli = . if mreli < 0
+(17,846 real changes made, 17,846 to missing)
+
+. 
+. * replace invalid school leaving degrees
+. replace pgpsbil = . if pgpsbil < 0 
+(718 real changes made, 718 to missing)
+
+. 
+. * replace negaitve values for gender
+. replace female = . if female < 0
+(2 real changes made, 2 to missing)
+
+. 
+. * replace negaitve values for migration
+. replace migback = . if migback < 0
+(0 real changes made)
+
+. 
+. * ============================
+. * MISSINGNESS CHECK FOR CANDIDATES *
+. * ============================
+. 
+. quietly count
+
+. local totalcount = r(N)
+
+. 
+. local numvars corigin fprofedu mprofedu locchildh hlf0135 hlf0151 nums numb r
+> eligious_affil
+
+. local remvars
+
+. 
+. foreach var in `numvars' {
+  2.     quietly count if `var' >= 0 & `var' != .
+  3.     local varcount = r(N)
+  4.     if `varcount'/`totalcount' < 0.1 {
+  5.         drop `var'
+  6.         local remvars `remvars' `var'
+  7.     }
+  8. }
+
+. 
+. local keepvars
+
+. foreach var in `numvars' {
+  2.     if !inlist("`var'", "`remvars'") {
+  3.         local keepvars `keepvars' `var'
+  4.     }
+  5. }
+
+. local numvars `keepvars'
+
+. 
+. foreach var in `numvars' {
+  2.     replace `var' = . if `var' < 0
+  3. }
+(34 real changes made, 34 to missing)
+(3,199 real changes made, 3,199 to missing)
+(3,352 real changes made, 3,352 to missing)
+(1,494 real changes made, 1,494 to missing)
+(719 real changes made, 719 to missing)
+(150 real changes made, 150 to missing)
+(4,629 real changes made, 4,629 to missing)
+(4,629 real changes made, 4,629 to missing)
+(0 real changes made)
+
+. 
+. 
+. * ============================
+. * HYPOTHESIS TEST FOR H2 *
+. * ============================
+. *
+. * Estimate whether having at least one daughter predicts more progressive
+. * political attitudes, using panel data from private-household respondents
+. * in survey years 2009, 2014, and 2019.
+. *
+. * Model specification:
+. *   - Outcome: plh0004 (political attitude index, higher = more progressive)
+. *   - Key predictor: having_daughter (1 if any daughter born before interview
+>  year)
+. *   - Prespecified covariates:
+. *       • sumkids           = total number of biological children
+. *       • hghinc            = monthly household net income (EUR)
+. *       • female            = respondent’s sex (2 =female, 1 =male)
+. *       • age_at_int        = age at interview (years)
+. *       • erwerb            = employment status (1–4 categories)
+. *       • pld0131_v2        = marital status (coded; invalid → missing)
+. *       • migback           = migration background indicator
+. *       • sampreg           = geographic region of sample (east/west)
+. *       • pgpsbil           = school-leaving degree
+. *
+. * We supplement these controls with a LASSO-based, data-driven selection
+. * implemented via dsregress. The selected variables (from `numvars`) are
+. * stored in e(controls_sel) — duplicates are automatically dropped by Stata.
+. *
+. * The LASSO can pick from the following list of variables:
+. *       • corigin           = Country of origin (ISO numeric country code)
+. *       • fprofedu          = Father’s highest completed professional educati
+> on
+. *       • mprofedu          = Mother’s highest completed professional educati
+> on
+. *       • locchildh         = Place respondent was raised to age 15; 1=Large 
+> city, 2=Medium city, 3=Small city, 4=Countryside
+. *       • hlf0135           = Residential area—distance to city-centre; 1=Cen
+> tre flat, 2=<10 km, 3=10–<25 km, 4=25–<40 km, 5=40–<60 km, 6=≥60 km
+. *       • hlf0151           = Worry about crime in neighbourhood; 1=Not worri
+> ed … 4=Very worried
+. *       • nums              = Number of sisters reported by respondent
+. *       • numb              = Number of brothers reported by respondent
+. *       • freli                       = father's religious affiliation
+. *       • mreli                       = mother's religious affiliation
+. *       • religious_affil   = religious affiliation
+. *
+. * Inference approach:
+. *   • Step 1: LASSO to identify additional relevant covariates
+. *   • Step 2: Random-effects panel regression (xtreg …, re) with SEs clustere
+> d
+. *             at the household level to mitigate collinearity and heteroskeda
+> sticity.
+. *
+. 
+. * Step 1: LASSO-based selection of controls
+. version 16.0: dsregress plh0004 having_daughter, ///
+>     controls((i.female sumkids hghinc age_at_int i.erwerb i.pld0131_v2 ///
+>               i.migback sampreg i.pgpsbil) `numvars') rseed(10101)
+
+Estimating lasso for plh0004 using plugin
+Estimating lasso for having_daughter using plugin
+
+Double-selection linear model         Number of obs               =     13,608
+                                      Number of controls          =         38
+                                      Number of selected controls =         30
+                                      Wald chi2(1)                =       0.02
+                                      Prob > chi2                 =     0.8827
+
+------------------------------------------------------------------------------
+             |               Robust
+     plh0004 | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+having_dau~r |   .0045899   .0311095     0.15   0.883    -.0563836    .0655634
+------------------------------------------------------------------------------
+Note: Chi-squared test is a Wald test of the coefficients of the variables
+      of interest jointly equal to zero. Lassos select controls for model
+      estimation. Type lassoinfo to see number of selected variables in each
+      lasso.
+
+. 
+. local sel `e(controls_sel)'
+
+. 
+. local common ""
+
+. foreach v of local sel {
+  2.     // only keep v if it appears (as a whole word) in numvars
+.     if strpos(" `numvars' ", " `v' ") {
+  3.         local common "`common' `v'"
+  4.     }
+  5. }
+
+.                           
+. * Step 2: Random-Effects panel regression with all controls and robust SEs (c
+> lustered on household level)
+. xtset pid syear
+
+Panel variable: pid (unbalanced)
+ Time variable: syear, 2009 to 2019, but with gaps
+         Delta: 1 unit
+
+. 
+. xtreg plh0004 having_daughter i.female sumkids hghinc ///
+>     age_at_int i.erwerb i.pld0131_v2 i.migback sampreg i.pgpsbil ///
+>     syear `common', vce(cluster cid) re
+
+Random-effects GLS regression                   Number of obs     =     16,499
+Group variable: pid                             Number of groups  =     15,897
+
+R-squared:                                      Obs per group:
+     Within  = 0.0023                                         min =          1
+     Between = 0.0485                                         avg =        1.0
+     Overall = 0.0468                                         max =          2
+
+                                                Wald chi2(28)     =          .
+corr(u_i, X) = 0 (assumed)                      Prob > chi2       =          .
+
+                               (Std. err. adjusted for 10,220 clusters in cid)
+------------------------------------------------------------------------------
+             |               Robust
+     plh0004 | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+having_dau~r |  -.0208779   .0312691    -0.67   0.504    -.0821642    .0404084
+             |
+      female |
+ [2] Female  |   .2923142   .0266298    10.98   0.000     .2401208    .3445076
+     sumkids |  -.0069244   .0149714    -0.46   0.644    -.0362677     .022419
+      hghinc |  -1.75e-06   1.58e-06    -1.11   0.265    -4.84e-06    1.33e-06
+  age_at_int |   .0034682   .0012827     2.70   0.007     .0009541    .0059823
+             |
+      erwerb |
+[2] Nicht..  |   .1032484   .0552126     1.87   0.061    -.0049663    .2114631
+[3] Teilz..  |   .1550187   .0393702     3.94   0.000     .0778545     .232183
+[4] Vollz..  |  -.0117007   .0361518    -0.32   0.746     -.082557    .0591556
+             |
+  pld0131_v2 |
+          2  |   .3171482   .1903001     1.67   0.096    -.0558332    .6901296
+[3] [de] ..  |   .1078395   .1220425     0.88   0.377    -.1313593    .3470383
+[4] [de] ..  |   .1647502   .1251132     1.32   0.188    -.0804671    .4099675
+[5] [de] ..  |  -.0298862   .1316387    -0.23   0.820    -.2878932    .2281208
+[6] [de] ..  |   1.467444   .7540445     1.95   0.052    -.0104562    2.945344
+[8] [de] ..  |    .038919   .1232097     0.32   0.752    -.2025675    .2804055
+             |
+     migback |
+[2] direc..  |   .0968015   .0583464     1.66   0.097    -.0175553    .2111584
+[3] indir..  |   .0313134   .0614496     0.51   0.610    -.0891256    .1517524
+             |
+     sampreg |   .1600077   .0389834     4.10   0.000     .0836016    .2364139
+             |
+     pgpsbil |
+[2] Inter..  |   .0907327   .0370797     2.45   0.014     .0180579    .1634076
+[3] Techn..  |   .3747366   .0566649     6.61   0.000     .2636755    .4857977
+[4] Upper..  |    .562235   .0411072    13.68   0.000     .4816663    .6428036
+[5] Other..  |    .060299   .0653986     0.92   0.357    -.0678799    .1884779
+[6] Dropo..  |   .0343092   .0953374     0.36   0.719    -.1525487    .2211671
+[7] No Sc..  |   4.664115   .1296709    35.97   0.000     4.409964    4.918265
+[8] No Sc..  |   1.238606   .0447536    27.68   0.000     1.150891    1.326322
+             |
+       syear |  -.0182199   .0223096    -0.82   0.414    -.0619459    .0255062
+     hlf0135 |  -.0546313   .0096832    -5.64   0.000      -.07361   -.0356526
+     hlf0151 |  -.1723352   .0260247    -6.62   0.000    -.2233427   -.1213276
+   locchildh |  -.0320972   .0116064    -2.77   0.006    -.0548454   -.0093491
+religious_~l |  -.1558912    .020988    -7.43   0.000    -.1970269   -.1147555
+       _cons |   42.90815   44.93049     0.95   0.340      -45.154    130.9703
+-------------+----------------------------------------------------------------
+     sigma_u |  1.0174382
+     sigma_e |  1.2038971
+         rho |  .41664728   (fraction of variance due to u_i)
+------------------------------------------------------------------------------
+
+. 
+. 
+. 
+. * EXTRACT AND EXPORT RESULTS *
+. 
+.         * Extract the required statistics
+. 
+.                 * (i) coefficient estimate
+.                 local coefficient = _b[having_daughter]
+
+. 
+.                 * (ii) standard error
+.                 local se = _se[having_daughter]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "z"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 local p_value     = 2 * normal(-abs(_b[having_daughter] / _se
+> [having_daughter]))
+
+. *               local p_value: display %12.8f _b[having_daughter] / _se[havin
+> g_daughter]
+. *               local p_value: display %12.8f 2 * normal(-abs(`p_value'))
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation of directionality
+.                 local coef_d_daughter: display %12.8f _b[having_daughter]
+
+.                 scalar coef_d_daughter = `coef_d_daughter'
+
+.                 local interpretation "positive coefficient is in line with hy
+> pothesis"
+
+. 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: -.0208779086495032
+
+.         di "Standard Error: `se'"
+Standard Error: .0312690920464088
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: z
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: .
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 28
+
+.         di "p-value: " `p_value'
+p-value: .50433459
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 16499
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 15897
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h2_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/95_re
+    > sults/h2_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

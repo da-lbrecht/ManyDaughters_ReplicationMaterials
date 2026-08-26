@@ -1,0 +1,393 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmpwlojn3z4.do 
+
+. do "95%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. * the following code automatically sets paths based on the project location o
+> n your system *
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/95%-sample" // folder, in which the or
+> iginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/95%-sample
+
+. global DATA "$ROOT/data/derived_confidential/95%-sample" // folder for datase
+> ts
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/95%-sample
+
+. global OUT "$ROOT/data/derived/95_results" // folder for output (results, tab
+> les)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/95_results
+
+. 
+end of do-file
+
+. do "20250725_093310_01f8uy_h4.do"
+
+. *****************************************************************************
+> ***
+. ****************** Do-File H4: #ManyDaughters Project ***********************
+> ***
+. *****************************************************************************
+> ***
+. 
+. * Authors: Tina Wang, David Albrecht
+. 
+. * RT: [REDACTED], [REDACTED]
+. 
+. * ============================
+. * Setup *
+. * ============================
+. 
+. * clear all
+. version 17 // indicate the version of stata you are using here
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. * INSTALL PACKAGES * 
+. * install all packages you need here, for example:
+. * ssc install outreg2
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. /*
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> */
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA * (Please adapt according to your needs)
+.         use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. 
+.         * Merge ppathl with all datasets, that you deem relevant for your ana
+> lysis. (Tip: use keepusing() to specify which variables to keep from the usin
+> g dataset; the default is all.)
+. 
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches)
+(variable pid was long, now double to accommodate using data's values)
+(variable cid was long, now double to accommodate using data's values)
+(variable gebjahr was int, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * pgen contains user-friendly data on the individual level that are c
+> onsolidated from different sources
+.         merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * pl contains all variables from the individual questionnaire
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches)
+(variable inputdataset was str6, now str9 to accommodate using data's values)
+(label cid_EN already defined)
+(label pid_EN already defined)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * hgen contains generated variables on household level from the house
+> hold interview; use for household net income
+.         merge m:1 hid syear using "$IN/hgen.dta", nogen keep(master matches) 
+> keepusing(hid syear hghinc)
+(label iyear already defined)
+(label iyear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. 
+.         label language EN // change language of the labels to English
+
+. 
+.         save "$DATA/h4_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h4_dataset.dta saved
+
+. 
+. 
+. * ============================
+. * Analysis
+. * ============================
+. use "$DATA/h4_dataset.dta", clear
+
+. keep sumkids kidsex01 plh0308_v1 plh0308_v2 pid syear sex
+
+. 
+. * FILTERS * 
+.  
+.         * Keep participants with exactly 1 kid
+.         keep if sumkids == 1
+(539,369 observations deleted)
+
+. 
+. * GENERATE VARIABLES 
+. 
+.         * We  measure support for gender equality by a single item availlable
+>  in two waves 
+.         * "men and women should work the same amount so they can share respon
+> sibillities": plh0308_v1, plh0308_v2
+.         * However, while writing the PAP we assumed that both variables are o
+> n the same scale
+.         * Since both variables are on different scales in the two waves we st
+> andardize them
+.                 mvdecode plh0308_v1 plh0308_v2, mv(-9/0)
+  plh0308_v1: 102975 missing values generated
+  plh0308_v2: 99295 missing values generated
+
+.                 tab1 plh0308_v1 plh0308_v2
+
+-> tabulation of plh0308_v1  
+
+[de] Fam: Mann/Frau in gleich in Arbeit |
+       u. Haushalt/Familie (FID) [2012] |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+                [1] [de] Stimme voll zu |        571       50.18       50.18
+                [2] [de] Stimme eher zu |        325       28.56       78.73
+          [3] [de] Stimme eher nicht zu |        196       17.22       95.96
+    [4] [de] Stimme ueberhaupt nicht zu |         46        4.04      100.00
+----------------------------------------+-----------------------------------
+                                  Total |      1,138      100.00
+
+-> tabulation of plh0308_v2  
+
+    Best if man and woman work the same |
+           amount so they can share the |
+                        responsibility  |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+    [1] [de] Stimme ueberhaupt nicht zu |        149        3.09        3.09
+                 [2] [de] Skala von 1-7 |        192        3.99        7.08
+                 [3] [de] Skala von 1-7 |        297        6.16       13.24
+                 [4] [de] Skala von 1-7 |        673       13.97       27.21
+                 [5] [de] Skala von 1-7 |        502       10.42       37.63
+                 [6] [de] Skala von 1-7 |        823       17.08       54.71
+                [7] [de] Stimme voll zu |      2,182       45.29      100.00
+----------------------------------------+-----------------------------------
+                                  Total |      4,818      100.00
+
+.         
+.                         egen egal = std(plh0308_v1*-1) // variable in 2012 wa
+> ve is reverse coded
+(122,616 missing values generated)
+
+.                         egen egal2 = std(plh0308_v2)
+(118,936 missing values generated)
+
+.                         replace egal = egal2 if egal == . 
+(4,818 real changes made)
+
+.                                 tab egal plh0308_v1, nol
+
+Standardiz |
+ ed values |
+        of | [de] Fam: Mann/Frau in gleich in Arbeit u.
+plh0308_v1 |        Haushalt/Familie (FID) [2012]
+       *-1 |         1          2          3          4 |     Total
+-----------+--------------------------------------------+----------
+ -2.555131 |         0          0          0         46 |        46 
+ -1.418852 |         0          0        196          0 |       196 
+ -.2825722 |         0        325          0          0 |       325 
+  .8537074 |       571          0          0          0 |       571 
+-----------+--------------------------------------------+----------
+     Total |       571        325        196         46 |     1,138 
+
+.                                 tab egal plh0308_v2
+
+Standardiz |
+ ed values |
+        of | Best if man and woman work the same amount so they can
+plh0308_v1 |               share the responsibility 
+       *-1 | [1] [de]   [2] [de]   [3] [de]   [4] [de]   [5] [de]  |     Total
+-----------+-------------------------------------------------------+----------
+ -2.685025 |       149          0          0          0          0 |       149 
+ -2.097538 |         0        192          0          0          0 |       192 
+ -1.510052 |         0          0        297          0          0 |       297 
+ -.9225657 |         0          0          0        673          0 |       673 
+ -.3350794 |         0          0          0          0        502 |       502 
+   .252407 |         0          0          0          0          0 |       823 
+  .8398933 |         0          0          0          0          0 |     2,182 
+-----------+-------------------------------------------------------+----------
+     Total |       149        192        297        673        502 |     4,818 
+
+
+Standardiz | Best if man and woman
+ ed values | work the same amount
+        of | so they can share the
+plh0308_v1 |    responsibility 
+       *-1 | [6] [de]   [7] [de]  |     Total
+-----------+----------------------+----------
+ -2.685025 |         0          0 |       149 
+ -2.097538 |         0          0 |       192 
+ -1.510052 |         0          0 |       297 
+ -.9225657 |         0          0 |       673 
+ -.3350794 |         0          0 |       502 
+   .252407 |       823          0 |       823 
+  .8398933 |         0      2,182 |     2,182 
+-----------+----------------------+----------
+     Total |       823      2,182 |     4,818 
+
+. 
+.         * Generating the dependent variable
+.         *       As explained in our PAP we consider the treatment and the con
+> trol to be "having one daughter" and "having one son" respectively. 
+.         *       This ensures that the treatment is randomly assgined and a ca
+> usal interpretation is warranted.
+.         tab kidsex01
+
+                         Sex 1st. Child |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+                    [-2] Does not apply |          3        0.00        0.00
+                         [-1] No Answer |        189        0.15        0.16
+                               [1] Male |     63,856       51.60       51.75
+                             [2] Female |     59,706       48.25      100.00
+----------------------------------------+-----------------------------------
+                                  Total |    123,754      100.00
+
+.                 gen daughter = (kidsex01==2) if kidsex01 >= 0
+(192 missing values generated)
+
+.                 lab def daughter 1 "daughter" 0 "son"
+
+.                 lab val daughter daughter
+
+.                 tab daughter
+
+   daughter |      Freq.     Percent        Cum.
+------------+-----------------------------------
+        son |     63,856       51.68       51.68
+   daughter |     59,706       48.32      100.00
+------------+-----------------------------------
+      Total |    123,562      100.00
+
+. 
+.         
+. * HYPOTHESIS TEST FOR H4 * 
+. 
+.         * Please add a verbal description of your model here
+. 
+.         *       Our operationalization ensures ranodmization of the treatment
+>  and hence warrants a causal interpretation. 
+.         *       Thus, we do not employ further controls.
+.         *       The only exception are survey waves to control for general tr
+> ends in gender equality and trends in birth rates. 
+.         *       We use a random effects model with observations clustered at 
+> the individual level. We xtset our data. We do not use an OLS since a RE mode
+> l is more efficient. 
+.         
+.         * The hypothesis is tested by specifying an interaction between daugh
+> ter and sex.
+.                 
+.         xtset pid syear
+
+Panel variable: pid (unbalanced)
+ Time variable: syear, 2000 to 2020, but with gaps
+         Delta: 1 unit
+
+.         * H4
+.         xtreg egal 1.daughter##1.sex i.syear, cluster(pid) re
+sex:  factor variables may not contain negative values
+r(452);
+
+end of do-file
+r(452);
+
+end of do-file
+r(452);

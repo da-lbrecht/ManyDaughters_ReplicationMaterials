@@ -1,0 +1,2705 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmpyv9irjkr.do 
+
+. do "5%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. 
+. * the following code automatically sets paths based on the project location o
+> n your system *local curdir = c(pwd)
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/5%-sample" // folder, in which the ori
+> ginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/5%-sample
+
+. global DATA "$ROOT/data/derived_confidential/5%-sample" // folder for dataset
+> s
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/5%-sample
+
+. global OUT "$ROOT/data/derived/5_results" // folder for output (results, tabl
+> es)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/5_results
+
+. 
+end of do-file
+
+. do "20250711_114933_01ja3t_h3.do"
+
+. *****************************************************************************
+> ***
+. ****************** Code H3: #ManyDaughters Project **************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. * Authors: Authors: RT 01ja3t (using the template by Tina Wang, David Albrech
+> t)
+. 
+. * ============================
+. * Setup * 
+. * ============================
+. 
+. * clear all
+. version 18 // indicate the version of stata you are using here
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. * INSTALL PACKAGES * 
+. * install all packages you need here, for example:
+. ssc install outreg2
+checking outreg2 consistency and verifying not already installed...
+all files already exist and are up to date.
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. /*
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> */
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA * (Please adapt according to your needs)
+. 
+.         use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. 
+.         * Merge ppathl with all datasets, that you deem relevant for your ana
+> lysis. (Tip: use keepusing() to specify which variables to keep from the usin
+> g dataset; the default is all.)
+. 
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches)
+(variable pid was long, now double to accommodate using data's values)
+(variable cid was long, now double to accommodate using data's values)
+(variable gebjahr was int, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * pgen contains user-friendly data on the individual level that are c
+> onsolidated from different sources
+.         merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * pl contains all variables from the individual questionnaire
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches)
+(variable inputdataset was str6, now str9 to accommodate using data's values)
+(label cid already defined)
+(label pid_EN already defined)
+(label cid_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+.         * hgen contains generated variables on household level from the house
+> hold interview; use for household net income
+.         merge m:1 hid syear using "$IN/hgen.dta", nogen keep(master matches) 
+> keepusing(hid syear hghinc)
+(label iyear already defined)
+(label iyear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+. 
+.         label language EN // change language of the labels to English
+
+. 
+.         save "$DATA/h3_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/5%-sample/h3_dataset.dta saved
+
+. 
+. 
+. * FILTERS * (Please adapt according to your needs)
+.  
+.         * Example: only keep participants from private households
+.         *keep if inlist(pop,1,2)
+. ***Drop if No Answer to at least one children
+. drop if kidpnr01==-1
+(7,664 observations deleted)
+
+. drop if kidpnr02==-1
+(270 observations deleted)
+
+. drop if kidpnr03==-1
+(7 observations deleted)
+
+. 
+. * GENERATE VARIABLES * 
+.         * Example: generate dummy variable for whether participant has at lea
+> st one daughter (1) or not (0)
+.         * For illustrative purposes, we will generate the variable randomly:
+.         *set seed 123
+.         *gen d_daughter = runiformint(0,1)
+.         
+.         forval i = 1/9 {
+  2.                 replace kidpnr0`i'=. if kidpnr0`i' ==-2
+  3.                 
+.         }
+(10,594 real changes made, 10,594 to missing)
+(15,634 real changes made, 15,634 to missing)
+(23,233 real changes made, 23,233 to missing)
+(25,856 real changes made, 25,856 to missing)
+(26,840 real changes made, 26,840 to missing)
+(27,110 real changes made, 27,110 to missing)
+(27,170 real changes made, 27,170 to missing)
+(27,206 real changes made, 27,206 to missing)
+(27,258 real changes made, 27,258 to missing)
+
+.         
+.         forval i = 10/19 {
+  2.                 replace kidpnr`i'=. if kidpnr`i' ==-2
+  3.                 
+.         }
+(27,271 real changes made, 27,271 to missing)
+(27,277 real changes made, 27,277 to missing)
+(27,277 real changes made, 27,277 to missing)
+(27,287 real changes made, 27,287 to missing)
+(27,287 real changes made, 27,287 to missing)
+(27,287 real changes made, 27,287 to missing)
+(27,287 real changes made, 27,287 to missing)
+(27,287 real changes made, 27,287 to missing)
+(27,287 real changes made, 27,287 to missing)
+(27,287 real changes made, 27,287 to missing)
+
+. 
+.  
+.         
+. * GENERATE VARIABLES *
+. *^^Generate variable for the number of daughters
+. ***Count the number of children 
+.         egen num_children=rownonmiss(kidpnr01 kidpnr02 kidpnr03 kidpnr04 kidp
+> nr05 kidpnr06 kidpnr07 kidpnr08 kidpnr09 kidpnr10 kidpnr11 kidpnr12 kidpnr13 
+> kidpnr14 kidpnr15 kidpnr16 kidpnr17 kidpnr18 kidpnr19)
+
+.         tab num_children
+
+num_childre |
+          n |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |     10,594       38.82       38.82
+          1 |      5,040       18.47       57.29
+          2 |      7,599       27.85       85.14
+          3 |      2,623        9.61       94.76
+          4 |        984        3.61       98.36
+          5 |        270        0.99       99.35
+          6 |         60        0.22       99.57
+          7 |         36        0.13       99.70
+          8 |         52        0.19       99.89
+          9 |         13        0.05       99.94
+         10 |          6        0.02       99.96
+         12 |         10        0.04      100.00
+------------+-----------------------------------
+      Total |     27,287      100.00
+
+.         label variable num_children "Number of children"
+
+. ***Count the number of daughters        
+.         egen num_daughter = anycount(kidsex01-kidsex19), value(2)
+
+.         tab num_daughter
+
+  see notes |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |     15,670       57.43       57.43
+          1 |      7,703       28.23       85.66
+          2 |      3,090       11.32       96.98
+          3 |        563        2.06       99.04
+          4 |        184        0.67       99.72
+          5 |         43        0.16       99.88
+          6 |         24        0.09       99.96
+          9 |         10        0.04      100.00
+------------+-----------------------------------
+      Total |     27,287      100.00
+
+.         label variable num_daughter "Number of daughters"
+
+.         
+.         
+. ***Generate variable that is 1 if people have at least one daughter
+.     gen d_daughter=1 if num_daughter>=1 & num_daughter!=.
+(15,670 missing values generated)
+
+.         replace d_daughter=0 if num_daughter==0
+(15,670 real changes made)
+
+.         tab d_daughter
+
+ d_daughter |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |     15,670       57.43       57.43
+          1 |     11,617       42.57      100.00
+------------+-----------------------------------
+      Total |     27,287      100.00
+
+.         label variable d_daughter "1 if person has at least one daughter"
+
+.         
+. ***Clean and generate control variables
+. 
+.                 *Age
+.                 gen age= syear-gebjahr
+
+.                 tab age, mis
+
+        age |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          1 |          9        0.03        0.03
+          2 |         16        0.06        0.09
+          3 |         29        0.11        0.20
+          4 |         36        0.13        0.33
+          5 |         43        0.16        0.49
+          6 |         55        0.20        0.69
+          7 |         63        0.23        0.92
+          8 |         85        0.31        1.23
+          9 |        106        0.39        1.62
+         10 |        137        0.50        2.12
+         11 |        174        0.64        2.76
+         12 |        210        0.77        3.53
+         13 |        257        0.94        4.47
+         14 |        296        1.08        5.56
+         15 |        340        1.25        6.80
+         16 |        392        1.44        8.24
+         17 |        459        1.68        9.92
+         18 |        528        1.93       11.86
+         19 |        548        2.01       13.86
+         20 |        556        2.04       15.90
+         21 |        533        1.95       17.85
+         22 |        500        1.83       19.69
+         23 |        467        1.71       21.40
+         24 |        431        1.58       22.98
+         25 |        437        1.60       24.58
+         26 |        432        1.58       26.16
+         27 |        429        1.57       27.73
+         28 |        434        1.59       29.33
+         29 |        465        1.70       31.03
+         30 |        486        1.78       32.81
+         31 |        485        1.78       34.59
+         32 |        532        1.95       36.54
+         33 |        532        1.95       38.49
+         34 |        563        2.06       40.55
+         35 |        587        2.15       42.70
+         36 |        604        2.21       44.92
+         37 |        611        2.24       47.15
+         38 |        595        2.18       49.33
+         39 |        607        2.22       51.56
+         40 |        616        2.26       53.82
+         41 |        623        2.28       56.10
+         42 |        631        2.31       58.41
+         43 |        640        2.35       60.76
+         44 |        627        2.30       63.06
+         45 |        624        2.29       65.34
+         46 |        619        2.27       67.61
+         47 |        595        2.18       69.79
+         48 |        583        2.14       71.93
+         49 |        558        2.04       73.97
+         50 |        541        1.98       75.96
+         51 |        521        1.91       77.86
+         52 |        468        1.72       79.58
+         53 |        423        1.55       81.13
+         54 |        393        1.44       82.57
+         55 |        352        1.29       83.86
+         56 |        327        1.20       85.06
+         57 |        328        1.20       86.26
+         58 |        298        1.09       87.35
+         59 |        265        0.97       88.32
+         60 |        256        0.94       89.26
+         61 |        233        0.85       90.12
+         62 |        214        0.78       90.90
+         63 |        201        0.74       91.64
+         64 |        195        0.71       92.35
+         65 |        188        0.69       93.04
+         66 |        174        0.64       93.68
+         67 |        162        0.59       94.27
+         68 |        144        0.53       94.80
+         69 |        138        0.51       95.31
+         70 |        131        0.48       95.79
+         71 |        121        0.44       96.23
+         72 |        115        0.42       96.65
+         73 |        110        0.40       97.05
+         74 |        105        0.38       97.44
+         75 |         95        0.35       97.79
+         76 |         87        0.32       98.11
+         77 |         81        0.30       98.40
+         78 |         64        0.23       98.64
+         79 |         56        0.21       98.84
+         80 |         52        0.19       99.03
+         81 |         45        0.16       99.20
+         82 |         36        0.13       99.33
+         83 |         32        0.12       99.45
+         84 |         27        0.10       99.55
+         85 |         24        0.09       99.63
+         86 |         21        0.08       99.71
+         87 |         16        0.06       99.77
+         88 |         12        0.04       99.81
+         89 |         13        0.05       99.86
+         90 |          6        0.02       99.88
+         91 |          5        0.02       99.90
+         92 |          3        0.01       99.91
+         93 |          5        0.02       99.93
+         94 |          4        0.01       99.95
+         95 |          2        0.01       99.95
+         96 |          2        0.01       99.96
+         97 |          2        0.01       99.97
+         98 |          3        0.01       99.98
+         99 |          2        0.01       99.99
+        100 |          2        0.01       99.99
+        101 |          1        0.00      100.00
+        102 |          1        0.00      100.00
+------------+-----------------------------------
+      Total |     27,287      100.00
+
+.                 label variable age "age that someone turns the year of the su
+> rvey"
+
+.                 drop if age<18
+(2,707 observations deleted)
+
+.                 
+.                 *Female
+.                 tab sex, mis
+
+                                 Gender |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+                               [1] Male |     12,140       49.39       49.39
+                             [2] Female |     12,440       50.61      100.00
+----------------------------------------+-----------------------------------
+                                  Total |     24,580      100.00
+
+.                 gen female=1 if sex==2
+(12,140 missing values generated)
+
+.                 replace female=0 if sex==1
+(12,140 real changes made)
+
+.                 label variable female "1 if person is female"
+
+.                 
+.                 *Years of education
+.                 tab pgbilzeit
+
+     Amount Of Education Or Training In |
+                                  Years |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+                    [-2] Does not apply |        637        3.17        3.17
+                         [-1] No answer |        525        2.61        5.78
+                                      7 |        562        2.79        8.57
+                                    8.5 |         16        0.08        8.65
+                                      9 |      1,887        9.38       18.03
+                                     10 |        507        2.52       20.55
+                                   10.5 |      3,308       16.45       37.00
+                                     11 |        780        3.88       40.88
+                                   11.5 |      3,124       15.53       56.41
+                                     12 |      2,455       12.21       68.61
+                                     13 |      1,164        5.79       74.40
+                                   13.5 |        299        1.49       75.89
+                                     14 |        340        1.69       77.58
+                                   14.5 |        522        2.60       80.17
+                                     15 |        875        4.35       84.52
+                                     16 |        740        3.68       88.20
+                                     17 |         73        0.36       88.57
+                                     18 |      2,300       11.43      100.00
+----------------------------------------+-----------------------------------
+                                  Total |     20,114      100.00
+
+.                 replace pgbilzeit=. if pgbilzeit==-1
+(525 real changes made, 525 to missing)
+
+.                 replace pgbilzeit=. if pgbilzeit==-2
+(637 real changes made, 637 to missing)
+
+.                 rename pgbilzeit education
+
+.                 
+.                 * log household income
+.                 tab hghinc
+
+     Monthly Household Net Income (EUR) |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+                         [-3] Not valid |         91        0.43        0.43
+                    [-2] Does not apply |         19        0.09        0.52
+                         [-1] No answer |      1,031        4.85        5.37
+                                      0 |          3        0.01        5.39
+                                     40 |          1        0.00        5.39
+                                     50 |          2        0.01        5.40
+                                     96 |          1        0.00        5.40
+                                     97 |          1        0.00        5.41
+                                    100 |          2        0.01        5.42
+                                    120 |          3        0.01        5.43
+                                    135 |          1        0.00        5.44
+                                    150 |          2        0.01        5.45
+                                    177 |          1        0.00        5.45
+                                    184 |          1        0.00        5.46
+                                    200 |          3        0.01        5.47
+                                    250 |          1        0.00        5.47
+                                    280 |          1        0.00        5.48
+                                    300 |         11        0.05        5.53
+                                    307 |          1        0.00        5.54
+                                    313 |          1        0.00        5.54
+                                    314 |          1        0.00        5.55
+                                    315 |          1        0.00        5.55
+                                    316 |          1        0.00        5.55
+                                    320 |         14        0.07        5.62
+                                    325 |          1        0.00        5.63
+                                    330 |          1        0.00        5.63
+                                    331 |          1        0.00        5.63
+                                    340 |          3        0.01        5.65
+                                    345 |          2        0.01        5.66
+                                    350 |          7        0.03        5.69
+                                    353 |          1        0.00        5.70
+                                    354 |          1        0.00        5.70
+                                    358 |          1        0.00        5.71
+                                    359 |          2        0.01        5.71
+                                    365 |          1        0.00        5.72
+                                    368 |          1        0.00        5.72
+                                    370 |          4        0.02        5.74
+                                    371 |          2        0.01        5.75
+                                    374 |          1        0.00        5.76
+                                    375 |          3        0.01        5.77
+                                    376 |          1        0.00        5.78
+                                    380 |          1        0.00        5.78
+                                    382 |          1        0.00        5.79
+                                    385 |          1        0.00        5.79
+                                    390 |          1        0.00        5.79
+                                    398 |          1        0.00        5.80
+                                    399 |          3        0.01        5.81
+                                    400 |         18        0.08        5.90
+                                    404 |          5        0.02        5.92
+                                    409 |         10        0.05        5.97
+                                    410 |          5        0.02        5.99
+                                    411 |          1        0.00        6.00
+                                    413 |          2        0.01        6.01
+                                    415 |          1        0.00        6.01
+                                    420 |          2        0.01        6.02
+                                    424 |          3        0.01        6.03
+                                    428 |          1        0.00        6.04
+                                    430 |          2        0.01        6.05
+                                    435 |          1        0.00        6.05
+                                    439 |          1        0.00        6.06
+                                    450 |         12        0.06        6.11
+                                    453 |          1        0.00        6.12
+                                    460 |          6        0.03        6.15
+                                    470 |          1        0.00        6.15
+                                    472 |          1        0.00        6.16
+                                    476 |          1        0.00        6.16
+                                    480 |          2        0.01        6.17
+                                    482 |          1        0.00        6.18
+                                    484 |          1        0.00        6.18
+                                    485 |          2        0.01        6.19
+                                    490 |          1        0.00        6.19
+                                    495 |          1        0.00        6.20
+                                    500 |         33        0.16        6.35
+                                    501 |          2        0.01        6.36
+                                    506 |          2        0.01        6.37
+                                    511 |         14        0.07        6.44
+                                    520 |          1        0.00        6.44
+                                    525 |          2        0.01        6.45
+                                    526 |          1        0.00        6.46
+                                    527 |          1        0.00        6.46
+                                    537 |          1        0.00        6.47
+                                    538 |          1        0.00        6.47
+                                    540 |          1        0.00        6.48
+                                    542 |          1        0.00        6.48
+                                    549 |          1        0.00        6.49
+                                    550 |          9        0.04        6.53
+                                    555 |          1        0.00        6.53
+                                    558 |          3        0.01        6.55
+                                    559 |          1        0.00        6.55
+                                    560 |          3        0.01        6.57
+                                    561 |          1        0.00        6.57
+                                    562 |          3        0.01        6.59
+                                    568 |          1        0.00        6.59
+                                    570 |          2        0.01        6.60
+                                    577 |          1        0.00        6.60
+                                    578 |          3        0.01        6.62
+                                    580 |          3        0.01        6.63
+                                    581 |          2        0.01        6.64
+                                    583 |          1        0.00        6.65
+                                    584 |          2        0.01        6.66
+                                    590 |          2        0.01        6.67
+                                    595 |          1        0.00        6.67
+                                    596 |          1        0.00        6.67
+                                    600 |         62        0.29        6.97
+                                    603 |          1        0.00        6.97
+                                    605 |          1        0.00        6.98
+                                    608 |          1        0.00        6.98
+                                    610 |          2        0.01        6.99
+                                    611 |          1        0.00        6.99
+                                    612 |          1        0.00        7.00
+                                    614 |          8        0.04        7.04
+                                    619 |          1        0.00        7.04
+                                    620 |          2        0.01        7.05
+                                    625 |          2        0.01        7.06
+                                    627 |          1        0.00        7.07
+                                    628 |          2        0.01        7.07
+                                    630 |          7        0.03        7.11
+                                    631 |          2        0.01        7.12
+                                    636 |          2        0.01        7.13
+                                    639 |          4        0.02        7.15
+                                    640 |          3        0.01        7.16
+                                    642 |          1        0.00        7.16
+                                    643 |          2        0.01        7.17
+                                    644 |          1        0.00        7.18
+                                    645 |          1        0.00        7.18
+                                    648 |          1        0.00        7.19
+                                    649 |          2        0.01        7.20
+                                    650 |         20        0.09        7.29
+                                    655 |          4        0.02        7.31
+                                    657 |          2        0.01        7.32
+                                    659 |          1        0.00        7.32
+                                    660 |          3        0.01        7.34
+                                    664 |          4        0.02        7.36
+                                    665 |          8        0.04        7.40
+                                    666 |          1        0.00        7.40
+                                    670 |          8        0.04        7.44
+                                    672 |          2        0.01        7.45
+                                    674 |          3        0.01        7.46
+                                    676 |          1        0.00        7.47
+                                    678 |          1        0.00        7.47
+                                    680 |          5        0.02        7.49
+                                    685 |          1        0.00        7.50
+                                    687 |          1        0.00        7.50
+                                    688 |          1        0.00        7.51
+                                    690 |          3        0.01        7.52
+                                    691 |          1        0.00        7.53
+                                    692 |          1        0.00        7.53
+                                    694 |          2        0.01        7.54
+                                    699 |          1        0.00        7.55
+                                    700 |         62        0.29        7.84
+                                    702 |          1        0.00        7.84
+                                    703 |          1        0.00        7.85
+                                    704 |          1        0.00        7.85
+                                    706 |          2        0.01        7.86
+                                    708 |          1        0.00        7.87
+                                    710 |          1        0.00        7.87
+                                    713 |          2        0.01        7.88
+                                    714 |          1        0.00        7.88
+                                    715 |          3        0.01        7.90
+                                    716 |          5        0.02        7.92
+                                    720 |          9        0.04        7.96
+                                    722 |          1        0.00        7.97
+                                    723 |          1        0.00        7.97
+                                    724 |          1        0.00        7.98
+                                    725 |          3        0.01        7.99
+                                    726 |          1        0.00        8.00
+                                    729 |          1        0.00        8.00
+                                    730 |          6        0.03        8.03
+                                    731 |          3        0.01        8.04
+                                    733 |          2        0.01        8.05
+                                    734 |          1        0.00        8.06
+                                    735 |          2        0.01        8.07
+                                    736 |          2        0.01        8.08
+                                    739 |          1        0.00        8.08
+                                    740 |          9        0.04        8.12
+                                    744 |          2        0.01        8.13
+                                    745 |          5        0.02        8.16
+                                    750 |         26        0.12        8.28
+                                    752 |          2        0.01        8.29
+                                    755 |          2        0.01        8.30
+                                    758 |          2        0.01        8.31
+                                    760 |          6        0.03        8.34
+                                    767 |         12        0.06        8.39
+                                    769 |          1        0.00        8.40
+                                    770 |          7        0.03        8.43
+                                    775 |          1        0.00        8.44
+                                    779 |          1        0.00        8.44
+                                    780 |         11        0.05        8.49
+                                    781 |          1        0.00        8.50
+                                    782 |          2        0.01        8.51
+                                    783 |          1        0.00        8.51
+                                    784 |          1        0.00        8.52
+                                    785 |          2        0.01        8.52
+                                    790 |          4        0.02        8.54
+                                    793 |          2        0.01        8.55
+                                    798 |          2        0.01        8.56
+                                    800 |         89        0.42        8.98
+                                    802 |          1        0.00        8.99
+                                    803 |          1        0.00        8.99
+                                    804 |          1        0.00        9.00
+                                    805 |          1        0.00        9.00
+                                    806 |          1        0.00        9.00
+                                    808 |          1        0.00        9.01
+                                    810 |          2        0.01        9.02
+                                    811 |          1        0.00        9.02
+                                    818 |          3        0.01        9.04
+                                    819 |          1        0.00        9.04
+                                    820 |          4        0.02        9.06
+                                    822 |          1        0.00        9.07
+                                    825 |          4        0.02        9.08
+                                    828 |          1        0.00        9.09
+                                    830 |          7        0.03        9.12
+                                    832 |          2        0.01        9.13
+                                    838 |          1        0.00        9.14
+                                    839 |          1        0.00        9.14
+                                    840 |          4        0.02        9.16
+                                    841 |          3        0.01        9.17
+                                    843 |          1        0.00        9.18
+                                    849 |          3        0.01        9.19
+                                    850 |         33        0.16        9.35
+                                    854 |          2        0.01        9.36
+                                    860 |          2        0.01        9.37
+                                    866 |          1        0.00        9.37
+                                    869 |          4        0.02        9.39
+                                    870 |          5        0.02        9.41
+                                    874 |          1        0.00        9.42
+                                    877 |          1        0.00        9.42
+                                    878 |          1        0.00        9.43
+                                    879 |          1        0.00        9.43
+                                    880 |          3        0.01        9.45
+                                    885 |          3        0.01        9.46
+                                    887 |          2        0.01        9.47
+                                    888 |          1        0.00        9.48
+                                    890 |          5        0.02        9.50
+                                    891 |          1        0.00        9.50
+                                    893 |          4        0.02        9.52
+                                    895 |          2        0.01        9.53
+                                    898 |          1        0.00        9.54
+                                    900 |         95        0.45        9.98
+                                    901 |          1        0.00        9.99
+                                    905 |          5        0.02       10.01
+                                    907 |          1        0.00       10.02
+                                    908 |          1        0.00       10.02
+                                    910 |          2        0.01       10.03
+                                    911 |          1        0.00       10.04
+                                    912 |          2        0.01       10.05
+                                    915 |          2        0.01       10.05
+                                    920 |         12        0.06       10.11
+                                    921 |          1        0.00       10.12
+                                    926 |          1        0.00       10.12
+                                    929 |          1        0.00       10.13
+                                    930 |          8        0.04       10.16
+                                    936 |          1        0.00       10.17
+                                    940 |          5        0.02       10.19
+                                    941 |          1        0.00       10.20
+                                    945 |          1        0.00       10.20
+                                    946 |          2        0.01       10.21
+                                    950 |         26        0.12       10.33
+                                    952 |          1        0.00       10.34
+                                    955 |          2        0.01       10.35
+                                    956 |          2        0.01       10.36
+                                    957 |          1        0.00       10.36
+                                    958 |          1        0.00       10.37
+                                    960 |         15        0.07       10.44
+                                    961 |          1        0.00       10.44
+                                    965 |          2        0.01       10.45
+                                    966 |          3        0.01       10.46
+                                    970 |          7        0.03       10.50
+                                    971 |          3        0.01       10.51
+                                    976 |          1        0.00       10.52
+                                    978 |          1        0.00       10.52
+                                    980 |          8        0.04       10.56
+                                    986 |          1        0.00       10.56
+                                    988 |          2        0.01       10.57
+                                    989 |          1        0.00       10.58
+                                    990 |          3        0.01       10.59
+                                    993 |          1        0.00       10.60
+                                    994 |          1        0.00       10.60
+                                    997 |          5        0.02       10.62
+                                    998 |          2        0.01       10.63
+                                    999 |          1        0.00       10.64
+                                   1000 |        201        0.95       11.58
+                                   1005 |          2        0.01       11.59
+                                   1006 |          1        0.00       11.60
+                                   1007 |          1        0.00       11.60
+                                   1008 |          4        0.02       11.62
+                                   1010 |          4        0.02       11.64
+                                   1012 |          2        0.01       11.65
+                                   1014 |          3        0.01       11.66
+                                   1018 |          2        0.01       11.67
+                                   1019 |          1        0.00       11.68
+                                   1020 |          3        0.01       11.69
+                                   1021 |          3        0.01       11.71
+                                   1022 |          5        0.02       11.73
+                                   1023 |         28        0.13       11.86
+                                   1027 |          3        0.01       11.88
+                                   1029 |          1        0.00       11.88
+                                   1030 |          5        0.02       11.90
+                                   1034 |          1        0.00       11.91
+                                   1035 |          1        0.00       11.91
+                                   1040 |          6        0.03       11.94
+                                   1042 |          1        0.00       11.95
+                                   1045 |          1        0.00       11.95
+                                   1046 |          2        0.01       11.96
+                                   1048 |          1        0.00       11.97
+                                   1050 |         35        0.16       12.13
+                                   1053 |          3        0.01       12.14
+                                   1054 |          1        0.00       12.15
+                                   1060 |          7        0.03       12.18
+                                   1061 |          1        0.00       12.19
+                                   1065 |          2        0.01       12.20
+                                   1066 |          1        0.00       12.20
+                                   1067 |          2        0.01       12.21
+                                   1070 |          8        0.04       12.25
+                                   1073 |          1        0.00       12.25
+                                   1074 |         18        0.08       12.34
+                                   1075 |          1        0.00       12.34
+                                   1076 |          1        0.00       12.35
+                                   1078 |          3        0.01       12.36
+                                   1080 |          9        0.04       12.40
+                                   1081 |          1        0.00       12.41
+                                   1083 |          1        0.00       12.41
+                                   1084 |          3        0.01       12.43
+                                   1085 |          2        0.01       12.44
+                                   1087 |          1        0.00       12.44
+                                   1089 |          3        0.01       12.46
+                                   1090 |          6        0.03       12.48
+                                   1092 |          1        0.00       12.49
+                                   1098 |          2        0.01       12.50
+                                   1099 |          1        0.00       12.50
+                                   1100 |        137        0.64       13.15
+                                   1101 |          1        0.00       13.15
+                                   1105 |          3        0.01       13.17
+                                   1110 |          3        0.01       13.18
+                                   1112 |          3        0.01       13.19
+                                   1116 |          1        0.00       13.20
+                                   1119 |          1        0.00       13.20
+                                   1120 |          6        0.03       13.23
+                                   1122 |          2        0.01       13.24
+                                   1125 |         15        0.07       13.31
+                                   1126 |          1        0.00       13.32
+                                   1129 |          1        0.00       13.32
+                                   1130 |          5        0.02       13.34
+                                   1134 |          1        0.00       13.35
+                                   1135 |          5        0.02       13.37
+                                   1136 |          1        0.00       13.38
+                                   1138 |          1        0.00       13.38
+                                   1139 |          1        0.00       13.39
+                                   1140 |          5        0.02       13.41
+                                   1142 |          1        0.00       13.42
+                                   1146 |          3        0.01       13.43
+                                   1150 |         36        0.17       13.60
+                                   1151 |          4        0.02       13.62
+                                   1152 |          1        0.00       13.62
+                                   1155 |          2        0.01       13.63
+                                   1160 |          6        0.03       13.66
+                                   1161 |          1        0.00       13.67
+                                   1164 |          1        0.00       13.67
+                                   1166 |          5        0.02       13.69
+                                   1168 |          1        0.00       13.70
+                                   1170 |          9        0.04       13.74
+                                   1173 |          1        0.00       13.75
+                                   1174 |          2        0.01       13.75
+                                   1176 |         20        0.09       13.85
+                                   1180 |         17        0.08       13.93
+                                   1185 |          3        0.01       13.94
+                                   1186 |          2        0.01       13.95
+                                   1188 |          2        0.01       13.96
+                                   1189 |          2        0.01       13.97
+                                   1190 |          6        0.03       14.00
+                                   1191 |          4        0.02       14.02
+                                   1197 |          3        0.01       14.03
+                                   1198 |          1        0.00       14.04
+                                   1200 |        316        1.49       15.52
+                                   1202 |          4        0.02       15.54
+                                   1203 |          2        0.01       15.55
+                                   1207 |          3        0.01       15.57
+                                   1212 |          1        0.00       15.57
+                                   1215 |          2        0.01       15.58
+                                   1217 |          1        0.00       15.59
+                                   1219 |          1        0.00       15.59
+                                   1220 |          7        0.03       15.62
+                                   1222 |          3        0.01       15.64
+                                   1225 |          1        0.00       15.64
+                                   1227 |         14        0.07       15.71
+                                   1228 |          3        0.01       15.72
+                                   1230 |          3        0.01       15.74
+                                   1232 |          1        0.00       15.74
+                                   1235 |          3        0.01       15.76
+                                   1236 |          1        0.00       15.76
+                                   1238 |          2        0.01       15.77
+                                   1240 |          9        0.04       15.81
+                                   1247 |          1        0.00       15.82
+                                   1248 |          2        0.01       15.83
+                                   1250 |         60        0.28       16.11
+                                   1251 |          1        0.00       16.11
+                                   1252 |          1        0.00       16.12
+                                   1253 |          3        0.01       16.13
+                                   1254 |          2        0.01       16.14
+                                   1255 |          2        0.01       16.15
+                                   1256 |          3        0.01       16.16
+                                   1258 |          1        0.00       16.17
+                                   1260 |          9        0.04       16.21
+                                   1264 |          1        0.00       16.22
+                                   1267 |          1        0.00       16.22
+                                   1268 |          2        0.01       16.23
+                                   1270 |          7        0.03       16.26
+                                   1272 |          1        0.00       16.27
+                                   1275 |          6        0.03       16.30
+                                   1276 |          1        0.00       16.30
+                                   1278 |         30        0.14       16.44
+                                   1280 |          9        0.04       16.48
+                                   1281 |          1        0.00       16.49
+                                   1284 |          1        0.00       16.49
+                                   1285 |          3        0.01       16.51
+                                   1286 |          2        0.01       16.52
+                                   1288 |          2        0.01       16.53
+                                   1290 |          5        0.02       16.55
+                                   1291 |          2        0.01       16.56
+                                   1293 |          1        0.00       16.56
+                                   1294 |          2        0.01       16.57
+                                   1295 |          1        0.00       16.58
+                                   1296 |          2        0.01       16.59
+                                   1297 |          1        0.00       16.59
+                                   1300 |        209        0.98       17.58
+                                   1303 |          1        0.00       17.58
+                                   1304 |          3        0.01       17.60
+                                   1305 |          1        0.00       17.60
+                                   1308 |          2        0.01       17.61
+                                   1310 |          2        0.01       17.62
+                                   1311 |          2        0.01       17.63
+                                   1312 |          3        0.01       17.64
+                                   1314 |          2        0.01       17.65
+                                   1317 |          1        0.00       17.66
+                                   1318 |          4        0.02       17.68
+                                   1320 |          3        0.01       17.69
+                                   1322 |          1        0.00       17.69
+                                   1324 |          1        0.00       17.70
+                                   1325 |          1        0.00       17.70
+                                   1328 |          1        0.00       17.71
+                                   1329 |         14        0.07       17.77
+                                   1330 |          5        0.02       17.80
+                                   1331 |          2        0.01       17.81
+                                   1334 |          1        0.00       17.81
+                                   1338 |          1        0.00       17.82
+                                   1340 |          9        0.04       17.86
+                                   1348 |          1        0.00       17.86
+                                   1350 |         32        0.15       18.01
+                                   1354 |          4        0.02       18.03
+                                   1356 |          1        0.00       18.04
+                                   1360 |         10        0.05       18.09
+                                   1362 |          2        0.01       18.09
+                                   1364 |          1        0.00       18.10
+                                   1369 |          1        0.00       18.10
+                                   1370 |          5        0.02       18.13
+                                   1375 |          3        0.01       18.14
+                                   1379 |          2        0.01       18.15
+                                   1380 |         32        0.15       18.30
+                                   1381 |          1        0.00       18.31
+                                   1385 |          1        0.00       18.31
+                                   1386 |          1        0.00       18.32
+                                   1389 |          1        0.00       18.32
+                                   1390 |          2        0.01       18.33
+                                   1392 |          2        0.01       18.34
+                                   1393 |          1        0.00       18.34
+                                   1395 |          1        0.00       18.35
+                                   1400 |        205        0.96       19.31
+                                   1401 |          1        0.00       19.32
+                                   1404 |          1        0.00       19.32
+                                   1405 |          4        0.02       19.34
+                                   1408 |          3        0.01       19.36
+                                   1410 |          6        0.03       19.38
+                                   1411 |          3        0.01       19.40
+                                   1413 |          1        0.00       19.40
+                                   1415 |          2        0.01       19.41
+                                   1416 |          2        0.01       19.42
+                                   1417 |          1        0.00       19.43
+                                   1420 |          3        0.01       19.44
+                                   1423 |          2        0.01       19.45
+                                   1424 |          1        0.00       19.45
+                                   1425 |          1        0.00       19.46
+                                   1427 |          2        0.01       19.47
+                                   1430 |          5        0.02       19.49
+                                   1432 |         22        0.10       19.60
+                                   1433 |          1        0.00       19.60
+                                   1434 |          1        0.00       19.61
+                                   1438 |          2        0.01       19.61
+                                   1440 |          2        0.01       19.62
+                                   1441 |          2        0.01       19.63
+                                   1442 |          2        0.01       19.64
+                                   1445 |          1        0.00       19.65
+                                   1450 |         34        0.16       19.81
+                                   1454 |          2        0.01       19.82
+                                   1460 |          4        0.02       19.84
+                                   1464 |          3        0.01       19.85
+                                   1465 |          2        0.01       19.86
+                                   1468 |          1        0.00       19.86
+                                   1469 |          1        0.00       19.87
+                                   1470 |          4        0.02       19.89
+                                   1473 |          2        0.01       19.90
+                                   1474 |          1        0.00       19.90
+                                   1475 |          2        0.01       19.91
+                                   1480 |         11        0.05       19.96
+                                   1483 |         11        0.05       20.02
+                                   1484 |          2        0.01       20.02
+                                   1488 |          2        0.01       20.03
+                                   1489 |          1        0.00       20.04
+                                   1490 |          5        0.02       20.06
+                                   1494 |          1        0.00       20.07
+                                   1495 |          3        0.01       20.08
+                                   1500 |        394        1.85       21.94
+                                   1502 |          2        0.01       21.95
+                                   1504 |          2        0.01       21.95
+                                   1506 |          3        0.01       21.97
+                                   1508 |          1        0.00       21.97
+                                   1509 |          1        0.00       21.98
+                                   1510 |          5        0.02       22.00
+                                   1513 |          1        0.00       22.01
+                                   1514 |          1        0.00       22.01
+                                   1515 |          3        0.01       22.03
+                                   1516 |          2        0.01       22.03
+                                   1517 |          1        0.00       22.04
+                                   1520 |          1        0.00       22.04
+                                   1522 |          3        0.01       22.06
+                                   1525 |          3        0.01       22.07
+                                   1527 |          1        0.00       22.08
+                                   1528 |          3        0.01       22.09
+                                   1529 |          2        0.01       22.10
+                                   1530 |          4        0.02       22.12
+                                   1531 |          1        0.00       22.12
+                                   1534 |         64        0.30       22.43
+                                   1535 |          1        0.00       22.43
+                                   1536 |          1        0.00       22.43
+                                   1538 |          2        0.01       22.44
+                                   1540 |          3        0.01       22.46
+                                   1542 |          1        0.00       22.46
+                                   1550 |         40        0.19       22.65
+                                   1553 |          1        0.00       22.66
+                                   1554 |          1        0.00       22.66
+                                   1557 |          2        0.01       22.67
+                                   1558 |          2        0.01       22.68
+                                   1560 |          7        0.03       22.71
+                                   1564 |          4        0.02       22.73
+                                   1570 |          5        0.02       22.75
+                                   1571 |          1        0.00       22.76
+                                   1572 |          2        0.01       22.77
+                                   1573 |          1        0.00       22.77
+                                   1575 |          2        0.01       22.78
+                                   1576 |          1        0.00       22.79
+                                   1580 |         20        0.09       22.88
+                                   1583 |          1        0.00       22.89
+                                   1584 |          3        0.01       22.90
+                                   1585 |         10        0.05       22.95
+                                   1590 |          4        0.02       22.97
+                                   1595 |          2        0.01       22.98
+                                   1600 |        311        1.46       24.44
+                                   1610 |          2        0.01       24.45
+                                   1611 |          7        0.03       24.48
+                                   1612 |          1        0.00       24.49
+                                   1615 |          2        0.01       24.50
+                                   1617 |          1        0.00       24.50
+                                   1618 |          1        0.00       24.51
+                                   1620 |          5        0.02       24.53
+                                   1622 |          1        0.00       24.53
+                                   1629 |          1        0.00       24.54
+                                   1630 |          6        0.03       24.57
+                                   1632 |          2        0.01       24.58
+                                   1635 |          1        0.00       24.58
+                                   1636 |         13        0.06       24.64
+                                   1640 |          3        0.01       24.66
+                                   1644 |          3        0.01       24.67
+                                   1645 |          4        0.02       24.69
+                                   1648 |          2        0.01       24.70
+                                   1650 |         55        0.26       24.96
+                                   1658 |          2        0.01       24.97
+                                   1659 |          1        0.00       24.97
+                                   1660 |          7        0.03       25.00
+                                   1662 |          2        0.01       25.01
+                                   1663 |          1        0.00       25.02
+                                   1664 |          4        0.02       25.04
+                                   1667 |          2        0.01       25.05
+                                   1668 |          1        0.00       25.05
+                                   1670 |          7        0.03       25.08
+                                   1672 |          1        0.00       25.09
+                                   1680 |         11        0.05       25.14
+                                   1684 |          1        0.00       25.15
+                                   1685 |          4        0.02       25.16
+                                   1687 |         18        0.08       25.25
+                                   1690 |          2        0.01       25.26
+                                   1692 |          2        0.01       25.27
+                                   1695 |          1        0.00       25.27
+                                   1697 |          1        0.00       25.28
+                                   1700 |        280        1.32       26.60
+                                   1705 |          3        0.01       26.61
+                                   1707 |          2        0.01       26.62
+                                   1712 |          4        0.02       26.64
+                                   1718 |          2        0.01       26.65
+                                   1720 |          6        0.03       26.68
+                                   1721 |          1        0.00       26.68
+                                   1722 |          1        0.00       26.69
+                                   1727 |          2        0.01       26.69
+                                   1728 |          3        0.01       26.71
+                                   1729 |          1        0.00       26.71
+                                   1730 |          2        0.01       26.72
+                                   1731 |          1        0.00       26.73
+                                   1733 |          1        0.00       26.73
+                                   1736 |          1        0.00       26.74
+                                   1738 |         15        0.07       26.81
+                                   1740 |          5        0.02       26.83
+                                   1744 |          1        0.00       26.84
+                                   1750 |         48        0.23       27.06
+                                   1754 |          2        0.01       27.07
+                                   1756 |          2        0.01       27.08
+                                   1758 |          3        0.01       27.09
+                                   1759 |          2        0.01       27.10
+                                   1760 |         12        0.06       27.16
+                                   1762 |          2        0.01       27.17
+                                   1764 |          1        0.00       27.17
+                                   1765 |          1        0.00       27.18
+                                   1769 |          1        0.00       27.18
+                                   1770 |          6        0.03       27.21
+                                   1774 |          1        0.00       27.22
+                                   1775 |          4        0.02       27.24
+                                   1780 |          6        0.03       27.26
+                                   1782 |          3        0.01       27.28
+                                   1783 |          1        0.00       27.28
+                                   1784 |          2        0.01       27.29
+                                   1786 |          3        0.01       27.31
+                                   1787 |          2        0.01       27.32
+                                   1788 |          2        0.01       27.33
+                                   1790 |         67        0.32       27.64
+                                   1800 |        413        1.94       29.58
+                                   1805 |          2        0.01       29.59
+                                   1810 |          3        0.01       29.61
+                                   1815 |          1        0.00       29.61
+                                   1817 |          1        0.00       29.62
+                                   1818 |          1        0.00       29.62
+                                   1820 |          2        0.01       29.63
+                                   1825 |          3        0.01       29.65
+                                   1830 |          9        0.04       29.69
+                                   1837 |          4        0.02       29.71
+                                   1840 |          5        0.02       29.73
+                                   1841 |         20        0.09       29.82
+                                   1842 |          1        0.00       29.83
+                                   1845 |          2        0.01       29.84
+                                   1846 |          2        0.01       29.85
+                                   1847 |          1        0.00       29.85
+                                   1848 |          3        0.01       29.87
+                                   1849 |          1        0.00       29.87
+                                   1850 |         53        0.25       30.12
+                                   1854 |          2        0.01       30.13
+                                   1860 |          6        0.03       30.16
+                                   1861 |          2        0.01       30.17
+                                   1866 |          2        0.01       30.18
+                                   1867 |          1        0.00       30.18
+                                   1868 |          3        0.01       30.20
+                                   1869 |          1        0.00       30.20
+                                   1870 |          5        0.02       30.23
+                                   1871 |          3        0.01       30.24
+                                   1873 |          2        0.01       30.25
+                                   1875 |          2        0.01       30.26
+                                   1880 |         12        0.06       30.31
+                                   1883 |          2        0.01       30.32
+                                   1884 |          6        0.03       30.35
+                                   1885 |          1        0.00       30.36
+                                   1886 |          1        0.00       30.36
+                                   1888 |          2        0.01       30.37
+                                   1890 |          2        0.01       30.38
+                                   1892 |         20        0.09       30.47
+                                   1900 |        215        1.01       31.49
+                                   1903 |          1        0.00       31.49
+                                   1907 |          1        0.00       31.50
+                                   1908 |          2        0.01       31.51
+                                   1910 |          5        0.02       31.53
+                                   1917 |          4        0.02       31.55
+                                   1918 |          2        0.01       31.56
+                                   1920 |          3        0.01       31.57
+                                   1922 |          2        0.01       31.58
+                                   1924 |          2        0.01       31.59
+                                   1928 |          3        0.01       31.60
+                                   1930 |          2        0.01       31.61
+                                   1934 |          2        0.01       31.62
+                                   1936 |          2        0.01       31.63
+                                   1937 |          1        0.00       31.64
+                                   1940 |          5        0.02       31.66
+                                   1941 |          2        0.01       31.67
+                                   1943 |         27        0.13       31.80
+                                   1944 |          1        0.00       31.80
+                                   1945 |          2        0.01       31.81
+                                   1948 |          1        0.00       31.82
+                                   1950 |         40        0.19       32.00
+                                   1956 |          1        0.00       32.01
+                                   1958 |          1        0.00       32.01
+                                   1960 |          3        0.01       32.03
+                                   1961 |          1        0.00       32.03
+                                   1962 |          3        0.01       32.05
+                                   1963 |          3        0.01       32.06
+                                   1964 |          1        0.00       32.07
+                                   1970 |          7        0.03       32.10
+                                   1971 |          1        0.00       32.10
+                                   1974 |          2        0.01       32.11
+                                   1977 |          1        0.00       32.12
+                                   1978 |          1        0.00       32.12
+                                   1979 |          2        0.01       32.13
+                                   1980 |          3        0.01       32.15
+                                   1983 |          3        0.01       32.16
+                                   1984 |          1        0.00       32.16
+                                   1986 |          2        0.01       32.17
+                                   1988 |          2        0.01       32.18
+                                   1990 |          4        0.02       32.20
+                                   1994 |         13        0.06       32.26
+                                   2000 |        787        3.70       35.97
+                                   2003 |          1        0.00       35.97
+                                   2004 |          1        0.00       35.98
+                                   2006 |          2        0.01       35.99
+                                   2008 |          2        0.01       36.00
+                                   2009 |          3        0.01       36.01
+                                   2010 |          1        0.00       36.01
+                                   2014 |          2        0.01       36.02
+                                   2018 |          4        0.02       36.04
+                                   2020 |          3        0.01       36.06
+                                   2026 |          2        0.01       36.07
+                                   2030 |          2        0.01       36.08
+                                   2035 |          3        0.01       36.09
+                                   2037 |          4        0.02       36.11
+                                   2040 |          1        0.00       36.11
+                                   2041 |          1        0.00       36.12
+                                   2042 |          1        0.00       36.12
+                                   2045 |        111        0.52       36.65
+                                   2047 |          1        0.00       36.65
+                                   2050 |         25        0.12       36.77
+                                   2051 |          1        0.00       36.77
+                                   2058 |          2        0.01       36.78
+                                   2065 |          1        0.00       36.79
+                                   2066 |          1        0.00       36.79
+                                   2068 |          2        0.01       36.80
+                                   2070 |          6        0.03       36.83
+                                   2075 |          2        0.01       36.84
+                                   2080 |          5        0.02       36.86
+                                   2081 |          3        0.01       36.88
+                                   2090 |          4        0.02       36.90
+                                   2091 |          2        0.01       36.90
+                                   2096 |          4        0.02       36.92
+                                   2100 |        250        1.18       38.10
+                                   2105 |          1        0.00       38.10
+                                   2107 |          2        0.01       38.11
+                                   2110 |          2        0.01       38.12
+                                   2111 |          1        0.00       38.13
+                                   2117 |          2        0.01       38.14
+                                   2120 |          1        0.00       38.14
+                                   2125 |          2        0.01       38.15
+                                   2130 |          4        0.02       38.17
+                                   2133 |          1        0.00       38.18
+                                   2135 |          2        0.01       38.18
+                                   2140 |          5        0.02       38.21
+                                   2143 |          3        0.01       38.22
+                                   2147 |         11        0.05       38.27
+                                   2150 |         29        0.14       38.41
+                                   2154 |          3        0.01       38.42
+                                   2156 |          1        0.00       38.43
+                                   2157 |          3        0.01       38.44
+                                   2158 |          2        0.01       38.45
+                                   2160 |          7        0.03       38.49
+                                   2170 |          3        0.01       38.50
+                                   2171 |          1        0.00       38.50
+                                   2172 |          2        0.01       38.51
+                                   2173 |          2        0.01       38.52
+                                   2175 |          1        0.00       38.53
+                                   2177 |          4        0.02       38.55
+                                   2180 |          1        0.00       38.55
+                                   2183 |          3        0.01       38.57
+                                   2189 |          1        0.00       38.57
+                                   2190 |          4        0.02       38.59
+                                   2193 |          1        0.00       38.59
+                                   2196 |          3        0.01       38.61
+                                   2198 |          1        0.00       38.61
+                                   2199 |         11        0.05       38.67
+                                   2200 |        344        1.62       40.28
+                                   2204 |          2        0.01       40.29
+                                   2205 |          1        0.00       40.30
+                                   2209 |          1        0.00       40.30
+                                   2210 |          1        0.00       40.31
+                                   2215 |          2        0.01       40.32
+                                   2217 |          1        0.00       40.32
+                                   2218 |          1        0.00       40.33
+                                   2220 |          4        0.02       40.35
+                                   2221 |          1        0.00       40.35
+                                   2222 |          3        0.01       40.36
+                                   2225 |          2        0.01       40.37
+                                   2227 |          1        0.00       40.38
+                                   2230 |          6        0.03       40.41
+                                   2231 |          2        0.01       40.42
+                                   2232 |          4        0.02       40.43
+                                   2235 |          1        0.00       40.44
+                                   2239 |          1        0.00       40.44
+                                   2240 |          8        0.04       40.48
+                                   2247 |          2        0.01       40.49
+                                   2248 |          1        0.00       40.50
+                                   2250 |         71        0.33       40.83
+                                   2258 |          3        0.01       40.84
+                                   2260 |          6        0.03       40.87
+                                   2262 |          1        0.00       40.88
+                                   2264 |          1        0.00       40.88
+                                   2268 |          8        0.04       40.92
+                                   2270 |          7        0.03       40.95
+                                   2275 |          2        0.01       40.96
+                                   2280 |          9        0.04       41.00
+                                   2282 |          4        0.02       41.02
+                                   2284 |          1        0.00       41.03
+                                   2285 |          2        0.01       41.04
+                                   2288 |          2        0.01       41.05
+                                   2290 |          2        0.01       41.06
+                                   2295 |          2        0.01       41.07
+                                   2297 |          1        0.00       41.07
+                                   2300 |        327        1.54       42.61
+                                   2301 |         96        0.45       43.06
+                                   2306 |          3        0.01       43.08
+                                   2308 |          4        0.02       43.09
+                                   2310 |          1        0.00       43.10
+                                   2311 |          2        0.01       43.11
+                                   2312 |          1        0.00       43.11
+                                   2318 |          4        0.02       43.13
+                                   2320 |          8        0.04       43.17
+                                   2326 |          1        0.00       43.17
+                                   2330 |          3        0.01       43.19
+                                   2335 |          4        0.02       43.21
+                                   2337 |          1        0.00       43.21
+                                   2338 |          1        0.00       43.22
+                                   2339 |          1        0.00       43.22
+                                   2340 |          3        0.01       43.24
+                                   2350 |         36        0.17       43.41
+                                   2352 |         16        0.08       43.48
+                                   2355 |          2        0.01       43.49
+                                   2356 |          1        0.00       43.49
+                                   2358 |          4        0.02       43.51
+                                   2360 |         14        0.07       43.58
+                                   2363 |          2        0.01       43.59
+                                   2364 |          1        0.00       43.59
+                                   2368 |          2        0.01       43.60
+                                   2369 |          2        0.01       43.61
+                                   2370 |          3        0.01       43.63
+                                   2377 |          2        0.01       43.64
+                                   2378 |          5        0.02       43.66
+                                   2380 |          3        0.01       43.67
+                                   2388 |          2        0.01       43.68
+                                   2389 |          1        0.00       43.69
+                                   2390 |         12        0.06       43.74
+                                   2395 |          2        0.01       43.75
+                                   2396 |          1        0.00       43.76
+                                   2400 |        286        1.35       45.10
+                                   2403 |         24        0.11       45.22
+                                   2404 |          3        0.01       45.23
+                                   2410 |          7        0.03       45.26
+                                   2418 |          1        0.00       45.27
+                                   2420 |          6        0.03       45.30
+                                   2421 |          1        0.00       45.30
+                                   2424 |          2        0.01       45.31
+                                   2425 |          2        0.01       45.32
+                                   2429 |          4        0.02       45.34
+                                   2430 |          7        0.03       45.37
+                                   2435 |          2        0.01       45.38
+                                   2438 |          3        0.01       45.40
+                                   2439 |          1        0.00       45.40
+                                   2440 |          7        0.03       45.43
+                                   2442 |          1        0.00       45.44
+                                   2443 |          3        0.01       45.45
+                                   2446 |          2        0.01       45.46
+                                   2450 |         48        0.23       45.69
+                                   2454 |         19        0.09       45.78
+                                   2455 |          2        0.01       45.79
+                                   2457 |          2        0.01       45.80
+                                   2458 |          4        0.02       45.82
+                                   2460 |          5        0.02       45.84
+                                   2461 |          1        0.00       45.84
+                                   2463 |          1        0.00       45.85
+                                   2465 |          4        0.02       45.87
+                                   2466 |          2        0.01       45.88
+                                   2468 |          3        0.01       45.89
+                                   2470 |          8        0.04       45.93
+                                   2472 |          1        0.00       45.93
+                                   2475 |          4        0.02       45.95
+                                   2478 |          1        0.00       45.96
+                                   2480 |          3        0.01       45.97
+                                   2485 |          1        0.00       45.98
+                                   2488 |          3        0.01       45.99
+                                   2490 |          5        0.02       46.01
+                                   2492 |          3        0.01       46.03
+                                   2494 |          2        0.01       46.04
+                                   2497 |          2        0.01       46.05
+                                   2500 |        692        3.26       49.30
+                                   2504 |          1        0.00       49.31
+                                   2505 |         21        0.10       49.41
+                                   2508 |          2        0.01       49.42
+                                   2520 |          5        0.02       49.44
+                                   2521 |          2        0.01       49.45
+                                   2524 |          1        0.00       49.45
+                                   2530 |          2        0.01       49.46
+                                   2531 |          4        0.02       49.48
+                                   2535 |          2        0.01       49.49
+                                   2537 |          3        0.01       49.51
+                                   2538 |          3        0.01       49.52
+                                   2540 |          6        0.03       49.55
+                                   2542 |          1        0.00       49.55
+                                   2543 |          4        0.02       49.57
+                                   2544 |          2        0.01       49.58
+                                   2545 |          2        0.01       49.59
+                                   2550 |         31        0.15       49.74
+                                   2552 |          2        0.01       49.75
+                                   2555 |          3        0.01       49.76
+                                   2556 |        112        0.53       50.29
+                                   2558 |          2        0.01       50.30
+                                   2560 |         11        0.05       50.35
+                                   2562 |          2        0.01       50.36
+                                   2567 |          2        0.01       50.37
+                                   2568 |          2        0.01       50.38
+                                   2570 |          4        0.02       50.40
+                                   2575 |          1        0.00       50.40
+                                   2576 |          2        0.01       50.41
+                                   2578 |          3        0.01       50.42
+                                   2580 |         10        0.05       50.47
+                                   2585 |          1        0.00       50.48
+                                   2590 |          4        0.02       50.49
+                                   2591 |          2        0.01       50.50
+                                   2597 |          2        0.01       50.51
+                                   2598 |          1        0.00       50.52
+                                   2600 |        274        1.29       51.81
+                                   2605 |          2        0.01       51.82
+                                   2607 |          1        0.00       51.82
+                                   2608 |         11        0.05       51.87
+                                   2611 |          2        0.01       51.88
+                                   2612 |          1        0.00       51.89
+                                   2615 |          1        0.00       51.89
+                                   2616 |          2        0.01       51.90
+                                   2618 |          2        0.01       51.91
+                                   2619 |          2        0.01       51.92
+                                   2620 |          2        0.01       51.93
+                                   2623 |          3        0.01       51.94
+                                   2624 |          1        0.00       51.95
+                                   2630 |          8        0.04       51.99
+                                   2633 |          1        0.00       51.99
+                                   2634 |          2        0.01       52.00
+                                   2640 |         20        0.09       52.09
+                                   2642 |          1        0.00       52.10
+                                   2650 |         30        0.14       52.24
+                                   2654 |          2        0.01       52.25
+                                   2655 |          2        0.01       52.26
+                                   2657 |          2        0.01       52.27
+                                   2659 |         10        0.05       52.32
+                                   2660 |          3        0.01       52.33
+                                   2665 |          1        0.00       52.33
+                                   2668 |          1        0.00       52.34
+                                   2669 |          1        0.00       52.34
+                                   2670 |          4        0.02       52.36
+                                   2672 |          1        0.00       52.37
+                                   2680 |          1        0.00       52.37
+                                   2687 |          2        0.01       52.38
+                                   2699 |          2        0.01       52.39
+                                   2700 |        276        1.30       53.69
+                                   2710 |         21        0.10       53.79
+                                   2720 |          1        0.00       53.79
+                                   2725 |          3        0.01       53.81
+                                   2727 |          1        0.00       53.81
+                                   2728 |          2        0.01       53.82
+                                   2730 |          4        0.02       53.84
+                                   2735 |          2        0.01       53.85
+                                   2738 |          2        0.01       53.86
+                                   2740 |          3        0.01       53.87
+                                   2742 |          1        0.00       53.88
+                                   2746 |          3        0.01       53.89
+                                   2748 |          5        0.02       53.92
+                                   2750 |         41        0.19       54.11
+                                   2759 |          1        0.00       54.11
+                                   2760 |          2        0.01       54.12
+                                   2761 |         11        0.05       54.18
+                                   2762 |          2        0.01       54.18
+                                   2763 |          1        0.00       54.19
+                                   2768 |          1        0.00       54.19
+                                   2770 |          4        0.02       54.21
+                                   2774 |          1        0.00       54.22
+                                   2780 |          4        0.02       54.24
+                                   2782 |          3        0.01       54.25
+                                   2786 |          2        0.01       54.26
+                                   2790 |          1        0.00       54.26
+                                   2795 |          1        0.00       54.27
+                                   2797 |          1        0.00       54.27
+                                   2800 |        360        1.69       55.97
+                                   2806 |          3        0.01       55.98
+                                   2810 |          2        0.01       55.99
+                                   2812 |         30        0.14       56.13
+                                   2815 |          1        0.00       56.14
+                                   2820 |          1        0.00       56.14
+                                   2825 |          1        0.00       56.15
+                                   2827 |          4        0.02       56.17
+                                   2830 |          2        0.01       56.18
+                                   2833 |          2        0.01       56.19
+                                   2840 |          2        0.01       56.19
+                                   2842 |          2        0.01       56.20
+                                   2847 |          2        0.01       56.21
+                                   2848 |          3        0.01       56.23
+                                   2850 |         38        0.18       56.41
+                                   2851 |          1        0.00       56.41
+                                   2858 |          2        0.01       56.42
+                                   2860 |          1        0.00       56.43
+                                   2862 |          2        0.01       56.43
+                                   2863 |          8        0.04       56.47
+                                   2865 |          2        0.01       56.48
+                                   2870 |          5        0.02       56.51
+                                   2873 |          2        0.01       56.51
+                                   2877 |          2        0.01       56.52
+                                   2880 |          2        0.01       56.53
+                                   2883 |          2        0.01       56.54
+                                   2884 |          2        0.01       56.55
+                                   2888 |          1        0.00       56.56
+                                   2890 |          1        0.00       56.56
+                                   2899 |          2        0.01       56.57
+                                   2900 |        173        0.81       57.39
+                                   2910 |          6        0.03       57.41
+                                   2913 |          1        0.00       57.42
+                                   2914 |          6        0.03       57.45
+                                   2916 |          2        0.01       57.46
+                                   2917 |          4        0.02       57.48
+                                   2924 |          2        0.01       57.48
+                                   2930 |          7        0.03       57.52
+                                   2933 |          2        0.01       57.53
+                                   2943 |          1        0.00       57.53
+                                   2948 |          1        0.00       57.54
+                                   2950 |         18        0.08       57.62
+                                   2951 |          1        0.00       57.63
+                                   2954 |          1        0.00       57.63
+                                   2956 |          2        0.01       57.64
+                                   2960 |          6        0.03       57.67
+                                   2965 |         13        0.06       57.73
+                                   2970 |          1        0.00       57.73
+                                   2975 |          1        0.00       57.74
+                                   2976 |          2        0.01       57.75
+                                   2980 |          7        0.03       57.78
+                                   2981 |          4        0.02       57.80
+                                   2987 |          2        0.01       57.81
+                                   2991 |          1        0.00       57.81
+                                   2992 |          1        0.00       57.82
+                                   3000 |        902        4.25       62.06
+                                   3002 |          2        0.01       62.07
+                                   3007 |          2        0.01       62.08
+                                   3008 |          2        0.01       62.09
+                                   3015 |          1        0.00       62.10
+                                   3017 |          2        0.01       62.11
+                                   3020 |          2        0.01       62.12
+                                   3024 |          1        0.00       62.12
+                                   3027 |          3        0.01       62.14
+                                   3035 |          1        0.00       62.14
+                                   3038 |          1        0.00       62.14
+                                   3039 |          2        0.01       62.15
+                                   3040 |          3        0.01       62.17
+                                   3042 |          1        0.00       62.17
+                                   3050 |          9        0.04       62.22
+                                   3054 |          1        0.00       62.22
+                                   3060 |          3        0.01       62.23
+                                   3064 |          6        0.03       62.26
+                                   3068 |         89        0.42       62.68
+                                   3070 |          2        0.01       62.69
+                                   3073 |          2        0.01       62.70
+                                   3080 |          1        0.00       62.70
+                                   3083 |          2        0.01       62.71
+                                   3090 |          1        0.00       62.72
+                                   3097 |          2        0.01       62.73
+                                   3098 |          2        0.01       62.74
+                                   3100 |        153        0.72       63.46
+                                   3101 |          2        0.01       63.47
+                                   3109 |          1        0.00       63.47
+                                   3110 |          1        0.00       63.48
+                                   3111 |          2        0.01       63.49
+                                   3119 |          5        0.02       63.51
+                                   3120 |          4        0.02       63.53
+                                   3121 |          2        0.01       63.54
+                                   3125 |          3        0.01       63.55
+                                   3130 |          5        0.02       63.58
+                                   3140 |          2        0.01       63.59
+                                   3148 |          1        0.00       63.59
+                                   3150 |         20        0.09       63.68
+                                   3154 |          2        0.01       63.69
+                                   3163 |          2        0.01       63.70
+                                   3170 |         10        0.05       63.75
+                                   3180 |          4        0.02       63.77
+                                   3181 |          2        0.01       63.78
+                                   3183 |          1        0.00       63.78
+                                   3187 |          2        0.01       63.79
+                                   3188 |          6        0.03       63.82
+                                   3200 |        270        1.27       65.09
+                                   3204 |          9        0.04       65.13
+                                   3217 |          2        0.01       65.14
+                                   3220 |          3        0.01       65.16
+                                   3221 |          2        0.01       65.17
+                                   3225 |          1        0.00       65.17
+                                   3234 |          1        0.00       65.18
+                                   3240 |          4        0.02       65.19
+                                   3250 |         19        0.09       65.28
+                                   3252 |          2        0.01       65.29
+                                   3254 |          2        0.01       65.30
+                                   3264 |          2        0.01       65.31
+                                   3270 |          3        0.01       65.33
+                                   3277 |          2        0.01       65.34
+                                   3280 |          1        0.00       65.34
+                                   3284 |          2        0.01       65.35
+                                   3286 |          1        0.00       65.35
+                                   3287 |          4        0.02       65.37
+                                   3288 |          1        0.00       65.38
+                                   3293 |          2        0.01       65.39
+                                   3294 |          2        0.01       65.40
+                                   3300 |        258        1.21       66.61
+                                   3304 |          5        0.02       66.64
+                                   3308 |          2        0.01       66.64
+                                   3313 |          2        0.01       66.65
+                                   3318 |          2        0.01       66.66
+                                   3321 |          1        0.00       66.67
+                                   3323 |         29        0.14       66.80
+                                   3325 |          2        0.01       66.81
+                                   3330 |          5        0.02       66.84
+                                   3333 |          2        0.01       66.85
+                                   3349 |          4        0.02       66.87
+                                   3350 |         17        0.08       66.95
+                                   3360 |          8        0.04       66.98
+                                   3362 |          2        0.01       66.99
+                                   3366 |          3        0.01       67.01
+                                   3368 |          2        0.01       67.02
+                                   3374 |          2        0.01       67.03
+                                   3375 |          9        0.04       67.07
+                                   3380 |          3        0.01       67.08
+                                   3388 |          2        0.01       67.09
+                                   3390 |          2        0.01       67.10
+                                   3391 |          2        0.01       67.11
+                                   3400 |        178        0.84       67.95
+                                   3410 |          2        0.01       67.96
+                                   3415 |          2        0.01       67.97
+                                   3417 |          2        0.01       67.98
+                                   3420 |          2        0.01       67.99
+                                   3425 |          1        0.00       67.99
+                                   3426 |          2        0.01       68.00
+                                   3434 |          2        0.01       68.01
+                                   3439 |          1        0.00       68.01
+                                   3450 |         19        0.09       68.10
+                                   3460 |          3        0.01       68.12
+                                   3472 |          4        0.02       68.14
+                                   3477 |         11        0.05       68.19
+                                   3485 |          2        0.01       68.20
+                                   3500 |        601        2.83       71.03
+                                   3508 |          2        0.01       71.04
+                                   3510 |          2        0.01       71.05
+                                   3513 |          1        0.00       71.05
+                                   3528 |          5        0.02       71.07
+                                   3533 |          1        0.00       71.08
+                                   3537 |          4        0.02       71.10
+                                   3540 |          7        0.03       71.13
+                                   3550 |         18        0.08       71.22
+                                   3560 |          7        0.03       71.25
+                                   3564 |          1        0.00       71.25
+                                   3568 |          2        0.01       71.26
+                                   3570 |          5        0.02       71.29
+                                   3579 |         64        0.30       71.59
+                                   3590 |          3        0.01       71.60
+                                   3593 |          3        0.01       71.62
+                                   3599 |          3        0.01       71.63
+                                   3600 |        159        0.75       72.38
+                                   3602 |          2        0.01       72.39
+                                   3620 |          2        0.01       72.40
+                                   3630 |          4        0.02       72.42
+                                   3638 |          2        0.01       72.43
+                                   3645 |          4        0.02       72.44
+                                   3648 |          2        0.01       72.45
+                                   3650 |         18        0.08       72.54
+                                   3655 |          2        0.01       72.55
+                                   3668 |          2        0.01       72.56
+                                   3670 |          1        0.00       72.56
+                                   3681 |          4        0.02       72.58
+                                   3700 |        176        0.83       73.41
+                                   3717 |          2        0.01       73.42
+                                   3720 |          2        0.01       73.43
+                                   3732 |          4        0.02       73.45
+                                   3736 |          2        0.01       73.46
+                                   3739 |          2        0.01       73.47
+                                   3750 |         23        0.11       73.57
+                                   3760 |          2        0.01       73.58
+                                   3770 |          2        0.01       73.59
+                                   3780 |          2        0.01       73.60
+                                   3789 |          3        0.01       73.62
+                                   3793 |          2        0.01       73.63
+                                   3800 |        195        0.92       74.54
+                                   3830 |          2        0.01       74.55
+                                   3835 |          9        0.04       74.60
+                                   3848 |          1        0.00       74.60
+                                   3850 |         22        0.10       74.70
+                                   3860 |          2        0.01       74.71
+                                   3865 |          2        0.01       74.72
+                                   3877 |          2        0.01       74.73
+                                   3880 |          2        0.01       74.74
+                                   3886 |          5        0.02       74.76
+                                   3894 |          2        0.01       74.77
+                                   3900 |        101        0.48       75.25
+                                   3907 |          1        0.00       75.25
+                                   3911 |          2        0.01       75.26
+                                   3937 |          6        0.03       75.29
+                                   3949 |          2        0.01       75.30
+                                   3950 |         10        0.05       75.35
+                                   3958 |          2        0.01       75.36
+                                   3963 |          2        0.01       75.37
+                                   3967 |          4        0.02       75.39
+                                   3970 |          4        0.02       75.40
+                                   3988 |         12        0.06       75.46
+                                   4000 |        810        3.81       79.27
+                                   4008 |          2        0.01       79.28
+                                   4010 |          2        0.01       79.29
+                                   4014 |          3        0.01       79.31
+                                   4028 |          2        0.01       79.32
+                                   4030 |          2        0.01       79.33
+                                   4039 |          3        0.01       79.34
+                                   4040 |          2        0.01       79.35
+                                   4050 |         11        0.05       79.40
+                                   4054 |          2        0.01       79.41
+                                   4070 |          2        0.01       79.42
+                                   4080 |          5        0.02       79.44
+                                   4085 |          2        0.01       79.45
+                                   4090 |         32        0.15       79.60
+                                   4100 |         71        0.33       79.94
+                                   4120 |          4        0.02       79.96
+                                   4124 |          2        0.01       79.97
+                                   4130 |          2        0.01       79.98
+                                   4150 |         10        0.05       80.02
+                                   4158 |          1        0.00       80.03
+                                   4160 |          2        0.01       80.04
+                                   4172 |          2        0.01       80.05
+                                   4180 |          2        0.01       80.06
+                                   4184 |          2        0.01       80.06
+                                   4194 |          2        0.01       80.07
+                                   4200 |        148        0.70       80.77
+                                   4220 |          2        0.01       80.78
+                                   4230 |          2        0.01       80.79
+                                   4234 |          4        0.02       80.81
+                                   4238 |          2        0.01       80.82
+                                   4250 |          8        0.04       80.86
+                                   4260 |          5        0.02       80.88
+                                   4269 |          2        0.01       80.89
+                                   4270 |          7        0.03       80.92
+                                   4290 |          4        0.02       80.94
+                                   4295 |          1        0.00       80.95
+                                   4300 |         83        0.39       81.34
+                                   4312 |          4        0.02       81.35
+                                   4330 |          2        0.01       81.36
+                                   4340 |          2        0.01       81.37
+                                   4345 |          2        0.01       81.38
+                                   4346 |          7        0.03       81.42
+                                   4350 |          7        0.03       81.45
+                                   4360 |          2        0.01       81.46
+                                   4370 |          2        0.01       81.47
+                                   4372 |          4        0.02       81.49
+                                   4377 |          4        0.02       81.51
+                                   4379 |          1        0.00       81.51
+                                   4380 |          5        0.02       81.53
+                                   4390 |          3        0.01       81.55
+                                   4400 |         79        0.37       81.92
+                                   4430 |          3        0.01       81.93
+                                   4435 |          3        0.01       81.95
+                                   4437 |          3        0.01       81.96
+                                   4448 |          2        0.01       81.97
+                                   4450 |          6        0.03       82.00
+                                   4455 |          3        0.01       82.01
+                                   4470 |          3        0.01       82.03
+                                   4483 |          1        0.00       82.03
+                                   4489 |          2        0.01       82.04
+                                   4500 |        420        1.98       84.02
+                                   4540 |          2        0.01       84.03
+                                   4550 |          7        0.03       84.06
+                                   4556 |          5        0.02       84.08
+                                   4560 |          2        0.01       84.09
+                                   4580 |          4        0.02       84.11
+                                   4600 |         87        0.41       84.52
+                                   4602 |         29        0.14       84.66
+                                   4616 |          2        0.01       84.67
+                                   4625 |          2        0.01       84.68
+                                   4650 |         11        0.05       84.73
+                                   4652 |          3        0.01       84.74
+                                   4653 |          2        0.01       84.75
+                                   4690 |          2        0.01       84.76
+                                   4694 |          2        0.01       84.77
+                                   4700 |         79        0.37       85.14
+                                   4704 |          5        0.02       85.17
+                                   4738 |          2        0.01       85.18
+                                   4750 |          3        0.01       85.19
+                                   4780 |          2        0.01       85.20
+                                   4784 |          2        0.01       85.21
+                                   4800 |        119        0.56       85.77
+                                   4806 |          2        0.01       85.78
+                                   4818 |          1        0.00       85.78
+                                   4820 |          4        0.02       85.80
+                                   4844 |          2        0.01       85.81
+                                   4850 |          2        0.01       85.82
+                                   4857 |          6        0.03       85.85
+                                   4860 |          2        0.01       85.86
+                                   4870 |          1        0.00       85.86
+                                   4880 |          2        0.01       85.87
+                                   4900 |         41        0.19       86.07
+                                   4905 |          1        0.00       86.07
+                                   4908 |          4        0.02       86.09
+                                   4914 |          2        0.01       86.10
+                                   4928 |          1        0.00       86.10
+                                   4950 |          5        0.02       86.13
+                                   4960 |          1        0.00       86.13
+                                   4969 |          2        0.01       86.14
+                                   4970 |          3        0.01       86.16
+                                   4972 |          2        0.01       86.17
+                                   4983 |          2        0.01       86.17
+                                   5000 |        627        2.95       89.13
+                                   5010 |          2        0.01       89.14
+                                   5050 |          1        0.00       89.14
+                                   5062 |          2        0.01       89.15
+                                   5083 |          2        0.01       89.16
+                                   5100 |         32        0.15       89.31
+                                   5113 |         36        0.17       89.48
+                                   5120 |          3        0.01       89.49
+                                   5200 |         53        0.25       89.74
+                                   5264 |          2        0.01       89.75
+                                   5292 |          2        0.01       89.76
+                                   5300 |         73        0.34       90.11
+                                   5308 |          2        0.01       90.11
+                                   5330 |          2        0.01       90.12
+                                   5360 |          2        0.01       90.13
+                                   5369 |          4        0.02       90.15
+                                   5400 |         54        0.25       90.41
+                                   5413 |          2        0.01       90.42
+                                   5420 |          2        0.01       90.43
+                                   5432 |          1        0.00       90.43
+                                   5450 |          2        0.01       90.44
+                                   5500 |        211        0.99       91.43
+                                   5520 |          4        0.02       91.45
+                                   5521 |          4        0.02       91.47
+                                   5540 |          2        0.01       91.48
+                                   5550 |          4        0.02       91.50
+                                   5600 |         49        0.23       91.73
+                                   5624 |         10        0.05       91.78
+                                   5650 |          4        0.02       91.80
+                                   5700 |         30        0.14       91.94
+                                   5720 |          5        0.02       91.96
+                                   5750 |          2        0.01       91.97
+                                   5800 |         34        0.16       92.13
+                                   5850 |          3        0.01       92.14
+                                   5900 |         13        0.06       92.20
+                                   5938 |          2        0.01       92.21
+                                   5940 |          1        0.00       92.22
+                                   6000 |        352        1.66       93.88
+                                   6060 |          4        0.02       93.89
+                                   6080 |          2        0.01       93.90
+                                   6100 |         10        0.05       93.95
+                                   6136 |          8        0.04       93.99
+                                   6200 |         25        0.12       94.11
+                                   6260 |          1        0.00       94.11
+                                   6300 |         28        0.13       94.24
+                                   6400 |         40        0.19       94.43
+                                   6500 |         97        0.46       94.89
+                                   6600 |         19        0.09       94.98
+                                   6628 |          2        0.01       94.99
+                                   6647 |          6        0.03       95.02
+                                   6680 |          2        0.01       95.02
+                                   6688 |          2        0.01       95.03
+                                   6700 |         29        0.14       95.17
+                                   6730 |          1        0.00       95.18
+                                   6740 |          2        0.01       95.18
+                                   6750 |          2        0.01       95.19
+                                   6765 |          2        0.01       95.20
+                                   6780 |          2        0.01       95.21
+                                   6800 |         26        0.12       95.34
+                                   6850 |          3        0.01       95.35
+                                   6860 |          2        0.01       95.36
+                                   6900 |         15        0.07       95.43
+                                   6939 |          2        0.01       95.44
+                                   6956 |          2        0.01       95.45
+                                   7000 |        172        0.81       96.26
+                                   7021 |          2        0.01       96.27
+                                   7100 |         14        0.07       96.33
+                                   7150 |          2        0.01       96.34
+                                   7190 |          1        0.00       96.35
+                                   7200 |         26        0.12       96.47
+                                   7250 |          2        0.01       96.48
+                                   7300 |         12        0.06       96.54
+                                   7400 |          5        0.02       96.56
+                                   7480 |          2        0.01       96.57
+                                   7500 |         81        0.38       96.95
+                                   7600 |          9        0.04       96.99
+                                   7650 |          3        0.01       97.01
+                                   7669 |          1        0.00       97.01
+                                   7700 |         10        0.05       97.06
+                                   7800 |         16        0.08       97.13
+                                   7835 |          2        0.01       97.14
+                                   7900 |          5        0.02       97.17
+                                   7950 |          1        0.00       97.17
+                                   8000 |        143        0.67       97.84
+                                   8100 |          5        0.02       97.87
+                                   8181 |          2        0.01       97.88
+                                   8200 |         10        0.05       97.92
+                                   8300 |          4        0.02       97.94
+                                   8354 |          1        0.00       97.95
+                                   8400 |          3        0.01       97.96
+                                   8436 |          2        0.01       97.97
+                                   8500 |         40        0.19       98.16
+                                   8516 |          3        0.01       98.17
+                                   8578 |          2        0.01       98.18
+                                   8600 |          3        0.01       98.20
+                                   8657 |          2        0.01       98.21
+                                   8680 |          2        0.01       98.22
+                                   8700 |          6        0.03       98.24
+                                   8800 |          3        0.01       98.26
+                                   8824 |          3        0.01       98.27
+                                   8900 |          3        0.01       98.29
+                                   9000 |         57        0.27       98.55
+                                   9200 |          4        0.02       98.57
+                                   9300 |          2        0.01       98.58
+                                   9400 |          1        0.00       98.59
+                                   9500 |         16        0.08       98.66
+                                   9600 |          2        0.01       98.67
+                                  10000 |        119        0.56       99.23
+                                  10200 |          4        0.02       99.25
+                                  10300 |          2        0.01       99.26
+                                  10350 |          3        0.01       99.28
+                                  10400 |          1        0.00       99.28
+                                  10500 |          4        0.02       99.30
+                                  11000 |          8        0.04       99.34
+                                  11200 |          2        0.01       99.35
+                                  11300 |          2        0.01       99.36
+                                  11396 |          1        0.00       99.36
+                                  11500 |          4        0.02       99.38
+                                  11750 |          5        0.02       99.40
+                                  12000 |         31        0.15       99.55
+                                  12335 |          2        0.01       99.56
+                                  12500 |          2        0.01       99.57
+                                  13000 |         14        0.07       99.63
+                                  13300 |          4        0.02       99.65
+                                  13500 |          1        0.00       99.66
+                                  13805 |          1        0.00       99.66
+                                  14000 |          4        0.02       99.68
+                                  14500 |          3        0.01       99.69
+                                  15000 |         10        0.05       99.74
+                                  15350 |          2        0.01       99.75
+                                  15500 |          2        0.01       99.76
+                                  15600 |          2        0.01       99.77
+                                  15700 |          2        0.01       99.78
+                                  16000 |          9        0.04       99.82
+                                  16500 |          8        0.04       99.86
+                                  18000 |          1        0.00       99.86
+                                  18168 |          2        0.01       99.87
+                                  20000 |          4        0.02       99.89
+                                  23900 |          2        0.01       99.90
+                                  24000 |          2        0.01       99.91
+                                  24518 |          2        0.01       99.92
+                                  25000 |          1        0.00       99.92
+                                  28148 |          2        0.01       99.93
+                                  30000 |          4        0.02       99.95
+                                  40200 |          2        0.01       99.96
+                                  41500 |          2        0.01       99.97
+                                  50000 |          2        0.01       99.98
+                                  58000 |          2        0.01       99.99
+                                  65000 |          2        0.01      100.00
+----------------------------------------+-----------------------------------
+                                  Total |     21,244      100.00
+
+.                 replace hghinc=. if hghinc==-1
+(1,031 real changes made, 1,031 to missing)
+
+.                 replace hghinc=. if hghinc==-2
+(19 real changes made, 19 to missing)
+
+.                 replace hghinc=. if hghinc==-3
+(91 real changes made, 91 to missing)
+
+.                 gen lnhhincome=ln(hghinc)
+(4,480 missing values generated)
+
+.                 label variable lnhhincome "Ln household income"
+
+.                                 
+.                 *Married
+.                 tab pgfamstd
+
+          Marital Status In Survey Year |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+                         [-3] Not valid |         39        0.19        0.19
+                         [-1] No answer |         21        0.10        0.30
+                            [1] Married |     11,519       57.27       57.57
+             [2] Married, But Separated |        508        2.53       60.09
+                             [3] Single |      5,934       29.50       89.59
+                           [4] Divorced |      1,539        7.65       97.25
+[5] [de] Verwitwet / Lebenspartner/-in  |        500        2.49       99.73
+                [6] husband/wife abroad |         44        0.22       99.95
+[7] Registered Same-Sex Partnership, Li |          9        0.04      100.00
+[8] Registered Same-Sex Partnership, Li |          1        0.00      100.00
+----------------------------------------+-----------------------------------
+                                  Total |     20,114      100.00
+
+.                 gen married=.
+(24,580 missing values generated)
+
+.                 replace married=1 if pgfamstd==1|pgfamstd==2|pgfamstd==6|pgfa
+> mstd==7|pgfamstd==8
+(12,081 real changes made)
+
+.                 replace married=0 if pgfamstd==3|pgfamstd==4|pgfamstd==5
+(7,973 real changes made)
+
+.                 label variable married "Married or Registered Civil Partnersh
+> ip"
+
+. 
+.                 *German citizens
+.                 tab plj0014_v3, mis
+
+     [de] Deutsche Staatsangehoerigkeit |
+                            [1996-2020] |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+[-5] Not included in this version of th |        889        3.62        3.62
+                            [1] [de] Ja |     16,633       67.67       71.29
+                          [2] [de] Nein |      2,590       10.54       81.82
+                                      . |      4,468       18.18      100.00
+----------------------------------------+-----------------------------------
+                                  Total |     24,580      100.00
+
+.                 generate german=1 if plj0014_v3==1
+(7,947 missing values generated)
+
+.                 replace german=0 if plj0014_v3==2
+(2,590 real changes made)
+
+.                 replace german=. if plj0014_v3==-5
+(0 real changes made)
+
+.                 
+.                 
+. *** Outcome variable: based on how equal housework is shared
+. 
+. *** STEP 1: Time spent on housework by individual
+.         
+. ***Time spent housework for the full week
+. 
+. tab pli0012_h 
+
+          [de] Hausarbeit Std., Samstag |
+                         [harmonisiert] |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+[-8] Question this year not part of sur |      9,594       47.70       47.70
+[-5] Not included in this version of th |      1,364        6.78       54.48
+                 [-3] Implausible value |          3        0.01       54.50
+                    [-2] Does not apply |        192        0.95       55.45
+                                      0 |      1,497        7.44       62.90
+                                      1 |      2,644       13.15       76.04
+                                      2 |      2,258       11.23       87.27
+                                      3 |      1,213        6.03       93.30
+                                      4 |        746        3.71       97.01
+                                      5 |        325        1.62       98.63
+                                      6 |        149        0.74       99.37
+                                      7 |         36        0.18       99.55
+                                      8 |         71        0.35       99.90
+                                      9 |          3        0.01       99.92
+                                     10 |         11        0.05       99.97
+                                     12 |          6        0.03      100.00
+----------------------------------------+-----------------------------------
+                                  Total |     20,112      100.00
+
+. tab pli0016_h 
+
+          [de] Hausarbeit Std., Sonntag |
+                         [harmonisiert] |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+[-8] Question this year not part of sur |      9,594       47.70       47.70
+[-5] Not included in this version of th |      1,364        6.78       54.48
+                 [-3] Implausible value |          2        0.01       54.49
+                    [-2] Does not apply |        273        1.36       55.85
+                                      0 |      2,784       13.84       69.69
+                                      1 |      2,921       14.52       84.22
+                                      2 |      1,902        9.46       93.68
+                                      3 |        700        3.48       97.16
+                                      4 |        352        1.75       98.91
+                                      5 |        134        0.67       99.57
+                                      6 |         52        0.26       99.83
+                                      7 |          6        0.03       99.86
+                                      8 |         14        0.07       99.93
+                                      9 |          1        0.00       99.94
+                                     10 |          9        0.04       99.98
+                                     12 |          4        0.02      100.00
+----------------------------------------+-----------------------------------
+                                  Total |     20,112      100.00
+
+. tab pli0043_h
+
+          [de] Hausarbeit Std., Werktg. |
+                         [harmonisiert] |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+[-5] Not included in this version of th |        575        2.86        2.86
+                 [-3] Implausible value |         14        0.07        2.93
+                    [-2] Does not apply |        305        1.52        4.45
+                         [-1] No answer |          1        0.00        4.45
+                                      0 |      3,694       18.37       22.82
+                                      1 |      7,770       38.63       61.45
+                                      2 |      3,964       19.71       81.16
+                                      3 |      1,802        8.96       90.12
+                                      4 |      1,072        5.33       95.45
+                                      5 |        488        2.43       97.88
+                                      6 |        226        1.12       99.00
+                                      7 |         58        0.29       99.29
+                                      8 |         93        0.46       99.75
+                                      9 |          2        0.01       99.76
+                                     10 |         31        0.15       99.92
+                                     11 |          1        0.00       99.92
+                                     12 |         13        0.06       99.99
+                                     13 |          1        0.00       99.99
+                                     14 |          1        0.00      100.00
+                                     24 |          1        0.00      100.00
+----------------------------------------+-----------------------------------
+                                  Total |     20,112      100.00
+
+. 
+. gen housework_sat=.
+(24,580 missing values generated)
+
+. replace housework_sat=pli0012_h if pli0012_h>=0
+(8,959 real changes made)
+
+. label variable housework_sat "hours spent on housework saturday"
+
+. 
+. gen housework_sun=.
+(24,580 missing values generated)
+
+. replace housework_sun=pli0016_h if pli0016_h>=0
+(8,879 real changes made)
+
+. label variable housework_sun "hours spent on housework sunday"
+
+. 
+. gen housework_weekday=.
+(24,580 missing values generated)
+
+. replace housework_weekday=pli0043_h if pli0043_h>=0
+(19,217 real changes made)
+
+. label variable housework_weekday "hours spent on housework weekdays"
+
+. 
+. gen housework_total=housework_weekday*5 + housework_sat + housework_sun
+(15,736 missing values generated)
+
+. label variable housework_total "total time spent on housework"
+
+. 
+. tab housework_total 
+
+ total time |
+   spent on |
+  housework |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |        947       10.71       10.71
+          1 |        292        3.30       14.01
+          2 |        358        4.05       18.06
+          3 |        113        1.28       19.34
+          4 |        105        1.19       20.52
+          5 |        315        3.56       24.08
+          6 |        497        5.62       29.70
+          7 |      1,417       16.02       45.73
+          8 |        451        5.10       50.83
+          9 |        413        4.67       55.50
+         10 |        236        2.67       58.16
+         11 |        187        2.11       60.28
+         12 |        291        3.29       63.57
+         13 |        326        3.69       67.25
+         14 |        666        7.53       74.79
+         15 |        200        2.26       77.05
+         16 |        187        2.11       79.16
+         17 |        136        1.54       80.70
+         18 |        152        1.72       82.42
+         19 |        162        1.83       84.25
+         20 |        153        1.73       85.98
+         21 |        228        2.58       88.56
+         22 |         73        0.83       89.38
+         23 |         72        0.81       90.20
+         24 |         88        1.00       91.19
+         25 |         94        1.06       92.25
+         26 |        108        1.22       93.48
+         27 |         64        0.72       94.20
+         28 |        120        1.36       95.56
+         29 |         31        0.35       95.91
+         30 |         32        0.36       96.27
+         31 |         27        0.31       96.57
+         32 |         35        0.40       96.97
+         33 |         36        0.41       97.38
+         34 |         24        0.27       97.65
+         35 |         40        0.45       98.10
+         36 |         14        0.16       98.26
+         37 |         11        0.12       98.38
+         38 |         13        0.15       98.53
+         39 |          5        0.06       98.59
+         40 |         18        0.20       98.79
+         41 |          5        0.06       98.85
+         42 |         20        0.23       99.07
+         43 |          5        0.06       99.13
+         44 |          6        0.07       99.20
+         45 |          3        0.03       99.23
+         46 |          3        0.03       99.27
+         47 |          3        0.03       99.30
+         48 |          4        0.05       99.34
+         49 |          5        0.06       99.40
+         50 |          7        0.08       99.48
+         51 |          5        0.06       99.54
+         52 |          7        0.08       99.62
+         53 |          4        0.05       99.66
+         54 |          1        0.01       99.67
+         56 |         10        0.11       99.79
+         57 |          1        0.01       99.80
+         60 |          1        0.01       99.81
+         62 |          1        0.01       99.82
+         64 |          1        0.01       99.83
+         66 |          2        0.02       99.85
+         68 |          2        0.02       99.88
+         69 |          1        0.01       99.89
+         70 |          3        0.03       99.92
+         72 |          1        0.01       99.93
+         76 |          1        0.01       99.94
+         80 |          1        0.01       99.95
+         84 |          4        0.05      100.00
+------------+-----------------------------------
+      Total |      8,844      100.00
+
+. drop if housework_total>100
+(15,736 observations deleted)
+
+. 
+. 
+. *** We need a column that shows the partners time spent doing housework in th
+> e pid row. Create a separate partner dataset to merge partners to pids.
+. 
+. ***save current dataset
+. save "$DATA/h3_dataset_hh.dta", replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/5%-sample/h3_dataset_hh.dta not found)
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/5%-sample/h3_dataset_hh.dta saved
+
+. 
+. ***keep cid hid pid parid houswork variable created above, partner id, number
+>  of children and number of daughters, and controls
+. 
+. global control female age education lnhhincome married german
+
+. 
+. keep cid pid hid parid partner syear housework_total num_daughter num_childre
+> n $control
+
+. 
+. ***rename variables for partner
+. 
+. foreach var of varlist housework_total num_daughter num_children female age e
+> ducation lnhhincome married german {
+  2. rename `var' `var'_partner
+  3. }
+
+. 
+. drop if parid==-2
+(2,790 observations deleted)
+
+. *This drops respondents without a partner 
+. 
+. drop pid
+
+. rename parid pid
+
+. 
+. * Pid will be used to merge the partners (parid) to the pid in the hh dataset
+. 
+. save "$DATA/h3_dataset_partner.dta", replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/5%-sample/h3_dataset_partner.dta not found)
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/5%-sample/h3_dataset_partner.dta saved
+
+. 
+. ***merge the variable with housework data to original dataset with hid, pig s
+> year.
+. 
+. use "$DATA/h3_dataset_hh.dta", replace
+
+. 
+. merge 1:1 hid pid syear using "$DATA/h3_dataset_partner.dta"
+(label partner already defined)
+(label partner_EN already defined)
+(label cid_EN already defined)
+(label pgbilzeit already defined)
+(label pgbilzeit_EN already defined)
+(label hid_EN already defined)
+(label syear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                         5,398
+        from master                     4,094  (_merge==1)
+        from using                      1,304  (_merge==2)
+
+    Matched                             4,750  (_merge==3)
+    -----------------------------------------
+
+. 
+. ***Only keep if partners could be matched
+. 
+. drop if _merg!=3
+(5,398 observations deleted)
+
+. *This drops anyone with a parid that was no match to the pids from hh dataset
+>  
+. 
+. 
+. drop if female==female_partner
+(6 observations deleted)
+
+. *This drops samesex couples, irrelevant as we analyze gender equality
+. 
+. save "$DATA/h3_dataset_hh.dta", replace
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/5%-sample/h3_dataset_hh.dta saved
+
+. 
+. ***Outcome variable, STEP 2: Calculate how equal housework is distributed
+. 
+. ***time spend on housework by both partners
+. 
+. gen housework_total_couple=housework_total+housework_total_partner
+
+. tab housework_total_couple, mis
+
+housework_t |
+otal_couple |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |          4        0.08        0.08
+          2 |          2        0.04        0.13
+          4 |          4        0.08        0.21
+          5 |         14        0.30        0.51
+          6 |         12        0.25        0.76
+          7 |         46        0.97        1.73
+          8 |         36        0.76        2.49
+          9 |         56        1.18        3.67
+         10 |         62        1.31        4.97
+         11 |         70        1.48        6.45
+         12 |         82        1.73        8.18
+         13 |        148        3.12       11.30
+         14 |        280        5.90       17.20
+         15 |        178        3.75       20.95
+         16 |        198        4.17       25.13
+         17 |        152        3.20       28.33
+         18 |        162        3.41       31.75
+         19 |        210        4.43       36.17
+         20 |        222        4.68       40.85
+         21 |        324        6.83       47.68
+         22 |        200        4.22       51.90
+         23 |        204        4.30       56.20
+         24 |        176        3.71       59.91
+         25 |        184        3.88       63.79
+         26 |        156        3.29       67.07
+         27 |        156        3.29       70.36
+         28 |        234        4.93       75.30
+         29 |         90        1.90       77.19
+         30 |        106        2.23       79.43
+         31 |        106        2.23       81.66
+         32 |         86        1.81       83.47
+         33 |         74        1.56       85.03
+         34 |         76        1.60       86.64
+         35 |         96        2.02       88.66
+         36 |         36        0.76       89.42
+         37 |         50        1.05       90.47
+         38 |         40        0.84       91.32
+         39 |         40        0.84       92.16
+         40 |         38        0.80       92.96
+         41 |         24        0.51       93.47
+         42 |         50        1.05       94.52
+         43 |         18        0.38       94.90
+         44 |         22        0.46       95.36
+         45 |         14        0.30       95.66
+         46 |         18        0.38       96.04
+         47 |         10        0.21       96.25
+         48 |         12        0.25       96.50
+         49 |         18        0.38       96.88
+         50 |         12        0.25       97.13
+         51 |         16        0.34       97.47
+         52 |         16        0.34       97.81
+         53 |          6        0.13       97.93
+         54 |          4        0.08       98.02
+         55 |          4        0.08       98.10
+         56 |         20        0.42       98.52
+         57 |          8        0.17       98.69
+         58 |          8        0.17       98.86
+         59 |          4        0.08       98.95
+         60 |          2        0.04       98.99
+         61 |          2        0.04       99.03
+         62 |          2        0.04       99.07
+         63 |          6        0.13       99.20
+         64 |          6        0.13       99.33
+         65 |          4        0.08       99.41
+         67 |          2        0.04       99.45
+         69 |          4        0.08       99.54
+         70 |          2        0.04       99.58
+         71 |          4        0.08       99.66
+         72 |          2        0.04       99.70
+         73 |          2        0.04       99.75
+         74 |          2        0.04       99.79
+         81 |          2        0.04       99.83
+         85 |          2        0.04       99.87
+         86 |          2        0.04       99.92
+         88 |          2        0.04       99.96
+         97 |          2        0.04      100.00
+------------+-----------------------------------
+      Total |      4,744      100.00
+
+. label variable housework_total_couple "total hours of housework a week both p
+> artners"
+
+. drop if housework_total_couple==0
+(4 observations deleted)
+
+. *Drop couples that do not do any housework (might be other person in househol
+> d or paid housework)
+. 
+. ***equal allocation of housework
+. 
+. gen housework_propdiff = (abs(housework_total-housework_total_partner))/house
+> work_total_couple
+
+. label variable housework_propdiff "Difference in housework proprotion between
+>  respondent and partner"
+
+. *difference in housework hours between partners divided by couple housework h
+> ours (absolute value)
+. *resulting variables takes value between 0 and 1
+. * 0 means both partners share housework equally, 1 means one partner does all
+>  the housework_proportion
+. * A value of 0.5 implies proportions of 75% to 25%
+. 
+. gen housework_equality = 1-housework_propdiff
+
+. *reverse code this variable, so that higher value means more equal housework 
+> (still between 0 and 1)
+. 
+. ***Main explanatory variable on household level
+. 
+. *Potential issue: Partners have different number of daughters (and children)
+. *Solution: Use max. number between partners as also step-daughters might infl
+> uence behavior
+. 
+. egen num_daughter_hh=rowmax(num_daughter num_daughter_partner)
+
+. egen num_children_hh=rowmax(num_children num_children_partner)
+
+. 
+. ***Control variables on household level
+. 
+. gen mean_age_hh= (age+age_partner)/2
+
+. gen mean_education_hh = (education+education_partner)/2
+(76 missing values generated)
+
+. gen german_share_hh = (german+german_partner)/2
+(194 missing values generated)
+
+. *average age and education of couple, share of german citizens in household
+. 
+. *household income is already measured on household level
+. 
+. drop if married!=married_partner
+(30 observations deleted)
+
+. *drop cases were current partner is married to someone else
+. 
+. ***Reducing dataset to one observation per households
+. 
+. global control mean_age_hh mean_education_hh lnhhincome married german_share_
+> hh
+
+. 
+. sum housework_equality num_daughter_hh num_children_hh $control if female==1
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+housework~ty |      2,355    .4439059     .338919          0          1
+num_daught~h |      2,355     .933758    .9430843          0          9
+num_childr~h |      2,355    1.978769    1.227506          0         12
+ mean_age_hh |      2,355    45.18217     11.6864         20       85.5
+mean_educa~h |      2,318    12.75561    2.520454          7         18
+-------------+---------------------------------------------------------
+  lnhhincome |      2,252    8.072427    .4979447   6.214608    10.9682
+     married |      2,355    .8683652    .3381651          0          1
+german_sha~h |      2,259    .9017264    .2574688          0          1
+
+. sum housework_equality num_daughter_hh num_children_hh $control if female==0
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+housework~ty |      2,355    .4439059     .338919          0          1
+num_daught~h |      2,355     .933758    .9430843          0          9
+num_childr~h |      2,355    1.978769    1.227506          0         12
+ mean_age_hh |      2,355    45.18217     11.6864         20       85.5
+mean_educa~h |      2,318    12.75561    2.520454          7         18
+-------------+---------------------------------------------------------
+  lnhhincome |      2,252    8.072427    .4979447   6.214608    10.9682
+     married |      2,355    .8683652    .3381651          0          1
+german_sha~h |      2,259    .9017264    .2574688          0          1
+
+. *the dataset as constructed contains a separate observation for each partner
+. *values for both partners are the same
+. drop if female==0
+(2,355 observations deleted)
+
+. *we drop one partner (male partner) to remove these duplicates
+. 
+. * ============================
+. * Analysis
+. * ============================
+. 
+. *** HYPOTHESIS TEST FOR H3 ***
+. * In hypothesis 3 we are working on household level. This means that all vari
+> ables are on the household level.
+. *For number of daughters and number of children we are using the maximum numb
+> er that a couple has. So if a couple has two joint children and the wife has 
+> two additional children, we will use four as the number of children. The same
+>  applies to daughters.
+. *As before, there is a potentical endogenity problem that people with more ch
+> ildren are more likly to have more daughters. There are probably unobserved f
+> actors that determine the number of children. We will therefore include numbe
+> r of children fixed effects. Here this is the maximum number of children fixe
+> d effect.
+. *Pooled panel regression with clustered SEs as households may have answered m
+> ultiple times
+. 
+.         reg housework_equality num_daughter_hh $control i.num_children_hh i.s
+> year, vce(cluster cid)
+
+Linear regression                               Number of obs     =      2,131
+                                                F(24, 517)        =          .
+                                                Prob > F          =          .
+                                                R-squared         =     0.1176
+                                                Root MSE          =     .32018
+
+                                  (Std. err. adjusted for 518 clusters in cid)
+------------------------------------------------------------------------------
+             |               Robust
+housework~ty | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+num_daught~h |   -.025151   .0174587    -1.44   0.150    -.0594498    .0091477
+ mean_age_hh |  -.0005953   .0010643    -0.56   0.576    -.0026861    .0014955
+mean_educa~h |   .0223577   .0057992     3.86   0.000     .0109649    .0337505
+  lnhhincome |   .0119372   .0284201     0.42   0.675    -.0438958    .0677702
+     married |  -.1545645   .0341567    -4.53   0.000    -.2216675   -.0874614
+german_sha~h |  -.1014904   .0425876    -2.38   0.018    -.1851564   -.0178244
+             |
+num_childr~h |
+          1  |  -.1089867   .0509348    -2.14   0.033    -.2090513   -.0089221
+          2  |  -.1190705   .0494055    -2.41   0.016    -.2161308   -.0220102
+          3  |  -.1487664   .0627388    -2.37   0.018    -.2720208   -.0255121
+          4  |  -.1145378   .0815746    -1.40   0.161    -.2747962    .0457207
+          5  |  -.1759781    .106241    -1.66   0.098    -.3846952    .0327391
+          6  |  -.2870305    .103502    -2.77   0.006    -.4903667   -.0836942
+          7  |  -.3091764   .0858974    -3.60   0.000    -.4779273   -.1404255
+          8  |  -.3425557   .1017223    -3.37   0.001    -.5423955   -.1427159
+         10  |   .4989213    .115953     4.30   0.000     .2711243    .7267183
+         12  |   .0402162   .1762654     0.23   0.820    -.3060683    .3865007
+             |
+       syear |
+       2003  |   .0298124    .024302     1.23   0.220    -.0179303    .0775551
+       2005  |   .0266947   .0275387     0.97   0.333    -.0274069    .0807963
+       2007  |   .0467598   .0273997     1.71   0.089    -.0070687    .1005882
+       2009  |   .0892529    .032067     2.78   0.006     .0262553    .1522504
+       2011  |   .0868469   .0328147     2.65   0.008     .0223804    .1513134
+       2012  |   .1156532   .0404621     2.86   0.004     .0361629    .1951436
+       2013  |   .1019886   .0314106     3.25   0.001     .0402805    .1636968
+       2015  |   .0871092   .0319217     2.73   0.007      .024397    .1498213
+       2017  |   .0676569   .0318045     2.13   0.034     .0051749    .1301389
+       2019  |   .1243084   .0325927     3.81   0.000      .060278    .1883387
+             |
+       _cons |    .385028   .2127707     1.81   0.071    -.0329735    .8030294
+------------------------------------------------------------------------------
+
+.         
+. 
+. * EXTRACT AND EXPORT RESULTS * (Please check whether the suggested code autom
+> atically picks up the correct statistics for your chosen regression analysis 
+> and adapt if needed)
+. 
+.         * Extract the required statistics
+. 
+.                 * (i) coefficient estimate
+.                 local coefficient = _b[num_daughter_hh]
+
+. 
+.                 * (ii) standard error
+.                 local se = _se[num_daughter_hh]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "t"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 local p_value = _b[num_daughter_hh] / _se[num_daughter_hh]
+
+.                 local p_value = 2 * ttail(e(df_r), abs(`p_value'))
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation of directionality
+.                 scalar coef_num_daughter = _b[num_daughter_hh]
+
+.                 local interpretation "positive coefficient is in line with hy
+> pothesis"
+
+. 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: -.0251510372074788
+
+.         di "Standard Error: `se'"
+Standard Error: .0174587111602144
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: t
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: 517
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 24
+
+.         di "p-value: " `p_value'
+p-value: .15030275
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 2131
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 606
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h3_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/5_res
+    > ults/h3_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

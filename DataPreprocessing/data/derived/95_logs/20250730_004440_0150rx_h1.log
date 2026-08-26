@@ -1,0 +1,676 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmpbq3lxf33.do 
+
+. do "95%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. * the following code automatically sets paths based on the project location o
+> n your system *
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/95%-sample" // folder, in which the or
+> iginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/95%-sample
+
+. global DATA "$ROOT/data/derived_confidential/95%-sample" // folder for datase
+> ts
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/95%-sample
+
+. global OUT "$ROOT/data/derived/95_results" // folder for output (results, tab
+> les)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/95_results
+
+. 
+end of do-file
+
+. do "20250730_004440_0150rx_h1.do"
+
+. *****************************************************************************
+> **********************************************************
+. ****************** Do-File H1 #ManyDaughters Project: (Having daughters incre
+> ases gender-equality attitudes) **************************
+. *****************************************************************************
+> **********************************************************
+. 
+. * Authors: [REDACTED], Fadongchen
+. 
+. * ============================
+. * Setup *
+. * ============================
+. 
+. * clear all
+. version 17
+
+. set maxvar 10000
+
+
+. set linesize 255
+
+. * ssc install ftools, replace
+. * ssc install reghdfe, replace
+. /*
+> if strpos("`c(pwd)'", "code") {
+>         global ROOT "`c(pwd)'/.."
+> }
+> else{
+>         global ROOT "`c(pwd)'"
+> } 
+> 
+> global IN   "$ROOT/data/raw" // folder, in which the original datasets are stored
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT  "$ROOT/out" // folder for output (results, tables)
+> */
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA * 
+. 
+.         * use ppathl as a starting dataset
+.         use "$IN/ppathl.dta", clear 
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+.         keep pid cid syear hid gebjahr sex erstbefr netto pop
+
+.         // pid: Individual unique Identifier (person id). The subsequent fixed-effect model needs to cluster by pid and must be able to identify the records of the same person in different years.
+.         // syear: Survey year. Together with pid, it forms the primary key of the panel (pid × syear).
+.         // hid: Family/Resident id. It is used to merge family-level data (such as income, housework duration).
+.         // sex: Gender. Used to construct parent dummy variables (MPD, MPS, FPD, FPS).
+.         // gebjahr: Year of birth. Calculate the age (Age = syear-gebjahr), and then apply the 18-50 age sample limit of PAP.
+.         // pop: Population types (for example, 1= private households, 2= institutional households). Robustness screening can be conducted (such as retaining only private residents).
+.         gen age = syear - gebjahr
+
+.         * Keep valid observations: interview year ≥ first interview; interview outcome acceptable
+.         keep if erstbefr <= syear & inlist(netto, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 29)    // Netto-codes 10-19 (and 29) define the respondents population of PGEN
+(143,471 observations deleted)
+
+. 
+.         * Merge child info
+.         merge m:1 pid using "$IN/biobirth.dta", keepusing(kidgeb01 kidsex01)
+(variable pid was long, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           519,652  (_merge==3)
+    -----------------------------------------
+
+.         keep if _merge == 3
+(0 observations deleted)
+
+.         drop _merge
+
+.         // kidgeb01: birth year of first child
+.         // kidsex01: gender of firsr child
+.         
+.         * Merge education
+.         merge m:1 pid syear using "$IN/biol.dta", keepusing(lb0191)
+(label cid_EN already defined)
+(label pid_EN already defined)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                       143,471
+        from master                         0  (_merge==1)
+        from using                    143,471  (_merge==2)
+
+    Matched                           519,652  (_merge==3)
+    -----------------------------------------
+
+.         keep if _merge == 3
+(143,471 observations deleted)
+
+.         drop _merge
+
+.         // School-Leaving Degree: lb0191. This variable is not included into the data due to many missing values.
+.         
+.         * Merge country
+.         merge 1:1 pid syear using "$IN/pgen.dta", keepusing(pgnation)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                       143,471
+        from master                         0  (_merge==1)
+        from using                    143,471  (_merge==2)
+
+    Matched                           519,652  (_merge==3)
+    -----------------------------------------
+
+.         keep if _merge == 3
+(143,471 observations deleted)
+
+.         drop _merge
+
+.         // pgnation: the nationality of the responder.
+.         
+.         * Merge survey controls and questionaires
+.         merge m:1 pid syear using "$IN/pl.dta", keepusing(plj0621 plj0622 plj0623 plj0624 plj0625 plc0017_h)
+(label instrument_EN already defined)
+(label intid_EN already defined)
+(label iyear_EN already defined)
+(label p_buh11_EN already defined)
+(label p_buh10_EN already defined)
+(label p_buh9_EN already defined)
+(label p_buh8_EN already defined)
+(label p_buh7_EN already defined)
+(label p_buh6_EN already defined)
+(label p_buh5_EN already defined)
+(label p_buh4_EN already defined)
+(label p_buh3_EN already defined)
+(label p_buh2_EN already defined)
+(label p_buh1_EN already defined)
+(label p_anker_EN already defined)
+(label syear_EN already defined)
+(label pnr_EN already defined)
+(label cid_EN already defined)
+(label hid_EN already defined)
+(label pid_EN already defined)
+(label instrument already defined)
+(label intid already defined)
+(label iyear already defined)
+(label p_buh11 already defined)
+(label p_buh10 already defined)
+(label p_buh9 already defined)
+(label p_buh8 already defined)
+(label p_buh7 already defined)
+(label p_buh6 already defined)
+(label p_buh5 already defined)
+(label p_buh4 already defined)
+(label p_buh3 already defined)
+(label p_buh2 already defined)
+(label p_buh1 already defined)
+(label p_anker already defined)
+(label pnr already defined)
+(label cid already defined)
+(label hid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                       143,471
+        from master                         0  (_merge==1)
+        from using                    143,471  (_merge==2)
+
+    Matched                           519,652  (_merge==3)
+    -----------------------------------------
+
+.         keep if _merge == 3
+(143,471 observations deleted)
+
+.         drop _merge
+
+.         // gender attitudes: plj0621 plj0622 plj0623 plj0624 plj0625    
+.         // income (Net Amount Of Wages, Salary Prev. Yr): plc0017_h. This variable is not included into the data due to many missing values.
+. 
+.                 * gender attitudes *
+.                 gen plj0624_r = 8 - plj0624 if !missing(plj0624)
+(5,162 missing values generated)
+
+.                 gen plj0625_r = 8 - plj0625 if !missing(plj0625)
+(5,162 missing values generated)
+
+.                 egen gender_att_raw = rowmean(plj0621 plj0622 plj0623 plj0624_r plj0625_r)
+(5,162 missing values generated)
+
+.                 egen gender_att = std(gender_att)
+(5,162 missing values generated)
+
+.                 label var gender_att "Standardized Gender Attitude Index (High = More Egalitarian)"
+
+.                 
+.                 
+.         * save data *
+.         label language EN // change language of the labels to English
+
+.         save "$DATA/h1_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confidential/95%-sample/h1_dataset.dta saved
+
+.         
+. * ============================
+. * Analysis *
+. * ============================
+. 
+. * FILTERS *
+.         
+.         * Restrict the sample to person-year observations in which respondents were aged between 18 and 50 years (inclusive), to focus on prime childbearing and child-rearing years *
+.         keep if inrange(age,18,50)
+(218,873 observations deleted)
+
+.         
+.         * Exclude respondents who were observed only once in the panel, as fixed-effects models require at least two observations per individual *
+.         egen n_obs = count(syear), by(pid)
+
+.         keep if n_obs>=2 
+(16,458 observations deleted)
+
+.         
+.         * Not impute missing outcome values *
+.         drop if missing(gender_att)
+(6 observations deleted)
+
+. 
+. * GENERATE VARIABLES * 
+.         
+.         * Key explanatory variable (MPD: male parent of daughters) *
+.         gen byte MPD = (sex==1 & !mi(kidgeb01) & kidgeb01<=syear & kidsex01==2) 
+
+.         gen byte MPS = (sex==1 & !mi(kidgeb01) & kidgeb01<=syear & kidsex01==1)
+
+.         gen byte FPD = (sex==2 & !mi(kidgeb01) & kidgeb01<=syear & kidsex01==2)
+
+.         gen byte FPS = (sex==2 & !mi(kidgeb01) & kidgeb01<=syear & kidsex01==1)
+
+.         fvset base 0 MPD MPS FPD FPS    
+
+. 
+.         * Control variables *
+.         gen age_sq = age^2
+
+.         egen country_id = group(pgnation), label
+
+.         
+. * HYPOTHESIS TEST FOR H1 (Does having a daughter increase support for gender equality (attitudes)?) *
+. 
+.         * We test whether becoming a parent of a daughter (vs. a son) is associated with more egalitarian gender attitudes.
+.         * We estimate a fixed-effects panel regression model using individual-level panel data.
+.         * The dependent variable is a standardized index of gender equality attitudes (gender_att).
+.         * The key independent variables are four dummies: MPD (male parent of daughter), MPS (male parent of son), FPD (female parent of daughter), and FPS (female parent of son)
+.         * with people who do not have child during the survey duration as the reference group.
+. 
+.         global controls  c.age c.age_sq i.country_id i.syear
+
+.         reghdfe gender_att MPD MPS FPD FPS $controls, absorb(pid) vce(cluster pid)
+(MWFE estimator converged in 1 iterations)
+note: 13bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 14bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 18bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 21bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 25bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 36bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 41bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 50bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 59bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 69bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 73bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 74bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 78bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 82bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 83bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 87bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 95bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 96bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 101bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 109bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 111bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 114bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 116bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 118bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 119bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 126bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 101.country_id omitted because of collinearity
+note: 2020.syear omitted because of collinearity
+warning: missing F statistic; dropped variables due to collinearity or too few clusters
+
+HDFE Linear regression                            Number of obs   =    284,315
+Absorbing 1 HDFE group                            F( 129,  45893) =          .
+Statistics robust to heteroskedasticity           Prob > F        =          .
+                                                  R-squared       =     0.6444
+                                                  Adj R-squared   =     0.5758
+                                                  Within R-sq.    =     0.4218
+Number of clusters (pid)     =     45,894         Root MSE        =     0.6962
+
+                                                               (Std. err. adjusted for 45,894 clusters in pid)
+--------------------------------------------------------------------------------------------------------------
+                                             |               Robust
+                                  gender_att | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+---------------------------------------------+----------------------------------------------------------------
+                                         MPD |   .0080235   .0155307     0.52   0.605     -.022417     .038464
+                                         MPS |   .0137303   .0158551     0.87   0.387     -.017346    .0448065
+                                         FPD |   .0373992   .0137322     2.72   0.006     .0104839    .0643145
+                                         FPS |   .0545635    .012134     4.50   0.000     .0307806    .0783463
+                                         age |  -.0425772   .0016566   -25.70   0.000    -.0458242   -.0393302
+                                      age_sq |   .0002465   .0000206    11.99   0.000     .0002062    .0002868
+                                             |
+                                  country_id |
+                             [-1] No answer  |  -1.374984   .6850376    -2.01   0.045    -2.717669   -.0322998
+                                [1] Germany  |   .0274247   .0937416     0.29   0.770    -.1563103    .2111597
+                                 [2] Turkey  |  -.0646309    .097025    -0.67   0.505    -.2548014    .1255396
+                          [3] Ex-Yugoslavia  |   -.088903   .0649583    -1.37   0.171    -.2162223    .0384163
+                                 [4] Greece  |   .0039668   .1046829     0.04   0.970    -.2012132    .2091469
+                                  [5] Italy  |  -.0877526    .102551    -0.86   0.392    -.2887543     .113249
+                                  [6] Spain  |  -.0262272   .1374762    -0.19   0.849    -.2956827    .2432282
+                               [10] Austria  |   .0454357   .1021943     0.44   0.657    -.1548667    .2457382
+                                [11] France  |  -.1617984   .1438768    -1.12   0.261    -.4437993    .1202024
+                               [13] Denmark  |  -.3159844   .1027322    -3.08   0.002     -.517341   -.1146277
+                         [14] Great Britain  |  -.2939877   .1745752    -1.68   0.092    -.6361578    .0481825
+                                [15] Sweden  |          0  (omitted)
+                                [16] Norway  |          0  (omitted)
+                               [17] Finland  |    .028784   .0938257     0.31   0.759    -.1551158    .2126837
+                                   [18] USA  |  -.0647374   .1316737    -0.49   0.623    -.3228199    .1933451
+                           [19] Switzerland  |  -.3736202   .2460479    -1.52   0.129     -.855878    .1086376
+                                 [20] Chile  |          0  (omitted)
+                               [21] Romania  |  -.2524139   .1029185    -2.45   0.014    -.4541358    -.050692
+                                [22] Poland  |  -.0774586   .1025953    -0.75   0.450    -.2785469    .1236298
+                                 [23] Korea  |          0  (omitted)
+                                  [24] Iran  |   .2537563   .2364214     1.07   0.283    -.2096333    .7171459
+                             [25] Indonesia  |   .0162788   .0937271     0.17   0.862    -.1674278    .1999854
+                               [26] Hungary  |  -.1096063   .1433746    -0.76   0.445    -.3906228    .1714102
+                               [27] Bolivia  |          0  (omitted)
+                              [28] Portugal  |  -.2491516   .1841206    -1.35   0.176    -.6100309    .1117277
+                              [29] Bulgaria  |  -.0626821   .1484015    -0.42   0.673    -.3535514    .2281873
+                                 [30] Syria  |   .8391399   .2493265     3.37   0.001      .350456    1.327824
+                        [31] Czech Republic  |  -.3505896   .1701663    -2.06   0.039    -.6841182   -.0170609
+                                [32] Russia  |  -.1239214   .1093928    -1.13   0.257     -.338333    .0904903
+                                [34] Mexico  |  -.1902461   .1317216    -1.44   0.149    -.4484225    .0679304
+                             [35] Argentina  |  -.3487348   .1291516    -2.70   0.007    -.6018739   -.0955956
+                           [38] Philippines  |  -.3426755   .1479601    -2.32   0.021    -.6326795   -.0526714
+                                [39] Israel  |   .2352156   .1961853     1.20   0.231    -.1493106    .6197419
+                                 [40] Japan  |  -.6886092   .1024027    -6.72   0.000    -.8893201   -.4878983
+                             [41] Australia  |          0  (omitted)
+                                 [42] India  |  -.4647944   .1224252    -3.80   0.000    -.7047497    -.224839
+                           [43] Afghanistan  |   .5744086   .6221053     0.92   0.356    -.6449275    1.793745
+                              [44] Thailand  |   .1491412   .3105645     0.48   0.631    -.4595701    .7578525
+                               [45] Jamaica  |  -.2867883   .1006004    -2.85   0.004    -.4839666     -.08961
+                          [46] Saudi Arabia  |          0  (omitted)
+                              [47] Ethiopia  |  -1.261881   .8984558    -1.40   0.160    -3.022869    .4991061
+                              [48] Columbia  |  -.0634782   .1034726    -0.61   0.540    -.2662862    .1393297
+                                 [49] Ghana  |  -.3225241    .206457    -1.56   0.118     -.727183    .0821348
+                            [50] Bangladesh  |   .7410454   .6257995     1.18   0.236    -.4855315    1.967622
+                             [51] Venezuela  |   .0425188     .09395     0.45   0.651    -.1416247    .2266624
+                               [52] Tunisia  |  -.0395893   .1119597    -0.35   0.724     -.259032    .1798535
+                               [54] Nigeria  |  -.1726546   .1775742    -0.97   0.331    -.5207029    .1753936
+                                [55] Canada  |   .0301349   .1015588     0.30   0.767     -.168922    .2291918
+                           [56] New Zealand  |          0  (omitted)
+                                  [59] Cuba  |  -.0714552   .2130275    -0.34   0.737    -.4889925    .3460821
+                                  [60] Iraq  |   .6493282   .2888177     2.25   0.025      .083241    1.215415
+                                [61] Brazil  |  -.0793121   .1557557    -0.51   0.611    -.3845958    .2259716
+                                  [64] Peru  |   .2467243   .1348165     1.83   0.067     -.017518    .5109667
+                             [65] Sri Lanka  |   .0563414   .1077689     0.52   0.601    -.1548874    .2675703
+                                 [66] Nepal  |  -.0941136   .0945691    -1.00   0.320    -.2794705    .0912434
+                               [67] Morocco  |   .2220254   .3331552     0.67   0.505     -.430964    .8750148
+                                 [68] China  |   .0402924   .0945554     0.43   0.670    -.1450377    .2256225
+                               [71] Ireland  |          0  (omitted)
+                              [73] Moldavia  |  -.3397232   .1872916    -1.81   0.070    -.7068176    .0273712
+                            [74] Kazakhstan  |  -.1595528   .1145571    -1.39   0.164    -.3840866    .0649809
+                               [75] Albania  |  -.2286315   .1283552    -1.78   0.075    -.4802097    .0229468
+                               [76] Lebanon  |   .0381255   .3831665     0.10   0.921    -.7128869    .7891378
+                            [77] Kyrgyzstan  |  -.1254792   .1393351    -0.90   0.368    -.3985781    .1476197
+                               [78] Ukraine  |  -.2635796   .1792109    -1.47   0.141    -.6148358    .0876767
+                               [79] Algeria  |   -.018615   .1614132    -0.12   0.908    -.3349874    .2977574
+                            [80] Mozambique  |   .0200606   .0937431     0.21   0.831    -.1636772    .2037985
+                                 [81] Egypt  |  -.7080819    .094655    -7.48   0.000    -.8936072   -.5225567
+                            [82] Tajikistan  |          0  (omitted)
+                               [83] Vietnam  |  -.0651579   .1287348    -0.51   0.613    -.3174801    .1871643
+                               [84] Somalia  |    .398115   .3106363     1.28   0.200    -.2107369    1.006967
+                              [85] Pakistan  |  -.2499753   .5423314    -0.46   0.645    -1.312953    .8130028
+                          [86] South Africa  |          0  (omitted)
+                           [88] El Salvador  |          0  (omitted)
+                               [89] Eritrea  |   .3258953   .2992827     1.09   0.276    -.2607034     .912494
+                                [90] Jordan  |  -.4181441   .1136536    -3.68   0.000    -.6409069   -.1953813
+                          [94] Burkina Faso  |  -2.533932   .0146652  -172.79   0.000    -2.562676   -2.505188
+                               [96] Ecuador  |          0  (omitted)
+                            [97] Uzbekistan  |     .22343   .0938514     2.38   0.017     .0394798    .4073802
+                        [98] No Nationality  |  -1.105862   .2294935    -4.82   0.000    -1.555673   -.6560515
+                               [102] Angola  |   .0188623   .0938623     0.20   0.841    -.1651092    .2028338
+                               [103] Latvia  |          0  (omitted)
+                              [105] Namibia  |          0  (omitted)
+                   [108] Dominican Republic  |  -.3482859   .0941023    -3.70   0.000    -.5327279   -.1638439
+                                [110] Kenya  |  -.3441906   .2198174    -1.57   0.117    -.7750362     .086655
+                                [111] Libya  |   3.868334   .8089012     4.78   0.000     2.282875    5.453793
+                           [116] Luxembourg  |          0  (omitted)
+                              [117] Belgium  |  -.1419215   .1964211    -0.72   0.470      -.52691     .243067
+                              [118] Holland  |   .0182121    .106603     0.17   0.864    -.1907314    .2271556
+                              [119] Croatia  |  -.0581212   .0965049    -0.60   0.547    -.2472724      .13103
+                   [120] Bosnia-Herzegovina  |  -.0267615   .0743807    -0.36   0.719    -.1725489    .1190259
+                            [121] Macedonia  |  -.4084055   .2806225    -1.46   0.146      -.95843    .1416189
+                             [122] Slovenia  |  -.1675141   .2271921    -0.74   0.461    -.6128142    .2777859
+                             [123] Slovakia  |  -.1974598    .177898    -1.11   0.267    -.5461427    .1512231
+                               [125] Guinea  |          0  (omitted)
+                             [128] Malaysia  |          0  (omitted)
+                                [129] Samoa  |   -.678784   .0946633    -7.17   0.000    -.8643256   -.4932424
+                           [130] Azerbaijan  |  -.4939312   .1289224    -3.83   0.000    -.7466211   -.2412412
+                           [131] Seychelles  |   .0150458   .0937398     0.16   0.872    -.1686856    .1987772
+                              [132] Belarus  |  -.1404612   .1127496    -1.25   0.213    -.3614522    .0805297
+                               [135] Uganda  |          0  (omitted)
+                                 [138] Mali  |          0  (omitted)
+                             [139] Cameroon  |   .1985212   .1546584     1.28   0.199    -.1046117    .5016542
+                       [140] Kosovo-Albania  |  -.0476979   .0815005    -0.59   0.558    -.2074401    .1120443
+                              [141] Georgia  |   .1473619    .242215     0.61   0.543    -.3273833    .6221071
+                                [142] Sudan  |  -.3206594   .1200652    -2.67   0.008     -.555989   -.0853298
+                                [143] Congo  |  -.1220993   .0938672    -1.30   0.193    -.3060805     .061882
+                                 [144] Togo  |  -.1950313   .1975227    -0.99   0.323    -.5821789    .1921162
+                             [145] Mongolia  |          0  (omitted)
+                            [146] Lithuania  |  -.0719875   .0961246    -0.75   0.454    -.2603932    .1164182
+                                 [147] Chad  |          0  (omitted)
+                              [148] Armenia  |  -.2245286   .2337107    -0.96   0.337    -.6826052    .2335479
+                            [149] Kurdistan  |   -.276788   .1751141    -1.58   0.114    -.6200143    .0664383
+                                [151] Yemen  |          0  (omitted)
+                            [152] Palestine  |   .7370524   .4779721     1.54   0.123    -.1997804    1.673885
+                               [154] Taiwan  |          0  (omitted)
+                         [155] Turkmenistan  |   -.372024   .0941136    -3.95   0.000    -.5564881   -.1875599
+                         [158] Sierra Leone  |          0  (omitted)
+       [164] Republic of Kabardino-Balkaria  |          0  (omitted)
+                               [165] Serbia  |   .0516676   .0777816     0.66   0.507    -.1007856    .2041208
+                               [166] Gambia  |   .0500985   .4180711     0.12   0.905    -.7693274    .8695245
+                             [167] Honduras  |   .0489632   .0937563     0.52   0.602    -.1348006     .232727
+                           [168] Montenegro  |   .0964618   .0662579     1.46   0.145    -.0334046    .2263282
+                             [169] Cambodia  |  -.0884437   .0937502    -0.94   0.345    -.2721956    .0953083
+                             [172] Caucasus  |  -1.934882   .2325295    -8.32   0.000    -2.390644   -1.479121
+                             [173] Zimbabwe  |          0  (omitted)
+                              [181] Myanmar  |  -2.257852   .2672162    -8.45   0.000      -2.7816   -1.734104
+                                [183] Niger  |  -.6997007   .0947314    -7.39   0.000    -.8853756   -.5140257
+                             [188] Chechnya  |  -1.200977   .6241661    -1.92   0.054    -2.424352    .0223986
+                           [195] Ingushetia  |  -1.635538    2.77391    -0.59   0.555    -7.072444    3.801369
+                               [196] Kosovo  |    .360044   .0844893     4.26   0.000     .1944436    .5256444
+[999] ethnic minorities (e.g. Yazidi, Roma)  |    3.67527   .2504221    14.68   0.000     3.184439    4.166101
+                                             |
+                                       syear |
+                                       2001  |    .023524    .000513    45.86   0.000     .0225185    .0245294
+                                       2002  |   .0474449   .0009846    48.19   0.000      .045515    .0493747
+                                       2003  |    .071117   .0014502    49.04   0.000     .0682745    .0739594
+                                       2004  |   .0948279   .0019245    49.28   0.000     .0910559    .0985998
+                                       2005  |   .1186379   .0023938    49.56   0.000     .1139461    .1233298
+                                       2006  |   .1425486   .0028691    49.68   0.000     .1369251    .1481721
+                                       2007  |   .1662906   .0033367    49.84   0.000     .1597507    .1728305
+                                       2008  |   .1899994   .0038071    49.91   0.000     .1825375    .1974614
+                                       2009  |   .2138013   .0042769    49.99   0.000     .2054186    .2221841
+                                       2010  |   .2377707   .0047342    50.22   0.000     .2284915    .2470499
+                                       2011  |   .2622534   .0052094    50.34   0.000      .252043    .2724639
+                                       2012  |   .2854734   .0056795    50.26   0.000     .2743414    .2966053
+                                       2013  |   .3138339   .0062089    50.55   0.000     .3016643    .3260035
+                                       2014  |   .3383504   .0066866    50.60   0.000     .3252447    .3514562
+                                       2015  |   .3670448   .0072354    50.73   0.000     .3528633    .3812264
+                                       2016  |   2.397036     .01939   123.62   0.000     2.359032    2.435041
+                                       2017  |   1.776562   .0152302   116.65   0.000      1.74671    1.806413
+                                       2018  |   1.262134   .0086131   146.54   0.000     1.245252    1.279016
+                                       2019  |  -.0620747   .0058413   -10.63   0.000    -.0735238   -.0506256
+                                       2020  |          0  (omitted)
+                                             |
+                                       _cons |   .6810568   .0988309     6.89   0.000     .4873468    .8747669
+--------------------------------------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+         pid |     45894       45894           0    *|
+-----------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+
+.         est store reg_main
+
+. 
+. * ============================
+. * Extract and Export Results – H1
+. * ============================
+. 
+. * Joint test of MPD = MPS and FPD = FPS
+. test (MPD = MPS) (FPD = FPS)
+
+ ( 1)  MPD - MPS = 0
+ ( 2)  FPD - FPS = 0
+
+       F(  2, 45893) =    0.52
+            Prob > F =    0.5936
+
+. scalar F_joint = r(F)
+
+. scalar p_joint = Ftail(e(df_m), e(df_r), F_joint)
+
+. 
+. * Differences in coefficients
+. local diff_m = _b[MPD] - _b[MPS]
+
+. local diff_f = _b[FPD] - _b[FPS]
+
+. 
+. * Standard errors of differences
+. local se_m = sqrt(_se[MPD]^2 + _se[MPS]^2 - 2*e(V)["MPD","MPS"])
+
+. local se_f = sqrt(_se[FPD]^2 + _se[FPS]^2 - 2*e(V)["FPD","FPS"])
+
+. 
+. * Combined standard error (pooled diff, not necessary for F-test but for display)
+. local se_joint = sqrt(`se_m'^2 + `se_f'^2)
+
+. 
+. * Degrees of freedom
+. local df_r = e(df_r)
+
+. local df_m = e(df_m)
+
+. 
+. * N and cluster count
+. local N = e(N)
+
+. local N_pid = e(N_clust)
+
+. 
+. * Interpretation
+. local interp_joint = "positive coefficient is in line with hypothesis"
+
+. 
+. 
+. * ============================
+. * Display Results – H1
+. * ============================
+. 
+. di _n "{hline 60}"
+
+------------------------------------------------------------
+
+. di ">>> H1 Joint Test: MPD > MPS and FPD > FPS"
+>>> H1 Joint Test: MPD > MPS and FPD > FPS
+
+. di "{hline 60}"
+------------------------------------------------------------
+
+. di "Diff MPD-MPS = " %6.3f `diff_m' "  (SE = " %6.3f `se_m' ")"
+Diff MPD-MPS = -0.006  (SE =  0.022)
+
+. di "Diff FPD-FPS = " %6.3f `diff_f' "  (SE = " %6.3f `se_f' ")"
+Diff FPD-FPS = -0.017  (SE =  0.017)
+
+. di "F(2, `df_r') = " %6.2f scalar(F_joint)
+F(2, 45893) =   0.52
+
+. di "Joint p-value = " %6.4f scalar(p_joint)
+Joint p-value = 1.0000
+
+. di "N = `N', Participants = `N_pid'"
+N = 284315, Participants = 45894
+
+. di "Interpretation: `interp_joint'"
+Interpretation: positive coefficient is in line with hypothesis
+
+. di "{hline 60}"
+------------------------------------------------------------
+
+. 
+. * ============================
+. * Export results to CSV
+. * ============================
+. tempname hdl
+
+. file open `hdl' using "$OUT/h1_results.csv", write replace
+(file C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/95_results/h1_results.csv not found)
+
+. file write `hdl' "coefficient,se,family,residual_df,model_df,p_value,num_obs,num_participants,interpretation" _n
+
+. 
+. //file write `hdl' "`diff_m'," "`se_joint'," "Wald," "`df_r'," "`df_m'," "`=scalar(p_joint)'," "`N'," "`N_pid'," "`interp_joint'" _n
+. file write `hdl' "`diff_m'," "`se_joint'," "F," "`df_r'," "`df_m'," "`=scalar(p_joint)'," "`N'," "`N_pid'," "`interp_joint'" _n // Adapted test stat family by DA during consistency check
+
+. 
+. file close `hdl'
+
+. 
+. 
+end of do-file
+
+. 
+end of do-file

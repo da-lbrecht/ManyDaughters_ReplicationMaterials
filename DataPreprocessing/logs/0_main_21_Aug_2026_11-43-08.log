@@ -1,0 +1,194 @@
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+      name:  main_log
+       log:  c:\Users\dalbrecht\Research Projects\ManyDaughters\ReplicationMaterials\DataPreprocessing/logs/0_main_21_Aug_2026_11-43-08.log
+  log type:  text
+ opened on:  21 Aug 2026, 11:43:08
+
+. 
+. ********************************************************************************
+. 
+. * do "$CODE/01_SOEP-dataset_creation.do" // requires SOEP data, which is not publicly available as part of the replication kit
+. * do "$CODE/05_data_import.do"
+. * do "$CODE/06_collect_RT_results_95.do"
+. * do "$CODE/07_collect_RT_results_05.do"
+. * save "$DATA/ManyDaughters_preprocessed.dta", replace
+. 
+. ********************************************************************************
+. 
+. do "$CODE/08_collect_RT_results_idiosyncrasy.do" // gather RT analysis results for idiosycnrasy index calculations
+
+. /*=============================================================================
+> COLLECT AND COMBINE IDIOSYNCRASY ANALYSIS RESULTS
+> =============================================================================
+> Purpose: Collect all idiosyncrasy analysis results from individual CSV files
+>          (one per rt_id, hypothesis, iteration combination) and combine them
+>          into a single long-format Stata dataset.
+> 
+> Structure: Each CSV file is named:
+>            idiosyncrasy_YYYYMMDD_HHMMSS_[rt_id]_h[hyp]_results_iter[N].csv
+>            
+> Output:    Long format dataset with variables:
+>            - rt_id: Research team identifier
+>            - hypothesis: Hypothesis number (1-4)
+>            - iteration: Sampling iteration number
+>            - coefficient, se, family, residual_df, model_df, p_value
+>            - num_obs, num_participants, interpretation
+> 
+> =============================================================================*/
+. 
+. version 17.0
+
+. 
+. set more off
+
+. set type double
+
+. 
+. * Runtime tracking
+. local run_start_date = "`c(current_date)'"
+
+. local run_start_time = "`c(current_time)'"
+
+. timer clear 1
+
+. timer on 1
+
+. 
+. * Use root directory from main script, or set it if running standalone
+. if "`ROOT'" == "" {
+.     if strpos("`c(pwd)'", "code") {
+.         global ROOT "`c(pwd)'/.."
+.     }
+.     else {
+.         global ROOT "`c(pwd)'"
+.     }
+. }
+
+. 
+. * Define idiosyncrasy-specific paths
+. global results "$ROOT/data/derived/5_idiosyncrasy_results"
+
+. global output "$ROOT/data/derived"
+
+. 
+. disp ""
+
+
+. disp "=========================================="
+==========================================
+
+. disp "COLLECTING IDIOSYNCRASY RESULTS"
+COLLECTING IDIOSYNCRASY RESULTS
+
+. disp "=========================================="
+==========================================
+
+. disp "Started: `run_start_date' `run_start_time'"
+Started: 21 Aug 2026 11:43:08
+
+. disp "Source directory: $results"
+Source directory: c:\Users\dalbrecht\Research Projects\ManyDaughters\ReplicationMaterials\DataPreprocessing/data/derived/5_idiosyncrasy_results
+
+. disp ""
+
+
+. 
+. * Generate file list using dir command and save to temporary text file
+. local templist "$results/_csvfilelist.txt"
+
+. shell dir "$results" /s /b | find "_results_iter" > "`templist'" 2>nul
+The system cannot find the path specified.
+
+. 
+. * Track provenance to diagnose duplicate keys and misplaced files
+. local track_provenance 1
+
+. 
+. * Initialize postfiles (faster than append/save per file)
+. tempfile master_results source_results
+
+. postfile master_handle str32 rt_id byte hypothesis int iteration ///
+>     double coefficient double se str32 family double residual_df ///
+>     double model_df double p_value double num_obs double num_participants ///
+>     str244 interpretation using `master_results', replace
+(file C:\Users\DALBRE~1\AppData\Local\Temp\ST_3338_000001.tmp not found)
+
+. 
+. if `track_provenance' {
+.     postfile source_handle str32 src_rt_id byte src_hypothesis int src_iteration ///
+>         str244 source_filename str244 source_filepath using `source_results', replace
+(file C:\Users\DALBRE~1\AppData\Local\Temp\ST_3338_000002.tmp not found)
+. }
+
+. 
+. * Read file list and process each file
+. local file_count = 0
+
+. local error_count = 0
+
+. 
+. * Close any previously open file handles
+. capture file close infile
+
+. 
+. file open infile using "`templist'", read
+file c:\Users\dalbrecht\Research Projects\ManyDaughters\ReplicationMaterials\DataPreprocessing/data/derived/5_idiosyncrasy_results/_csvfilelist.txt not found
+r(601);
+
+end of do-file
+r(601);
+
+end of do-file
+
+r(601);
+
+. do "C:\Users\DALBRE~1\AppData\Local\Temp\statacmd.tmp"
+
+. ********************************************************************************
+. ************ #ManyDaughters Project: Data Preprocessing - 0. Main ***************
+. ********************************************************************************
+. 
+. * Authors: David Albrecht
+. 
+. * ============================
+. * SETUP
+. * ============================
+. 
+. clear all
+
+. version 19
+
+. 
+. * FILE PATHS *
+. if strpos("`c(pwd)'", "code") {
+.     global ROOT "`c(pwd)'/.."
+. }
+
+. else {
+.     global ROOT "`c(pwd)'"
+. }
+
+. global IN "$ROOT/data/raw" // folder, in which the original datasets are stored
+
+. global DATA "$ROOT/data/derived" // folder for generated datasets
+
+. global OUT "$ROOT/out" // folder for output
+
+. global CODE "$ROOT/code"
+
+. 
+. * Create logs directory if it doesn't exist
+. capture mkdir "$ROOT/logs"
+
+. 
+. 
+. * Create one timestamp shared by the main and child log files
+. local timestamp "`c(current_date)'_`c(current_time)'"
+
+. local timestamp = subinstr("`timestamp'", ":", "-", .)
+
+. local timestamp = subinstr("`timestamp'", " ", "_", .)
+
+. 
+. * Close any stale log before opening the new ones
+. capture log close _all

@@ -1,0 +1,2056 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmpmkewu1cn.do 
+
+. do "5%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. 
+. * the following code automatically sets paths based on the project location o
+> n your system *local curdir = c(pwd)
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/5%-sample" // folder, in which the ori
+> ginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/5%-sample
+
+. global DATA "$ROOT/data/derived_confidential/5%-sample" // folder for dataset
+> s
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/5%-sample
+
+. global OUT "$ROOT/data/derived/5_results" // folder for output (results, tabl
+> es)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/5_results
+
+. 
+end of do-file
+
+. do "20250716_134427_01fp6j_h3.do"
+
+. *****************************************************************************
+> ***
+. ****************** Do-File H3: #ManyDaughters Project ******************
+. *****************************************************************************
+> ***
+. 
+. * Authors: [REDACTED], [REDACTED] (Team ID: 01fp6j)
+. 
+. *********
+. * Setup * 
+. *********
+. 
+. * clear all
+. version 18
+
+. set maxvar 10000
+
+
+. set seed 8942
+
+. 
+. * INSTALL PACKAGES *
+. * net install st0718_1.pkg, from(http://www.stata-journal.com/software/sj24-3
+> /)
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. /*
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> */
+. 
+. ********************
+. * Data Preparation * 
+. ********************
+. 
+. * LOAD AND MERGE DATA *
+. 
+. use pid cid syear sex phrf gebjahr using "$IN/ppathl.dta"  , clear // use ppa
+> thl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+.         
+. /*gebjahr retrieved from ppathl instead of ppath as planned in the PAP (ident
+> ical information)*/
+. 
+. * Merge ppathl with datasets
+. 
+. * biobirth contains information on fertility history
+. merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches) keepusing(
+> kidsex01 kidgeb01 kidgeb02 kidmon01 kidmon02)
+(variable pid was long, now double to accommodate using data's values)
+(label sex already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+. * pgen contains user-friendly data on the individual level that are consolida
+> ted from different sources
+. merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches) keepusin
+> g(pgtatzeit pgemplst pgpartz pgisced97 pgpiyear pgmonth)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+. * pl contains all variables from the individual questionnaire
+. merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches) keepusing(
+> plh0301 plh0303 plh0004 pli0043_h)
+(label cid already defined)
+(label pid_EN already defined)
+(label cid_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            35,228  
+    -----------------------------------------
+
+. 
+. label language EN // change language of the labels to English
+
+. compress
+  variable pgemplst was float now byte
+  variable pgmonth was float now byte
+  variable pgpiyear was float now int
+  variable pid was double now long
+  variable syear was double now int
+  variable kidgeb01 was double now int
+  variable kidgeb02 was double now int
+  variable kidsex01 was double now byte
+  variable kidmon01 was double now byte
+  variable kidmon02 was double now byte
+  variable pgpartz was double now byte
+  variable pgisced97 was double now byte
+  (2,289,820 bytes saved)
+
+. save "$DATA/h1_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/5%-sample/h1_dataset.dta saved
+
+. 
+. 
+. **********************
+. * GENERATE VARIABLES *
+. **********************
+. 
+. ******************
+. * Help-Variables *
+. ******************
+. 
+. * Birthdate first child
+. recode kidgeb01 (-100/-1=.)
+(10,693 changes made to kidgeb01)
+
+. recode kidmon01 (-100/-1=.)
+(20,201 changes made to kidmon01)
+
+. gen birthdate_1=mdy(kidmon01, 15, kidgeb01) //day not recorded, set to the 15
+> th of the month
+(20,201 missing values generated)
+
+. lab var birthdate_1 "Birthdate of first child"
+
+. 
+. * Birthdate second child
+. recode kidgeb02 (-100/-1=.)
+(17,388 changes made to kidgeb02)
+
+. recode kidmon02 (-100/-1=.)
+(23,109 changes made to kidmon02)
+
+. gen birthdate_2=mdy(kidmon02, 15, kidgeb02) //day not recorded, set to the 15
+> th of the month
+(23,109 missing values generated)
+
+. lab var birthdate_2 "Birthdate of second child"
+
+. 
+. * Date of interview
+. recode pgpiyear (-100/-1=.)
+(20,116 changes made to pgpiyear)
+
+. replace pgpiyear=syear if pgpiyear>=. /*not mentioned in PAP, we did not know
+>  about the high number of missing*/
+(27,939 real changes made)
+
+. recode pgmonth (-100/-1=.)
+(1 changes made to pgmonth)
+
+. replace pgmonth=2 if pgmonth>=. /*not mentioned in PAP, we did not know about
+>  the high number of missing, February=mode*/
+(7,824 real changes made)
+
+. 
+. gen intdate =mdy(pgmonth, 15, pgpiyear)
+
+. format intdate %td
+
+. lab var intdate "Date of interview"
+
+. 
+. 
+. **********************
+. * Treatment-Variable *
+. **********************
+. 
+. * Daughter-Variable, Hypotheses 1, 2, 3, 4
+. gen daughters=1 if intdate-birthdate_1>0 & kidsex01==2 //respondent has a fem
+> ale child
+(24,358 missing values generated)
+
+. replace daughters=0 if intdate-birthdate_1>0 & kidsex01==1 //respondent has a
+>  male child
+(12,626 real changes made)
+
+. replace daughters=. if intdate-birthdate_1<=0 // respondent does not (yet) ha
+> ve a child
+(0 real changes made)
+
+. replace daughters=. if intdate>=. // missing date of interview
+(0 real changes made)
+
+. replace daughters=. if birthdate_1>=. /*typo in PAP: ">0." --> corrected to "
+> >=." */
+(9,564 real changes made, 9,564 to missing)
+
+. lab var daughters "Daughter"
+
+. lab define daughterslbl 1 "daughter" 0 "son"
+
+. lab value daughters daughterslbl
+
+. *tab daughters kidsex01, m
+. 
+. 
+. 
+. *************
+. * Moderator *
+. *************
+. 
+. * Sex of respondent (female-dummy), Hypotheses 3, 4
+. gen female=1 if sex==2
+(16,910 missing values generated)
+
+. replace female=0 if sex==1
+(16,910 real changes made)
+
+. replace female=. if sex<=0
+(0 real changes made)
+
+. tab female sex, m
+
+           |        Gender
+    female |  [1] Male  [2] Femal |     Total
+-----------+----------------------+----------
+         0 |    16,910          0 |    16,910 
+         1 |         0     18,318 |    18,318 
+-----------+----------------------+----------
+     Total |    16,910     18,318 |    35,228 
+
+. lab var female "female respondent"
+
+. lab define femalelbl 1 "female" 0 "male"
+
+. lab value female femalelbl
+
+. *tab female sex, m
+. 
+. ************
+. * Controls *
+. ************
+. 
+. * Year of birth, Hypotheses 3, 4
+. recode gebjahr (-100/-1=.), gen(birthyear)
+(0 differences between gebjahr and birthyear)
+
+. lab var birthyear "Year of birth"
+
+. 
+. * Education, Hypotheses 3, 4
+. recode pgisced97 (-100/-1=.) (0 1 2=0 "low") (3 4=1 "middle") (5 6=2 "high"),
+>  gen(educ)
+(26,675 differences between pgisced97 and educ)
+
+. lab var educ "Education"
+
+. *tab pgisced97 educ , m
+. 
+. 
+. ************
+. * Outcomes *
+. ************
+. 
+. /*
+> * Family versus Career Attitudes, Hypotheses 1,4 
+> recode plh0301 (-100/-1=.), gen (famvscareer) // no need to recode any furthe
+> r, as high values already indicate gender equality. Incorrect in the prelimin
+> ary stata code submitted within the PAP.
+> lab var famvscareer "Gender equality attitudes: family versus career"
+> lab define attlbl 1 "gender inequality" 4 "gender equality"
+> lab value famvscareer attlbl
+> tab famvscareer plh0301, m
+>         
+> * Men should invole in Housework Attitudes, , Hypotheses 1,4 
+> recode plh0303 (-100/-1=.) (4=1) (3=2) (2=3) (1=4), gen(menhousework)
+> lab var menhousework "Gender equality attitudes: men should involve in housew
+> ork"
+> lab value menhousework attlbl
+> tab menhousework plh0303, m
+> 
+> 
+> * Left versus right political ideology, Hypothesis 2    
+> recode plh0004 (-100/-1=.) (10=0) (9=1) (8=2) (7=3) (6=4) (5=5) (4=6) (3=7) (
+> 2=8) (1=9) (0=10), gen(left)       
+> lab var left "left political ideology"
+> lab define lftlbl 0 "right" 10 "left"
+> lab value left lftlbl
+> tab left plh0004, m
+> */
+. 
+. * Working hours, Hypothesis 3
+. recode pgtatzeit (-100/-1=.), gen(workhours)
+(12,318 differences between pgtatzeit and workhours)
+
+. replace workhours=0 if pgemplst==5 // not working equals 0 hours
+(11,670 real changes made)
+
+. lab var workhours "Working hours"
+
+. *tab workhours, m
+. 
+. * Housework, Hypothesis 3
+. recode pli0043_h (-100/-1=.) (16/24=16), gen(housework) //top coded to 16 hou
+> rs per day
+(1,099 differences between pli0043_h and housework)
+
+. lab var housework "Hours of housework"
+
+. *tab housework, m
+. 
+. 
+. ************************
+. *** Filter Variables ***
+. ************************
+. 
+. * Parity 2 Indicator (Defining Analytic Sample), Hypotheses 1, 2, 3, 4
+. gen parity2=1 if intdate-birthdate_2>0 & intdate-birthdate_2<.
+(24,229 missing values generated)
+
+. lab var parity2 "Second child is born"
+
+. * if parity2=1: a second child is already born
+. 
+. * Cohabitation, Hypothesis 3
+. gen cohab=1 if pgpartz!=0 & pgpartz!=5
+(8,674 missing values generated)
+
+. lab var cohab "cohabiting with a partner"
+
+. 
+. 
+. *********************************
+. *** Apply sample restrictions ***
+. *********************************
+. 
+. * We estimate the following regressions using a sample restricted to responde
+> nts with exactly one child.
+. * Note: There was a typo in the preliminary Stata code provided in the PAP. A
+> lthough the verbal description 
+. * of the sample restriction was correct, the code mistakenly included `parity
+> 2==1`, which would select 
+. * respondents with at least two children—contradicting the intended analytic 
+> sample.
+. 
+. 
+. keep if parity2!=1 // Hypotheses 1, 2, 3, 4
+(10,999 observations deleted)
+
+. 
+. * Restrict the analyses to cohabiting couples 
+. keep if cohab==1 // Hypothesis 3
+(7,503 observations deleted)
+
+. 
+. keep if !missing(daughters, female, syear, educ, birthyear, phrf) & phrf!=0
+(13,661 observations deleted)
+
+. keep if !missing(workhours) | !missing(housework)
+(0 observations deleted)
+
+. 
+. count
+  3,065
+
+. 
+. *********************************
+. *********************************
+. 
+.          *HYPOTHESIS TEST FOR H3 
+. 
+.         *********************************************************************
+> *****************************************************************************
+> ***************
+.         *  We assume that gender-specific causal effects of having a daughter
+>  are identified wihin strata defined by gender [female], cohort [birthyear] a
+> nd education [educ] 
+.         * in a sample of parents of a single child (see PAP)
+.         * !! NOTE THIS IS THE AVERAGE CAUSAL EFFECT IN THE POPULATION OF PARE
+> NTS OF A SINGLE CHILD !!
+.         * We further assume that hours spent on labor [pgtatzeit] and housewo
+> rk [pli0043_h] are suitable behavioral measures related to gender equality,
+.         * at least among people living with a partner (hypothesis 3): 
+.         * More time spent on labor and less time spent on housework is more l
+> ikely to reflect gender equal behavior for women;
+.         * less time spent on labor and more time spent on housework is more l
+> ikely to reflect gender equal behavior for men.
+.         * Accordingly, we run a seemingly unrelated linear regression analysi
+> s with workhours [pgtatzeit] and housework [pli0043_h] as dependent variables
+.         * and the dummy variable daughter as independent variable in a sample
+>  of respondents with a single child (parity2!=1) living with a partner (cohab
+> ==1)
+.         * We apply weights cross-sectionally calibrated weights (phrf)
+.         * To account for non-independence of observatons, we cluster standard
+>  errors at the household level
+.         * The null we test against is that the effect of having daughters is 
+> >=0 on workours for men and on housework for women and
+.         * <=0 on workhours for men and on housework for women.
+.         * I.e., we have to consider a one-sided test adjusted for multiple te
+> sting
+.         * In practice, we multiply the first to estimates by -1 and test all 
+> against >=0
+.         * Since the used method provides a joint confidence band, this is equ
+> al to assessing whether there is at least 1 significant effect
+.         * We report all coefficients and statistics but only export the resul
+> t with the smallest p-value to comply to the provided template
+.         * !! NOTE THAT AT AN A PRIORI CONFIDENCE LEVEL OF 0.05 WITHOUT PREDER
+> MINED SIGN OF THE EFFECT, THE CONFIDENCE LEVEL BECOMES 0.025
+.         *********************************************************************
+> *****************************************************************************
+> ***************
+.         * The below code follows the conception outlined in the PAP
+.         * There is one deviation, which reflects perceived risk (2) already a
+> nticipated in the PAP:
+.         * as full stratification was not possible, we had to impose some cons
+> traints
+.         * We decided to only include interactions of daughters x female and a
+> ll pairwise and triple interactions of these with the additional variables in
+>  the model
+.         * We refrained from more refined methods to determine the functional 
+> form on a 5% subsample.
+.         * We considered switching to a matching or IPW-weighting based approa
+> ch but abandonded the idea in compliance with out PAP - but note that our app
+> roach would
+.         * call for sensitivity analysis w.r.t. to functional form assumptions
+>  when applied to the full estimation sample.
+.         * Note that the sample restriction is already implemented in the data
+>  preparation and therefore omitted for redundancy
+.         *********************************************************************
+> *****************************************************************************
+> ***************
+. 
+.         *obtain point esttimates for daughter effects on both outcomes
+.         regress workhours (daughters##female)##(syear educ c.birthyear) [iw=p
+> hrf]
+
+      Source |       SS           df       MS      Number of obs   = 6,838,595
+-------------+----------------------------------   F(95, 6838499)  =  31655.62
+       Model |   900129933        95  9475051.93   Prob > F        =    0.0000
+    Residual |  2.0469e+09 6,838,499  299.316597   R-squared       =    0.3054
+-------------+----------------------------------   Adj R-squared   =    0.3054
+       Total |  2.9470e+09 6,838,594  430.937438   Root MSE        =    17.301
+
+------------------------------------------------------------------------------
+   workhours | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+   daughters |
+   daughter  |  -9.049784   3.127577    -2.89   0.004    -15.17972   -2.919844
+             |
+      female |
+     female  |   1194.382   3.002663   397.77   0.000     1188.497    1200.267
+             |
+   daughters#|
+      female |
+   daughter #|
+     female  |   1076.202   4.679013   230.01   0.000     1067.031    1085.373
+             |
+       syear |
+       2001  |  -1.690275   .0796216   -21.23   0.000     -1.84633   -1.534219
+       2002  |  -5.364232   .0855872   -62.68   0.000    -5.531979   -5.196484
+       2003  |  -1.806307   .0866018   -20.86   0.000    -1.976044   -1.636571
+       2004  |  -2.682475   .0867536   -30.92   0.000    -2.852509   -2.512441
+       2005  |  -2.061662   .0868436   -23.74   0.000    -2.231872   -1.891452
+       2006  |  -9.552022   .0898058  -106.36   0.000    -9.728038   -9.376006
+       2007  |  -1.545768   .0869283   -17.78   0.000    -1.716144   -1.375391
+       2008  |  -3.008756   .0844576   -35.62   0.000     -3.17429   -2.843222
+       2009  |  -6.501687    .083556   -77.81   0.000    -6.665454   -6.337921
+       2010  |  -7.169959   .0829158   -86.47   0.000    -7.332471   -7.007447
+       2011  |  -3.797988   .0903261   -42.05   0.000    -3.975024   -3.620952
+       2012  |  -8.994601   .0894291  -100.58   0.000    -9.169879   -8.819323
+       2013  |  -8.069612   .0910814   -88.60   0.000    -8.248128   -7.891096
+       2014  |  -7.508126   .0789105   -95.15   0.000    -7.662788   -7.353464
+       2015  |  -10.17324   .0850542  -119.61   0.000    -10.33994   -10.00654
+       2016  |  -9.557371   .0849098  -112.56   0.000    -9.723791   -9.390951
+       2017  |   -11.8308   .0810753  -145.92   0.000    -11.98971    -11.6719
+       2018  |  -11.14755   .0836638  -133.24   0.000    -11.31153   -10.98357
+       2019  |  -9.241115   .0831523  -111.13   0.000    -9.404091    -9.07814
+       2020  |  -9.552197   .0807747  -118.26   0.000    -9.710513   -9.393882
+             |
+        educ |
+     middle  |   12.52661   .0848245   147.68   0.000     12.36035    12.69286
+       high  |   15.54675   .0882638   176.14   0.000     15.37376    15.71974
+             |
+   birthyear |   .6450233   .0010966   588.19   0.000     .6428739    .6471726
+             |
+   daughters#|
+       syear |
+   daughter #|
+       2001  |   8.223737   .1131565    72.68   0.000     8.001955     8.44552
+   daughter #|
+       2002  |   8.287953   .1172284    70.70   0.000      8.05819    8.517717
+   daughter #|
+       2003  |  -.7431863   .1184798    -6.27   0.000    -.9754025   -.5109701
+   daughter #|
+       2004  |   6.051598   .1195395    50.62   0.000     5.817305    6.285891
+   daughter #|
+       2005  |  -1.996987   .1205246   -16.57   0.000    -2.233211   -1.760764
+   daughter #|
+       2006  |   4.395118   .1227096    35.82   0.000     4.154611    4.635624
+   daughter #|
+       2007  |  -6.649343   .1209063   -55.00   0.000    -6.886315   -6.412371
+   daughter #|
+       2008  |  -.5477821   .1179324    -4.64   0.000    -.7789255   -.3166387
+   daughter #|
+       2009  |  -6.243426   .1184312   -52.72   0.000    -6.475547   -6.011305
+   daughter #|
+       2010  |   -7.73949   .1257163   -61.56   0.000    -7.985889    -7.49309
+   daughter #|
+       2011  |  -8.476328   .1287668   -65.83   0.000    -8.728706   -8.223949
+   daughter #|
+       2012  |   2.587626   .1338788    19.33   0.000     2.325228    2.850023
+   daughter #|
+       2013  |   8.956726   .1354006    66.15   0.000     8.691345    9.222106
+   daughter #|
+       2014  |   5.542041   .1310255    42.30   0.000     5.285236    5.798847
+   daughter #|
+       2015  |   9.197876   .1342856    68.49   0.000     8.934681    9.461071
+   daughter #|
+       2016  |   .0292522   .1251543     0.23   0.815    -.2160456    .2745501
+   daughter #|
+       2017  |   3.561379   .1190017    29.93   0.000      3.32814    3.794618
+   daughter #|
+       2018  |   2.843059   .1221571    23.27   0.000     2.603636    3.082483
+   daughter #|
+       2019  |  -7.506457   .1232141   -60.92   0.000    -7.747952   -7.264961
+   daughter #|
+       2020  |  -6.654352   .1234323   -53.91   0.000    -6.896275    -6.41243
+             |
+   daughters#|
+        educ |
+   daughter #|
+     middle  |     2.7391   .1181751    23.18   0.000     2.507481    2.970719
+   daughter #|
+       high  |   3.719351   .1208511    30.78   0.000     3.482487    3.956215
+             |
+   daughters#|
+ c.birthyear |
+   daughter  |    .002462   .0015929     1.55   0.122    -.0006601    .0055841
+             |
+female#syear |
+female#2001  |   4.289394   .1123019    38.20   0.000     4.069286    4.509502
+female#2002  |   4.711788   .1157815    40.70   0.000     4.484861    4.938716
+female#2003  |   1.712842   .1165107    14.70   0.000     1.484485    1.941199
+female#2004  |   2.919144   .1171614    24.92   0.000     2.689512    3.148776
+female#2005  |   13.21906   .1167826   113.19   0.000     12.99017    13.44795
+female#2006  |   15.90817   .1243715   127.91   0.000      15.6644    16.15193
+female#2007  |   2.857818   .1194335    23.93   0.000     2.623732    3.091903
+female#2008  |   14.87737     .11822   125.84   0.000     14.64566    15.10907
+female#2009  |   12.56614    .116823   107.57   0.000     12.33717     12.7951
+female#2010  |   14.57797   .1167165   124.90   0.000     14.34921    14.80673
+female#2011  |    10.4062   .1249394    83.29   0.000     10.16132    10.65107
+female#2012  |   14.68454   .1231304   119.26   0.000     14.44321    14.92587
+female#2013  |   15.13829   .1227405   123.34   0.000     14.89773    15.37886
+female#2014  |   14.98011   .1112202   134.69   0.000     14.76213     15.1981
+female#2015  |   21.49313   .1174732   182.96   0.000     21.26289    21.72338
+female#2016  |   20.77723   .1168971   177.74   0.000     20.54811    21.00634
+female#2017  |   23.68556   .1135368   208.62   0.000     23.46304    23.90809
+female#2018  |   28.49019    .116074   245.45   0.000     28.26269     28.7177
+female#2019  |   20.57518   .1144182   179.82   0.000     20.35092    20.79943
+female#2020  |   23.62851   .1156527   204.31   0.000     23.40184    23.85519
+             |
+ female#educ |
+     female #|
+     middle  |  -17.72252   .0982522  -180.38   0.000    -17.91509   -17.52995
+female#high  |  -11.21054   .1035846  -108.23   0.000    -11.41356   -11.00751
+             |
+      female#|
+ c.birthyear |
+     female  |  -.6150535   .0015269  -402.80   0.000    -.6180462   -.6120607
+             |
+   daughters#|
+female#syear |
+   daughter #|
+     female #|
+       2001  |  -10.07795    .161339   -62.46   0.000    -10.39417   -9.761734
+   daughter #|
+     female #|
+       2002  |   -8.77729   .1632014   -53.78   0.000    -9.097159   -8.457421
+   daughter #|
+     female #|
+       2003  |  -1.516895     .16429    -9.23   0.000    -1.838897   -1.194892
+   daughter #|
+     female #|
+       2004  |  -7.426412    .165356   -44.91   0.000    -7.750504    -7.10232
+   daughter #|
+     female #|
+       2005  |  -13.91845   .1675875   -83.05   0.000    -14.24691   -13.58998
+   daughter #|
+     female #|
+       2006  |  -15.00557   .1729005   -86.79   0.000    -15.34445   -14.66669
+   daughter #|
+     female #|
+       2007  |   5.594582    .171175    32.68   0.000     5.259085    5.930079
+   daughter #|
+     female #|
+       2008  |  -9.650194   .1661979   -58.06   0.000    -9.975936   -9.324452
+   daughter #|
+     female #|
+       2009  |   6.933719   .1684086    41.17   0.000     6.603644    7.263794
+   daughter #|
+     female #|
+       2010  |   12.52786   .1792909    69.87   0.000     12.17646    12.87927
+   daughter #|
+     female #|
+       2011  |   17.56286   .1833076    95.81   0.000     17.20358    17.92214
+   daughter #|
+     female #|
+       2012  |  -2.660959   .1915493   -13.89   0.000    -3.036389   -2.285529
+   daughter #|
+     female #|
+       2013  |  -10.39081   .1912588   -54.33   0.000    -10.76567   -10.01595
+   daughter #|
+     female #|
+       2014  |  -2.894015   .1873603   -15.45   0.000    -3.261234   -2.526795
+   daughter #|
+     female #|
+       2015  |  -5.964634   .1957368   -30.47   0.000    -6.348271   -5.580997
+   daughter #|
+     female #|
+       2016  |   -.153528   .1786854    -0.86   0.390     -.503745    .1966889
+   daughter #|
+     female #|
+       2017  |  -3.663627   .1715595   -21.35   0.000    -3.999878   -3.327377
+   daughter #|
+     female #|
+       2018  |  -9.298345   .1731857   -53.69   0.000    -9.637783   -8.958907
+   daughter #|
+     female #|
+       2019  |   9.477371    .173573    54.60   0.000     9.137174    9.817568
+   daughter #|
+     female #|
+       2020  |   5.589648   .1764902    31.67   0.000     5.243733    5.935562
+             |
+   daughters#|
+ female#educ |
+   daughter #|
+     female #|
+     middle  |   .9733942   .1464151     6.65   0.000     .6864258    1.260363
+   daughter #|
+     female #|
+       high  |  -16.09792    .151236  -106.44   0.000    -16.39434   -15.80151
+             |
+   daughters#|
+      female#|
+ c.birthyear |
+   daughter #|
+     female  |  -.5434613   .0023821  -228.14   0.000    -.5481301   -.5387924
+             |
+       _cons |  -1238.559   2.153852  -575.04   0.000    -1242.781   -1234.338
+------------------------------------------------------------------------------
+
+.         est sto e1
+
+.         regress housework (daughters##female)##(syear educ c.birthyear) [iw=p
+> hrf]
+
+      Source |       SS           df       MS      Number of obs   = 6,861,403
+-------------+----------------------------------   F(95, 6861307)  =  45281.64
+       Model |  7428267.45        95  78192.2889   Prob > F        =    0.0000
+    Residual |  11848099.3 6,861,307  1.72679919   R-squared       =    0.3854
+-------------+----------------------------------   Adj R-squared   =    0.3853
+       Total |  19276366.8 6,861,402  2.80939184   Root MSE        =    1.3141
+
+------------------------------------------------------------------------------
+   housework | Coefficient  Std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+   daughters |
+   daughter  |   17.98327   .2437542    73.78   0.000     17.50553    18.46102
+             |
+      female |
+     female  |   19.90911   .2288552    86.99   0.000     19.46056    20.35766
+             |
+   daughters#|
+      female |
+   daughter #|
+     female  |  -60.51704   .3590915  -168.53   0.000    -61.22084   -59.81323
+             |
+       syear |
+       2001  |  -.0212771   .0061494    -3.46   0.001    -.0333296   -.0092245
+       2002  |   .2784779    .006362    43.77   0.000     .2660086    .2909473
+       2003  |  -.0523639   .0066147    -7.92   0.000    -.0653285   -.0393993
+       2004  |   .1421161   .0064483    22.04   0.000     .1294776    .1547546
+       2005  |   .0670492   .0066618    10.06   0.000     .0539923     .080106
+       2006  |   .3435461   .0068311    50.29   0.000     .3301573    .3569349
+       2007  |   .3146225   .0066411    47.38   0.000     .3016062    .3276388
+       2008  |   .2844495   .0064688    43.97   0.000     .2717708    .2971282
+       2009  |   .1847091    .006387    28.92   0.000     .1721909    .1972274
+       2010  |   .3321249   .0063509    52.30   0.000     .3196773    .3445725
+       2011  |    .328252   .0068976    47.59   0.000      .314733     .341771
+       2012  |   .4345197   .0068536    63.40   0.000     .4210869    .4479525
+       2013  |   .1676099   .0070033    23.93   0.000     .1538837    .1813361
+       2014  |   .3916294   .0060304    64.94   0.000     .3798101    .4034487
+       2015  |   .1637293   .0064836    25.25   0.000     .1510217    .1764368
+       2016  |   .2854517   .0064936    43.96   0.000     .2727244     .298179
+       2017  |   .1662888   .0061748    26.93   0.000     .1541864    .1783913
+       2018  |   .0647046   .0064105    10.09   0.000     .0521402     .077269
+       2019  |   .1655482   .0063004    26.28   0.000     .1531997    .1778968
+       2020  |   .4946583   .0061775    80.07   0.000     .4825506    .5067659
+             |
+        educ |
+     middle  |   .1648334   .0063928    25.78   0.000     .1523037    .1773631
+       high  |  -.0558657   .0066696    -8.38   0.000    -.0689378   -.0427935
+             |
+   birthyear |  -.0080688   .0000839   -96.19   0.000    -.0082332   -.0079044
+             |
+   daughters#|
+       syear |
+   daughter #|
+       2001  |  -.1798599   .0086247   -20.85   0.000    -.1967639   -.1629558
+   daughter #|
+       2002  |  -.3788365   .0088206   -42.95   0.000    -.3961245   -.3615485
+   daughter #|
+       2003  |  -.0905008    .009058    -9.99   0.000    -.1082542   -.0727474
+   daughter #|
+       2004  |   -.067358    .008872    -7.59   0.000    -.0847469   -.0499692
+   daughter #|
+       2005  |  -.3197626   .0091224   -35.05   0.000    -.3376421    -.301883
+   daughter #|
+       2006  |  -.3691388   .0092729   -39.81   0.000    -.3873133   -.3509644
+   daughter #|
+       2007  |  -.4372827   .0092211   -47.42   0.000    -.4553559   -.4192096
+   daughter #|
+       2008  |  -.3797092   .0089366   -42.49   0.000    -.3972247   -.3621938
+   daughter #|
+       2009  |  -.2517129   .0091134   -27.62   0.000    -.2695748   -.2338509
+   daughter #|
+       2010  |    .096585   .0095182    10.15   0.000     .0779297    .1152402
+   daughter #|
+       2011  |  -.0271584   .0097726    -2.78   0.005    -.0463123   -.0080044
+   daughter #|
+       2012  |    .190895   .0101778    18.76   0.000     .1709469    .2108431
+   daughter #|
+       2013  |    .216069   .0105752    20.43   0.000      .195342     .236796
+   daughter #|
+       2014  |   .1021404   .0099436    10.27   0.000     .0826512    .1216295
+   daughter #|
+       2015  |   .0185765   .0101713     1.83   0.068    -.0013588    .0385118
+   daughter #|
+       2016  |  -.1598961   .0093816   -17.04   0.000    -.1782838   -.1415084
+   daughter #|
+       2017  |   .3526346   .0090171    39.11   0.000     .3349615    .3703078
+   daughter #|
+       2018  |   .4475156   .0092882    48.18   0.000     .4293112    .4657201
+   daughter #|
+       2019  |   .2331215   .0093199    25.01   0.000     .2148549    .2513882
+   daughter #|
+       2020  |   .1616349   .0093733    17.24   0.000     .1432637    .1800062
+             |
+   daughters#|
+        educ |
+   daughter #|
+     middle  |  -.8350923   .0090127   -92.66   0.000    -.8527568   -.8174278
+   daughter #|
+       high  |    -.59565   .0092234   -64.58   0.000    -.6137276   -.5775725
+             |
+   daughters#|
+ c.birthyear |
+   daughter  |  -.0087135   .0001241   -70.20   0.000    -.0089568   -.0084702
+             |
+female#syear |
+female#2001  |   .4260002   .0085285    49.95   0.000     .4092847    .4427158
+female#2002  |   .7762297   .0086468    89.77   0.000     .7592824    .7931771
+female#2003  |   .8908536   .0088447   100.72   0.000     .8735183    .9081889
+female#2004  |   .4795915   .0087622    54.73   0.000     .4624178    .4967651
+female#2005  |  -.2465552   .0088857   -27.75   0.000    -.2639709   -.2291395
+female#2006  |  -.0922095   .0094229    -9.79   0.000     -.110678    -.073741
+female#2007  |   .8653603   .0090671    95.44   0.000     .8475892    .8831315
+female#2008  |  -.0119732   .0089562    -1.34   0.181     -.029527    .0055805
+female#2009  |  -.5585238   .0088433   -63.16   0.000    -.5758563   -.5411914
+female#2010  |  -.5694452   .0088842   -64.10   0.000    -.5868579   -.5520325
+female#2011  |  -.5502713   .0094849   -58.02   0.000    -.5688613   -.5316814
+female#2012  |  -.7225349   .0093648   -77.15   0.000    -.7408897   -.7041802
+female#2013  |  -.4420218   .0094506   -46.77   0.000    -.4605445    -.423499
+female#2014  |  -.4257652    .008434   -50.48   0.000    -.4422955   -.4092348
+female#2015  |  -.2987722   .0088883   -33.61   0.000     -.316193   -.2813514
+female#2016  |  -.7851548   .0088786   -88.43   0.000    -.8025566    -.767753
+female#2017  |  -.3163396   .0085993   -36.79   0.000    -.3331938   -.2994853
+female#2018  |  -.9199717   .0088336  -104.15   0.000    -.9372851   -.9026582
+female#2019  |  -.8210574   .0086407   -95.02   0.000    -.8379929   -.8041219
+female#2020  |  -1.279286   .0087792  -145.72   0.000    -1.296493   -1.262079
+             |
+ female#educ |
+     female #|
+     middle  |  -.1875426   .0074339   -25.23   0.000    -.2021129   -.1729723
+female#high  |   -.463323   .0078533   -59.00   0.000    -.4787153   -.4479308
+             |
+      female#|
+ c.birthyear |
+     female  |  -.0088479   .0001164   -76.04   0.000    -.0090759   -.0086198
+             |
+   daughters#|
+female#syear |
+   daughter #|
+     female #|
+       2001  |   .0096394   .0122001     0.79   0.429    -.0142724    .0335512
+   daughter #|
+     female #|
+       2002  |  -.8538689   .0122759   -69.56   0.000    -.8779292   -.8298085
+   daughter #|
+     female #|
+       2003  |  -.6501753   .0124751   -52.12   0.000    -.6746261   -.6257245
+   daughter #|
+     female #|
+       2004  |   -.524697    .012358   -42.46   0.000    -.5489183   -.5004757
+   daughter #|
+     female #|
+       2005  |   .2904566   .0125967    23.06   0.000     .2657676    .3151456
+   daughter #|
+     female #|
+       2006  |   .7706416   .0130445    59.08   0.000     .7450749    .7962083
+   daughter #|
+     female #|
+       2007  |  -.8002542   .0128828   -62.12   0.000     -.825504   -.7750044
+   daughter #|
+     female #|
+       2008  |   .4012502   .0125408    32.00   0.000     .3766707    .4258297
+   daughter #|
+     female #|
+       2009  |    .494145   .0129871    38.05   0.000     .4686907    .5195992
+   daughter #|
+     female #|
+       2010  |  -.5335103   .0135965   -39.24   0.000    -.5601589   -.5068617
+   daughter #|
+     female #|
+       2011  |   -.489636   .0137694   -35.56   0.000    -.5166236   -.4626485
+   daughter #|
+     female #|
+       2012  |  -.3465071   .0145138   -23.87   0.000    -.3749536   -.3180605
+   daughter #|
+     female #|
+       2013  |  -.2914976   .0148935   -19.57   0.000    -.3206883   -.2623069
+   daughter #|
+     female #|
+       2014  |   -.196641   .0141799   -13.87   0.000     -.224433    -.168849
+   daughter #|
+     female #|
+       2015  |  -.4231576   .0147965   -28.60   0.000    -.4521581    -.394157
+   daughter #|
+     female #|
+       2016  |  -.0449386   .0133281    -3.37   0.001    -.0710611   -.0188161
+   daughter #|
+     female #|
+       2017  |  -.8910553   .0129673   -68.72   0.000    -.9164708   -.8656398
+   daughter #|
+     female #|
+       2018  |  -.4553158   .0131253   -34.69   0.000    -.4810409   -.4295906
+   daughter #|
+     female #|
+       2019  |  -.4920831   .0131067   -37.54   0.000    -.5177718   -.4663944
+   daughter #|
+     female #|
+       2020  |   .3137212   .0133575    23.49   0.000     .2875411    .3399014
+             |
+   daughters#|
+ female#educ |
+   daughter #|
+     female #|
+     middle  |   .9740728   .0112091    86.90   0.000     .9521033    .9960423
+   daughter #|
+     female #|
+       high  |    1.30172   .0115783   112.43   0.000     1.279027    1.324414
+             |
+   daughters#|
+      female#|
+ c.birthyear |
+   daughter #|
+     female  |   .0301464   .0001828   164.92   0.000     .0297882    .0305047
+             |
+       _cons |   16.35045    .164816    99.20   0.000     16.02742    16.67348
+------------------------------------------------------------------------------
+
+.         est sto e2
+
+.         
+.                 *for later reporting [N, df]
+.                 regress workhours (daughters##female)##(syear educ c.birthyea
+> r) [pw=phrf], vce(cluster cid)
+(sum of wgt is 6,838,595.04)
+
+Linear regression                               Number of obs     =      3,015
+                                                F(95, 355)        =      16.37
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.3054
+                                                Root MSE          =     17.583
+
+                                  (Std. err. adjusted for 356 clusters in cid)
+------------------------------------------------------------------------------
+             |               Robust
+   workhours | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+   daughters |
+   daughter  |  -9.049784   439.8872    -0.02   0.984    -874.1622    856.0626
+             |
+      female |
+     female  |   1194.382   387.5837     3.08   0.002     432.1331    1956.631
+             |
+   daughters#|
+      female |
+   daughter #|
+     female  |   1076.202    823.871     1.31   0.192    -544.0795    2696.483
+             |
+       syear |
+       2001  |  -1.690275   2.593062    -0.65   0.515    -6.789968    3.409419
+       2002  |  -5.364232   3.821038    -1.40   0.161    -12.87895    2.150484
+       2003  |  -1.806307    3.00873    -0.60   0.549    -7.723484    4.110869
+       2004  |  -2.682475   3.476685    -0.77   0.441    -9.519964    4.155015
+       2005  |  -2.061662   3.100157    -0.67   0.506    -8.158644     4.03532
+       2006  |  -9.552022   6.363847    -1.50   0.134     -22.0676    2.963557
+       2007  |  -1.545768   3.879522    -0.40   0.691    -9.175504    6.083969
+       2008  |  -3.008756   3.668271    -0.82   0.413    -10.22303    4.205518
+       2009  |  -6.501687   5.095397    -1.28   0.203    -16.52265    3.519272
+       2010  |  -7.169959   4.808553    -1.49   0.137    -16.62679    2.286872
+       2011  |  -3.797988   3.791492    -1.00   0.317     -11.2546    3.658621
+       2012  |  -8.994601   4.012117    -2.24   0.026    -16.88511   -1.104095
+       2013  |  -8.069612   3.365011    -2.40   0.017    -14.68748   -1.451748
+       2014  |  -7.508126   3.560331    -2.11   0.036    -14.51012   -.5061333
+       2015  |  -10.17324   3.573884    -2.85   0.005    -17.20189   -3.144594
+       2016  |  -9.557371   4.083388    -2.34   0.020    -17.58804   -1.526698
+       2017  |   -11.8308    3.53952    -3.34   0.001    -18.79187   -4.869738
+       2018  |  -11.14755   4.018576    -2.77   0.006    -19.05076   -3.244339
+       2019  |  -9.241115   4.471701    -2.07   0.039    -18.03547     -.44676
+       2020  |  -9.552197   3.839105    -2.49   0.013    -17.10245   -2.001949
+             |
+        educ |
+     middle  |   12.52661   6.500865     1.93   0.055    -.2584429    25.31166
+       high  |   15.54675   6.474797     2.40   0.017     2.812967    28.28053
+             |
+   birthyear |   .6450233   .1328944     4.85   0.000      .383664    .9063825
+             |
+   daughters#|
+       syear |
+   daughter #|
+       2001  |   8.223737   4.189574     1.96   0.050    -.0157683    16.46324
+   daughter #|
+       2002  |   8.287953   4.489327     1.85   0.066    -.5410658    17.11697
+   daughter #|
+       2003  |  -.7431863   4.978473    -0.15   0.881    -10.53419    9.047821
+   daughter #|
+       2004  |   6.051598   4.598389     1.32   0.189    -2.991912    15.09511
+   daughter #|
+       2005  |  -1.996987    4.78582    -0.42   0.677    -11.40911    7.415136
+   daughter #|
+       2006  |   4.395118   7.075075     0.62   0.535    -9.519213    18.30945
+   daughter #|
+       2007  |  -6.649343   5.220768    -1.27   0.204    -16.91686    3.618179
+   daughter #|
+       2008  |  -.5477821   4.898157    -0.11   0.911    -10.18083     9.08527
+   daughter #|
+       2009  |  -6.243426   7.244362    -0.86   0.389    -20.49069    8.003836
+   daughter #|
+       2010  |   -7.73949   6.396848    -1.21   0.227    -20.31997    4.840993
+   daughter #|
+       2011  |  -8.476328   7.846744    -1.08   0.281    -23.90828     6.95562
+   daughter #|
+       2012  |   2.587626   7.153533     0.36   0.718    -11.48101    16.65626
+   daughter #|
+       2013  |   8.956726   5.298347     1.69   0.092    -1.463369    19.37682
+   daughter #|
+       2014  |   5.542041   5.632798     0.98   0.326    -5.535807    16.61989
+   daughter #|
+       2015  |   9.197876   5.562969     1.65   0.099    -1.742641    20.13839
+   daughter #|
+       2016  |   .0292522   6.532428     0.00   0.996    -12.81787    12.87637
+   daughter #|
+       2017  |   3.561379   5.825453     0.61   0.541    -7.895358    15.01812
+   daughter #|
+       2018  |   2.843059   6.224181     0.46   0.648    -9.397844    15.08396
+   daughter #|
+       2019  |  -7.506457   6.760394    -1.11   0.268    -20.80191    5.788999
+   daughter #|
+       2020  |  -6.654352   6.316824    -1.05   0.293    -19.07745    5.768749
+             |
+   daughters#|
+        educ |
+   daughter #|
+     middle  |     2.7391    8.33221     0.33   0.743     -13.6476     19.1258
+   daughter #|
+       high  |   3.719351   8.335176     0.45   0.656    -12.67318    20.11188
+             |
+   daughters#|
+ c.birthyear |
+   daughter  |    .002462   .2234781     0.01   0.991    -.4370454    .4419695
+             |
+female#syear |
+female#2001  |   4.289394   3.442446     1.25   0.214    -2.480758    11.05955
+female#2002  |   4.711788   4.842743     0.97   0.331    -4.812284    14.23586
+female#2003  |   1.712842   4.375432     0.39   0.696    -6.892185    10.31787
+female#2004  |   2.919144   4.845925     0.60   0.547    -6.611185    12.44947
+female#2005  |   13.21906   6.260678     2.11   0.035     .9063816    25.53174
+female#2006  |   15.90817   5.720703     2.78   0.006     4.657439     27.1589
+female#2007  |   2.857818   5.365442     0.53   0.595     -7.69423    13.40987
+female#2008  |   14.87737   5.559091     2.68   0.008     3.944475    25.81026
+female#2009  |   12.56614   8.745126     1.44   0.152    -4.632632     29.7649
+female#2010  |   14.57797   8.267015     1.76   0.079    -1.680508    30.83645
+female#2011  |    10.4062   5.083113     2.05   0.041     .4093945      20.403
+female#2012  |   14.68454   5.391741     2.72   0.007     4.080773    25.28831
+female#2013  |   15.13829   5.173063     2.93   0.004      4.96459      25.312
+female#2014  |   14.98011   5.283432     2.84   0.005     4.589353    25.37087
+female#2015  |   21.49313   5.103853     4.21   0.000     11.45554    31.53072
+female#2016  |   20.77723   5.304611     3.92   0.000     10.34481    31.20964
+female#2017  |   23.68556   5.098461     4.65   0.000     13.65858    33.71255
+female#2018  |   28.49019   5.351452     5.32   0.000     17.96566    39.01473
+female#2019  |   20.57518    6.09935     3.37   0.001     8.579775    32.57058
+female#2020  |   23.62851   5.943882     3.98   0.000     11.93886    35.31816
+             |
+ female#educ |
+     female #|
+     middle  |  -17.72252   7.438993    -2.38   0.018    -32.35256   -3.092482
+female#high  |  -11.21054   8.310867    -1.35   0.178    -27.55526    5.134189
+             |
+      female#|
+ c.birthyear |
+     female  |  -.6150535   .1968646    -3.12   0.002    -1.002221    -.227886
+             |
+   daughters#|
+female#syear |
+   daughter #|
+     female #|
+       2001  |  -10.07795   5.622319    -1.79   0.074    -21.13519     .979287
+   daughter #|
+     female #|
+       2002  |   -8.77729      6.539    -1.34   0.180    -21.63734    4.082758
+   daughter #|
+     female #|
+       2003  |  -1.516895   5.714189    -0.27   0.791    -12.75481    9.721024
+   daughter #|
+     female #|
+       2004  |  -7.426412   6.593123    -1.13   0.261     -20.3929    5.540079
+   daughter #|
+     female #|
+       2005  |  -13.91845   7.548884    -1.84   0.066     -28.7646    .9277096
+   daughter #|
+     female #|
+       2006  |  -15.00557    7.80165    -1.92   0.055    -30.34883    .3376918
+   daughter #|
+     female #|
+       2007  |   5.594582   8.736572     0.64   0.522    -11.58736    22.77653
+   daughter #|
+     female #|
+       2008  |  -9.650194   8.751416    -1.10   0.271    -26.86133    7.560944
+   daughter #|
+     female #|
+       2009  |   6.933719   12.53442     0.55   0.580    -17.71733    31.58476
+   daughter #|
+     female #|
+       2010  |   12.52786   11.98683     1.05   0.297    -11.04627      36.102
+   daughter #|
+     female #|
+       2011  |   17.56286   10.83122     1.62   0.106    -3.738563    38.86428
+   daughter #|
+     female #|
+       2012  |  -2.660959   11.09254    -0.24   0.811     -24.4763    19.15439
+   daughter #|
+     female #|
+       2013  |  -10.39081   9.454595    -1.10   0.273    -28.98487    8.203249
+   daughter #|
+     female #|
+       2014  |  -2.894015   10.14708    -0.29   0.776    -22.84995    17.06192
+   daughter #|
+     female #|
+       2015  |  -5.964634   10.80859    -0.55   0.581    -27.22155    15.29229
+   daughter #|
+     female #|
+       2016  |   -.153528   11.18647    -0.01   0.989    -22.15362    21.84656
+   daughter #|
+     female #|
+       2017  |  -3.663627   10.45316    -0.35   0.726    -24.22154    16.89428
+   daughter #|
+     female #|
+       2018  |  -9.298345   10.54342    -0.88   0.378    -30.03376    11.43707
+   daughter #|
+     female #|
+       2019  |   9.477371   12.66058     0.75   0.455    -15.42179    34.37653
+   daughter #|
+     female #|
+       2020  |   5.589648   12.16035     0.46   0.646    -18.32574    29.50503
+             |
+   daughters#|
+ female#educ |
+   daughter #|
+     female #|
+     middle  |   .9733942   11.08773     0.09   0.930    -20.83249    22.77928
+   daughter #|
+     female #|
+       high  |  -16.09792   12.07256    -1.33   0.183    -39.84065    7.644809
+             |
+   daughters#|
+      female#|
+ c.birthyear |
+   daughter #|
+     female  |  -.5434613   .4194812    -1.30   0.196    -1.368442    .2815193
+             |
+       _cons |  -1238.559   261.9076    -4.73   0.000    -1753.645   -723.4737
+------------------------------------------------------------------------------
+
+.                 est sto e1w
+
+.                 regress housework (daughters##female)##(syear educ c.birthyea
+> r) [pw=phrf], vce(cluster cid)
+(sum of wgt is 6,861,403.56)
+
+Linear regression                               Number of obs     =      2,992
+                                                F(95, 348)        =      18.17
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.3854
+                                                Root MSE          =     1.3357
+
+                                  (Std. err. adjusted for 349 clusters in cid)
+------------------------------------------------------------------------------
+             |               Robust
+   housework | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+   daughters |
+   daughter  |   17.98327   44.81421     0.40   0.688    -70.15751    106.1241
+             |
+      female |
+     female  |   19.90911   30.53892     0.65   0.515    -40.15497    79.97319
+             |
+   daughters#|
+      female |
+   daughter #|
+     female  |  -60.51704   68.37421    -0.89   0.377    -194.9957    73.96165
+             |
+       syear |
+       2001  |  -.0212771   .2249726    -0.09   0.925    -.4637541       .4212
+       2002  |   .2784779   .2789139     1.00   0.319    -.2700911    .8270469
+       2003  |  -.0523639   .2179413    -0.24   0.810    -.4810117     .376284
+       2004  |   .1421161   .2252387     0.63   0.528    -.3008842    .5851165
+       2005  |   .0670492   .1934366     0.35   0.729    -.3134028    .4475011
+       2006  |   .3435461   .2361264     1.45   0.147    -.1208684    .8079606
+       2007  |   .3146225   .3096246     1.02   0.310    -.2943485    .9235935
+       2008  |   .2844495   .2541116     1.12   0.264    -.2153383    .7842372
+       2009  |   .1847091   .2658498     0.69   0.488    -.3381655    .7075837
+       2010  |   .3321249    .274419     1.21   0.227    -.2076036    .8718534
+       2011  |    .328252   .2222288     1.48   0.141    -.1088285    .7653325
+       2012  |   .4345197   .1951577     2.23   0.027     .0506827    .8183568
+       2013  |   .1676099   .2493517     0.67   0.502    -.3228161     .658036
+       2014  |   .3916294   .2482485     1.58   0.116    -.0966269    .8798857
+       2015  |   .1637293   .2114915     0.77   0.439    -.2522332    .5796917
+       2016  |   .2854517   .2004333     1.42   0.155    -.1087615    .6796648
+       2017  |   .1662888   .2318874     0.72   0.474    -.2897883     .622366
+       2018  |   .0647046   .2337022     0.28   0.782    -.3949419    .5243511
+       2019  |   .1655482   .2095234     0.79   0.430    -.2465432    .5776397
+       2020  |   .4946583   .2321669     2.13   0.034     .0380314    .9512851
+             |
+        educ |
+     middle  |   .1648334   .1556717     1.06   0.290    -.1413424    .4710092
+       high  |  -.0558657   .1598496    -0.35   0.727    -.3702586    .2585273
+             |
+   birthyear |  -.0080688   .0051148    -1.58   0.116    -.0181285     .001991
+             |
+   daughters#|
+       syear |
+   daughter #|
+       2001  |  -.1798599    .268176    -0.67   0.503    -.7073095    .3475898
+   daughter #|
+       2002  |  -.3788365   .3320475    -1.14   0.255    -1.031909     .274236
+   daughter #|
+       2003  |  -.0905008   .2922452    -0.31   0.757    -.6652899    .4842882
+   daughter #|
+       2004  |   -.067358   .3161159    -0.21   0.831    -.6890961      .55438
+   daughter #|
+       2005  |  -.3197626   .2530616    -1.26   0.207    -.8174852    .1779601
+   daughter #|
+       2006  |  -.3691388   .3229884    -1.14   0.254    -1.004394    .2661161
+   daughter #|
+       2007  |  -.4372827   .3629522    -1.20   0.229    -1.151139    .2765732
+   daughter #|
+       2008  |  -.3797092    .333362    -1.14   0.255    -1.035367    .2759485
+   daughter #|
+       2009  |  -.2517129   .3662253    -0.69   0.492    -.9720064    .4685806
+   daughter #|
+       2010  |    .096585   .4261211     0.23   0.821    -.7415117    .9346816
+   daughter #|
+       2011  |  -.0271584   .3797541    -0.07   0.943    -.7740604    .7197437
+   daughter #|
+       2012  |    .190895   .4268396     0.45   0.655     -.648615    1.030405
+   daughter #|
+       2013  |    .216069   .4756306     0.45   0.650    -.7194033    1.151541
+   daughter #|
+       2014  |   .1021404   .3696425     0.28   0.782     -.624874    .8291548
+   daughter #|
+       2015  |   .0185765   .3778998     0.05   0.961    -.7246784    .7618315
+   daughter #|
+       2016  |  -.1598961   .3480264    -0.46   0.646    -.8443958    .5246035
+   daughter #|
+       2017  |   .3526346   .4229453     0.83   0.405     -.479216    1.184485
+   daughter #|
+       2018  |   .4475156     .38959     1.15   0.251    -.3187317    1.213763
+   daughter #|
+       2019  |   .2331215   .4477406     0.52   0.603    -.6474967     1.11374
+   daughter #|
+       2020  |   .1616349   .5084451     0.32   0.751    -.8383771    1.161647
+             |
+   daughters#|
+        educ |
+   daughter #|
+     middle  |  -.8350923   .4861033    -1.72   0.087    -1.791162    .1209777
+   daughter #|
+       high  |    -.59565   .4768579    -1.25   0.212    -1.533536     .342236
+             |
+   daughters#|
+ c.birthyear |
+   daughter  |  -.0087135   .0228165    -0.38   0.703    -.0535891    .0361621
+             |
+female#syear |
+female#2001  |   .4260002   .5593689     0.76   0.447    -.6741689    1.526169
+female#2002  |   .7762297   .7322032     1.06   0.290    -.6638706     2.21633
+female#2003  |   .8908536   .6790362     1.31   0.190    -.4446776    2.226385
+female#2004  |   .4795915   .4868079     0.99   0.325    -.4778643    1.437047
+female#2005  |  -.2465552   .4658758    -0.53   0.597    -1.162842    .6697312
+female#2006  |  -.0922095   .5123001    -0.18   0.857    -1.099803    .9153844
+female#2007  |   .8653603   1.054067     0.82   0.412    -1.207783    2.938503
+female#2008  |  -.0119732   .4831447    -0.02   0.980    -.9622243    .9382779
+female#2009  |  -.5585238   .5832561    -0.96   0.339    -1.705674    .5886268
+female#2010  |  -.5694452   .5356157    -1.06   0.288    -1.622896    .4840061
+female#2011  |  -.5502713   .4713092    -1.17   0.244    -1.477244    .3767016
+female#2012  |  -.7225349   .3846524    -1.88   0.061    -1.479071    .0340011
+female#2013  |  -.4420218   .4117902    -1.07   0.284    -1.251932    .3678889
+female#2014  |  -.4257652   .5019122    -0.85   0.397    -1.412928    .5613979
+female#2015  |  -.2987722   .5234068    -0.57   0.568    -1.328211    .7306664
+female#2016  |  -.7851548   .4943648    -1.59   0.113    -1.757473    .1871639
+female#2017  |  -.3163396   .5736334    -0.55   0.582    -1.444564     .811885
+female#2018  |  -.9199717   .3750545    -2.45   0.015     -1.65763   -.1823129
+female#2019  |  -.8210574   .3943101    -2.08   0.038    -1.596588   -.0455265
+female#2020  |  -1.279286   .4638222    -2.76   0.006    -2.191534   -.3670387
+             |
+ female#educ |
+     female #|
+     middle  |  -.1875426   .4615761    -0.41   0.685    -1.095372    .7202871
+female#high  |   -.463323   .5283151    -0.88   0.381    -1.502415    .5757694
+             |
+      female#|
+ c.birthyear |
+     female  |  -.0088479   .0155484    -0.57   0.570    -.0394285    .0217327
+             |
+   daughters#|
+female#syear |
+   daughter #|
+     female #|
+       2001  |   .0096394    .645778     0.01   0.988    -1.260479    1.279758
+   daughter #|
+     female #|
+       2002  |  -.8538689   .8114147    -1.05   0.293    -2.449763    .7420251
+   daughter #|
+     female #|
+       2003  |  -.6501753   .7592971    -0.86   0.392    -2.143564    .8432135
+   daughter #|
+     female #|
+       2004  |   -.524697   .6415444    -0.82   0.414    -1.786489    .7370953
+   daughter #|
+     female #|
+       2005  |   .2904566    .572637     0.51   0.612    -.8358083    1.416722
+   daughter #|
+     female #|
+       2006  |   .7706416   .7456891     1.03   0.302    -.6959828    2.237266
+   daughter #|
+     female #|
+       2007  |  -.8002542   1.136295    -0.70   0.482    -3.035124    1.434616
+   daughter #|
+     female #|
+       2008  |   .4012502   .7997521     0.50   0.616    -1.171706    1.974206
+   daughter #|
+     female #|
+       2009  |    .494145    .808885     0.61   0.542    -1.096773    2.085063
+   daughter #|
+     female #|
+       2010  |  -.5335103    .815894    -0.65   0.514    -2.138214    1.071194
+   daughter #|
+     female #|
+       2011  |   -.489636   .7521464    -0.65   0.515    -1.968961    .9896887
+   daughter #|
+     female #|
+       2012  |  -.3465071   .6985381    -0.50   0.620    -1.720395    1.027381
+   daughter #|
+     female #|
+       2013  |  -.2914976   .7201659    -0.40   0.686    -1.707923    1.124928
+   daughter #|
+     female #|
+       2014  |   -.196641   .7224342    -0.27   0.786    -1.617528    1.224246
+   daughter #|
+     female #|
+       2015  |  -.4231576   .7054237    -0.60   0.549    -1.810588    .9642727
+   daughter #|
+     female #|
+       2016  |  -.0449386   .7101573    -0.06   0.950    -1.441679    1.351802
+   daughter #|
+     female #|
+       2017  |  -.8910553   .8029421    -1.11   0.268    -2.470285    .6881745
+   daughter #|
+     female #|
+       2018  |  -.4553158   .6014383    -0.76   0.450    -1.638227    .7275957
+   daughter #|
+     female #|
+       2019  |  -.4920831   .7149875    -0.69   0.492    -1.898323    .9141573
+   daughter #|
+     female #|
+       2020  |   .3137212   .7850012     0.40   0.690    -1.230222    1.857665
+             |
+   daughters#|
+ female#educ |
+   daughter #|
+     female #|
+     middle  |   .9740728   .7609048     1.28   0.201     -.522478    2.470624
+   daughter #|
+     female #|
+       high  |    1.30172   .8104926     1.61   0.109    -.2923598    2.895801
+             |
+   daughters#|
+      female#|
+ c.birthyear |
+   daughter #|
+     female  |   .0301464   .0348105     0.87   0.387     -.038319    .0986119
+             |
+       _cons |   16.35045   10.02371     1.63   0.104    -3.364235    36.06513
+------------------------------------------------------------------------------
+
+.                 est sto e2w
+
+. 
+.         *obtain standard errors accounting for correlated errors of outcomes 
+> and dependence of observations
+.         suest e1 e2, vce(cluster cid)
+
+Simultaneous results for e1, e2                          Number of obs = 3,065
+
+                                  (Std. err. adjusted for 359 clusters in cid)
+------------------------------------------------------------------------------
+             |               Robust
+             | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+e1_mean      |
+   daughters |
+   daughter  |  -9.049784    432.894    -0.02   0.983    -857.5065    839.4069
+             |
+      female |
+     female  |   1194.382   381.4221     3.13   0.002     446.8084    1941.956
+             |
+   daughters#|
+      female |
+   daughter #|
+     female  |   1076.202   810.7734     1.33   0.184    -512.8849    2665.289
+             |
+       syear |
+       2001  |  -1.690275   2.551838    -0.66   0.508    -6.691786    3.311236
+       2002  |  -5.364232   3.760293    -1.43   0.154    -12.73427    2.005806
+       2003  |  -1.806307   2.960899    -0.61   0.542    -7.609562    3.996948
+       2004  |  -2.682475   3.421415    -0.78   0.433    -9.388324    4.023375
+       2005  |  -2.061662   3.050872    -0.68   0.499    -8.041261    3.917937
+       2006  |  -9.552022   6.262677    -1.53   0.127    -21.82664      2.7226
+       2007  |  -1.545768   3.817848    -0.40   0.686    -9.028611    5.937076
+       2008  |  -3.008756   3.609954    -0.83   0.405    -10.08414    4.066625
+       2009  |  -6.501687   5.014393    -1.30   0.195    -16.32972    3.326342
+       2010  |  -7.169959   4.732109    -1.52   0.130    -16.44472    2.104803
+       2011  |  -3.797988   3.731217    -1.02   0.309    -11.11104    3.515062
+       2012  |  -8.994601   3.948334    -2.28   0.023    -16.73319   -1.256008
+       2013  |  -8.069612   3.311516    -2.44   0.015    -14.56006    -1.57916
+       2014  |  -7.508126   3.503731    -2.14   0.032    -14.37531     -.64094
+       2015  |  -10.17324   3.517068    -2.89   0.004    -17.06657   -3.279914
+       2016  |  -9.557371   4.018472    -2.38   0.017    -17.43343    -1.68131
+       2017  |   -11.8308   3.483251    -3.40   0.001    -18.65785   -5.003756
+       2018  |  -11.14755   3.954691    -2.82   0.005     -18.8986   -3.396497
+       2019  |  -9.241115   4.400612    -2.10   0.036    -17.86616   -.6160744
+       2020  |  -9.552197   3.778072    -2.53   0.011    -16.95708   -2.147312
+             |
+        educ |
+     middle  |   12.52661   6.397517     1.96   0.050    -.0122971    25.06551
+       high  |   15.54675   6.371864     2.44   0.015     3.058125    28.03537
+             |
+   birthyear |   .6450233   .1307817     4.93   0.000     .3886959    .9013507
+             |
+   daughters#|
+       syear |
+   daughter #|
+       2001  |   8.223737    4.12297     1.99   0.046     .1428638    16.30461
+   daughter #|
+       2002  |   8.287953   4.417957     1.88   0.061     -.371084    16.94699
+   daughter #|
+       2003  |  -.7431863   4.899327    -0.15   0.879    -10.34569    8.859318
+   daughter #|
+       2004  |   6.051598   4.525286     1.34   0.181    -2.817801      14.921
+   daughter #|
+       2005  |  -1.996987   4.709737    -0.42   0.672     -11.2279    7.233928
+   daughter #|
+       2006  |   4.395118   6.962599     0.63   0.528    -9.251326    18.04156
+   daughter #|
+       2007  |  -6.649343    5.13777    -1.29   0.196    -16.71919    3.420502
+   daughter #|
+       2008  |  -.5477821   4.820288    -0.11   0.910    -9.995373    8.899809
+   daughter #|
+       2009  |  -6.243426   7.129195    -0.88   0.381    -20.21639    7.729539
+   daughter #|
+       2010  |   -7.73949   6.295154    -1.23   0.219    -20.07776    4.598786
+   daughter #|
+       2011  |  -8.476328      7.722    -1.10   0.272    -23.61117    6.658515
+   daughter #|
+       2012  |   2.587626    7.03981     0.37   0.713    -11.21015     16.3854
+   daughter #|
+       2013  |   8.956726   5.214117     1.72   0.086    -1.262755    19.17621
+   daughter #|
+       2014  |   5.542041    5.54325     1.00   0.317     -5.32253    16.40661
+   daughter #|
+       2015  |   9.197876   5.474531     1.68   0.093    -1.532007    19.92776
+   daughter #|
+       2016  |   .0292522   6.428578     0.00   0.996    -12.57053    12.62903
+   daughter #|
+       2017  |   3.561379   5.732843     0.62   0.534    -7.674786    14.79754
+   daughter #|
+       2018  |   2.843059   6.125232     0.46   0.643    -9.162174    14.84829
+   daughter #|
+       2019  |  -7.506457    6.65292    -1.13   0.259    -20.54594    5.533027
+   daughter #|
+       2020  |  -6.654352   6.216402    -1.07   0.284    -18.83828    5.529571
+             |
+   daughters#|
+        educ |
+   daughter #|
+     middle  |     2.7391   8.199748     0.33   0.738    -13.33211    18.81031
+   daughter #|
+       high  |   3.719351   8.202667     0.45   0.650    -12.35758    19.79628
+             |
+   daughters#|
+ c.birthyear |
+   daughter  |    .002462   .2199253     0.01   0.991    -.4285837    .4335078
+             |
+female#syear |
+female#2001  |   4.289394    3.38772     1.27   0.205    -2.350415     10.9292
+female#2002  |   4.711788   4.765755     0.99   0.323     -4.62892     14.0525
+female#2003  |   1.712842   4.305874     0.40   0.691    -6.726515     10.1522
+female#2004  |   2.919144   4.768887     0.61   0.540    -6.427701    12.26599
+female#2005  |   13.21906   6.161148     2.15   0.032     1.143433    25.29469
+female#2006  |   15.90817   5.629758     2.83   0.005     4.874045    26.94229
+female#2007  |   2.857818   5.280145     0.54   0.588    -7.491076    13.20671
+female#2008  |   14.87737   5.470715     2.72   0.007     4.154961    25.59977
+female#2009  |   12.56614     8.6061     1.46   0.144    -4.301511    29.43378
+female#2010  |   14.57797    8.13559     1.79   0.073     -1.36749    30.52344
+female#2011  |    10.4062   5.002304     2.08   0.037     .6018592    20.21053
+female#2012  |   14.68454   5.306026     2.77   0.006     4.284924    25.08416
+female#2013  |   15.13829   5.090824     2.97   0.003     5.160461    25.11613
+female#2014  |   14.98011   5.199438     2.88   0.004     4.789402    25.17082
+female#2015  |   21.49313   5.022714     4.28   0.000     11.64879    31.33747
+female#2016  |   20.77723   5.220281     3.98   0.000     10.54566    31.00879
+female#2017  |   23.68556   5.017408     4.72   0.000     13.85163     33.5195
+female#2018  |   28.49019   5.266378     5.41   0.000     18.16828    38.81211
+female#2019  |   20.57518   6.002385     3.43   0.001     8.810718    32.33963
+female#2020  |   23.62851   5.849389     4.04   0.000     12.16392     35.0931
+             |
+ female#educ |
+     female #|
+     middle  |  -17.72252   7.320732    -2.42   0.015    -32.07089   -3.374149
+female#high  |  -11.21054   8.178745    -1.37   0.170    -27.24058     4.81951
+             |
+      female#|
+ c.birthyear |
+     female  |  -.6150535   .1937349    -3.17   0.001    -.9947669     -.23534
+             |
+   daughters#|
+female#syear |
+   daughter #|
+     female #|
+       2001  |  -10.07795   5.532938    -1.82   0.069    -20.92231    .7664061
+   daughter #|
+     female #|
+       2002  |   -8.77729   6.435046    -1.36   0.173    -21.38975    3.835169
+   daughter #|
+     female #|
+       2003  |  -1.516895   5.623348    -0.27   0.787    -12.53845    9.504664
+   daughter #|
+     female #|
+       2004  |  -7.426412   6.488309    -1.14   0.252    -20.14326     5.29044
+   daughter #|
+     female #|
+       2005  |  -13.91845   7.428876    -1.87   0.061    -28.47877    .6418821
+   daughter #|
+     female #|
+       2006  |  -15.00557   7.677623    -1.95   0.051    -30.05344    .0422937
+   daughter #|
+     female #|
+       2007  |   5.594582   8.597682     0.65   0.515    -11.25656    22.44573
+   daughter #|
+     female #|
+       2008  |  -9.650194    8.61229    -1.12   0.262    -26.52997    7.229585
+   daughter #|
+     female #|
+       2009  |   6.933719   12.33515     0.56   0.574    -17.24273    31.11017
+   daughter #|
+     female #|
+       2010  |   12.52786   11.79627     1.06   0.288    -10.59241    35.64813
+   daughter #|
+     female #|
+       2011  |   17.56286   10.65903     1.65   0.099    -3.328454    38.45417
+   daughter #|
+     female #|
+       2012  |  -2.660959   10.91619    -0.24   0.807     -24.0563    18.73438
+   daughter #|
+     female #|
+       2013  |  -10.39081    9.30429    -1.12   0.264    -28.62688    7.845264
+   daughter #|
+     female #|
+       2014  |  -2.894015   9.985763    -0.29   0.772    -22.46575    16.67772
+   daughter #|
+     female #|
+       2015  |  -5.964634   10.63676    -0.56   0.575     -26.8123    14.88304
+   daughter #|
+     female #|
+       2016  |   -.153528   11.00864    -0.01   0.989    -21.73006      21.423
+   daughter #|
+     female #|
+       2017  |  -3.663627   10.28698    -0.36   0.722    -23.82574    16.49849
+   daughter #|
+     female #|
+       2018  |  -9.298345   10.37581    -0.90   0.370    -29.63455    11.03786
+   daughter #|
+     female #|
+       2019  |   9.477371    12.4593     0.76   0.447    -14.94241    33.89716
+   daughter #|
+     female #|
+       2020  |   5.589648   11.96703     0.47   0.640     -17.8653     29.0446
+             |
+   daughters#|
+ female#educ |
+   daughter #|
+     female #|
+     middle  |   .9733942   10.91146     0.09   0.929    -20.41267    22.35946
+   daughter #|
+     female #|
+       high  |  -16.09792   11.88064    -1.35   0.175    -39.38354    7.187699
+             |
+   daughters#|
+      female#|
+ c.birthyear |
+   daughter #|
+     female  |  -.5434613   .4128124    -1.32   0.188    -1.352559    .2656362
+             |
+       _cons |  -1238.559   257.7439    -4.81   0.000    -1743.728   -733.3905
+-------------+----------------------------------------------------------------
+e1_lnvar     |
+       _cons |   5.701502   .0733253    77.76   0.000     5.557787    5.845217
+-------------+----------------------------------------------------------------
+e2_mean      |
+   daughters |
+   daughter  |   17.98327   44.09501     0.41   0.683    -68.44136    104.4079
+             |
+      female |
+     female  |   19.90911   30.04882     0.66   0.508    -38.98549    78.80371
+             |
+   daughters#|
+      female |
+   daughter #|
+     female  |  -60.51704   67.27691    -0.90   0.368    -192.3773    71.34328
+             |
+       syear |
+       2001  |  -.0212771   .2213621    -0.10   0.923    -.4551389    .4125848
+       2002  |   .2784779   .2744377     1.01   0.310    -.2594101     .816366
+       2003  |  -.0523639   .2144437    -0.24   0.807    -.4726657     .367938
+       2004  |   .1421161   .2216239     0.64   0.521    -.2922588     .576491
+       2005  |   .0670492   .1903322     0.35   0.725    -.3059952    .4400935
+       2006  |   .3435461    .232337     1.48   0.139     -.111826    .7989182
+       2007  |   .3146225   .3046556     1.03   0.302    -.2824915    .9117365
+       2008  |   .2844495   .2500335     1.14   0.255    -.2056072    .7745061
+       2009  |   .1847091   .2615833     0.71   0.480    -.3279848     .697403
+       2010  |   .3321249    .270015     1.23   0.219    -.1970948    .8613446
+       2011  |    .328252   .2186623     1.50   0.133    -.1003183    .7568223
+       2012  |   .4345197   .1920258     2.26   0.024     .0581562    .8108833
+       2013  |   .1676099     .24535     0.68   0.495    -.3132673    .6484871
+       2014  |   .3916294   .2442645     1.60   0.109    -.0871203    .8703791
+       2015  |   .1637293   .2080974     0.79   0.431    -.2441342    .5715927
+       2016  |   .2854517   .1972167     1.45   0.148    -.1010859    .6719893
+       2017  |   .1662888    .228166     0.73   0.466    -.2809082    .6134859
+       2018  |   .0647046   .2299516     0.28   0.778    -.3859924    .5154015
+       2019  |   .1655482   .2061608     0.80   0.422    -.2385196    .5696161
+       2020  |   .4946583    .228441     2.17   0.030     .0469222    .9423944
+             |
+        educ |
+     middle  |   .1648334   .1531734     1.08   0.282     -.135381    .4650478
+       high  |  -.0558657   .1572843    -0.36   0.722    -.3641372    .2524059
+             |
+   birthyear |  -.0080688   .0050327    -1.60   0.109    -.0179327    .0017951
+             |
+   daughters#|
+       syear |
+   daughter #|
+       2001  |  -.1798599   .2638722    -0.68   0.495    -.6970398    .3373201
+   daughter #|
+       2002  |  -.3788365   .3267187    -1.16   0.246    -1.019193    .2615203
+   daughter #|
+       2003  |  -.0905008   .2875551    -0.31   0.753    -.6540984    .4730968
+   daughter #|
+       2004  |   -.067358   .3110427    -0.22   0.829    -.6769905    .5422744
+   daughter #|
+       2005  |  -.3197626   .2490004    -1.28   0.199    -.8077943    .1682692
+   daughter #|
+       2006  |  -.3691388   .3178049    -1.16   0.245     -.992025    .2537473
+   daughter #|
+       2007  |  -.4372827   .3571274    -1.22   0.221     -1.13724    .2626741
+   daughter #|
+       2008  |  -.3797092    .328012    -1.16   0.247    -1.022601    .2631825
+   daughter #|
+       2009  |  -.2517129   .3603479    -0.70   0.485    -.9579819    .4545561
+   daughter #|
+       2010  |    .096585   .4192824     0.23   0.818    -.7251935    .9183634
+   daughter #|
+       2011  |  -.0271584   .3736597    -0.07   0.942    -.7595178    .7052011
+   daughter #|
+       2012  |    .190895   .4199895     0.45   0.649    -.6322693    1.014059
+   daughter #|
+       2013  |    .216069   .4679975     0.46   0.644    -.7011892    1.133327
+   daughter #|
+       2014  |   .1021404   .3637103     0.28   0.779    -.6107187    .8149994
+   daughter #|
+       2015  |   .0185765   .3718351     0.05   0.960    -.7102069    .7473599
+   daughter #|
+       2016  |  -.1598961    .342441    -0.47   0.641    -.8310683     .511276
+   daughter #|
+       2017  |   .3526346   .4161577     0.85   0.397    -.4630195    1.168289
+   daughter #|
+       2018  |   .4475156   .3833377     1.17   0.243    -.3038125    1.198844
+   daughter #|
+       2019  |   .2331215   .4405551     0.53   0.597    -.6303506    1.096594
+   daughter #|
+       2020  |   .1616349   .5002853     0.32   0.747    -.8189063    1.142176
+             |
+   daughters#|
+        educ |
+   daughter #|
+     middle  |  -.8350923   .4783021    -1.75   0.081    -1.772547    .1023625
+   daughter #|
+       high  |    -.59565    .469205    -1.27   0.204    -1.515275    .3239749
+             |
+   daughters#|
+ c.birthyear |
+   daughter  |  -.0087135   .0224503    -0.39   0.698    -.0527153    .0352883
+             |
+female#syear |
+female#2001  |   .4260002   .5503918     0.77   0.439     -.652748    1.504748
+female#2002  |   .7762297   .7204524     1.08   0.281    -.6358311    2.188291
+female#2003  |   .8908536   .6681386     1.33   0.182    -.4186741    2.200381
+female#2004  |   .4795915   .4789953     1.00   0.317    -.4592221    1.418405
+female#2005  |  -.2465552   .4583992    -0.54   0.591    -1.145001    .6518906
+female#2006  |  -.0922095   .5040784    -0.18   0.855    -1.080185    .8957661
+female#2007  |   .8653603   1.037151     0.83   0.404    -1.167417    2.898138
+female#2008  |  -.0119732    .475391    -0.03   0.980    -.9437224     .919776
+female#2009  |  -.5585238   .5738957    -0.97   0.330    -1.683339    .5662912
+female#2010  |  -.5694452   .5270199    -1.08   0.280    -1.602385    .4634948
+female#2011  |  -.5502713   .4637454    -1.19   0.235    -1.459196    .3586529
+female#2012  |  -.7225349   .3784793    -1.91   0.056    -1.464341     .019271
+female#2013  |  -.4420218   .4051816    -1.09   0.275    -1.236163    .3521195
+female#2014  |  -.4257652   .4938573    -0.86   0.389    -1.393708    .5421773
+female#2015  |  -.2987722   .5150069    -0.58   0.562    -1.308167    .7106227
+female#2016  |  -.7851548   .4864309    -1.61   0.107    -1.738542    .1682323
+female#2017  |  -.3163396   .5644274    -0.56   0.575    -1.422597    .7899178
+female#2018  |  -.9199717   .3690354    -2.49   0.013    -1.643268   -.1966755
+female#2019  |  -.8210574    .387982    -2.12   0.034    -1.581488   -.0606265
+female#2020  |  -1.279286   .4563786    -2.80   0.005    -2.173772   -.3848006
+             |
+ female#educ |
+     female #|
+     middle  |  -.1875426   .4541685    -0.41   0.680    -1.077696    .7026112
+female#high  |   -.463323   .5198365    -0.89   0.373    -1.482184    .5555377
+             |
+      female#|
+ c.birthyear |
+     female  |  -.0088479   .0152989    -0.58   0.563    -.0388331    .0211373
+             |
+   daughters#|
+female#syear |
+   daughter #|
+     female #|
+       2001  |   .0096394   .6354142     0.02   0.988     -1.23575    1.255028
+   daughter #|
+     female #|
+       2002  |  -.8538689   .7983927    -1.07   0.285     -2.41869    .7109522
+   daughter #|
+     female #|
+       2003  |  -.6501753   .7471115    -0.87   0.384    -2.114487    .8141364
+   daughter #|
+     female #|
+       2004  |   -.524697   .6312486    -0.83   0.406    -1.761922    .7125275
+   daughter #|
+     female #|
+       2005  |   .2904566   .5634471     0.52   0.606    -.8138793    1.394793
+   daughter #|
+     female #|
+       2006  |   .7706416   .7337219     1.05   0.294    -.6674269     2.20871
+   daughter #|
+     female #|
+       2007  |  -.8002542   1.118059    -0.72   0.474     -2.99161    1.391102
+   daughter #|
+     female #|
+       2008  |   .4012502   .7869173     0.51   0.610    -1.141079     1.94358
+   daughter #|
+     female #|
+       2009  |    .494145   .7959036     0.62   0.535    -1.065797    2.054087
+   daughter #|
+     female #|
+       2010  |  -.5335103   .8028001    -0.66   0.506     -2.10697    1.039949
+   daughter #|
+     female #|
+       2011  |   -.489636   .7400756    -0.66   0.508    -1.940158    .9608855
+   daughter #|
+     female #|
+       2012  |  -.3465071   .6873276    -0.50   0.614    -1.693644     1.00063
+   daughter #|
+     female #|
+       2013  |  -.2914976   .7086083    -0.41   0.681    -1.680344    1.097349
+   daughter #|
+     female #|
+       2014  |   -.196641   .7108402    -0.28   0.782    -1.589862     1.19658
+   daughter #|
+     female #|
+       2015  |  -.4231576   .6941027    -0.61   0.542    -1.783574    .9372587
+   daughter #|
+     female #|
+       2016  |  -.0449386   .6987603    -0.06   0.949    -1.414484    1.324606
+   daughter #|
+     female #|
+       2017  |  -.8910553    .790056    -1.13   0.259    -2.439537     .657426
+   daughter #|
+     female #|
+       2018  |  -.4553158   .5917862    -0.77   0.442    -1.615195    .7045638
+   daughter #|
+     female #|
+       2019  |  -.4920831    .703513    -0.70   0.484    -1.870943    .8867771
+   daughter #|
+     female #|
+       2020  |   .3137212   .7724031     0.41   0.685    -1.200161    1.827604
+             |
+   daughters#|
+ female#educ |
+   daughter #|
+     female #|
+     middle  |   .9740728   .7486934     1.30   0.193    -.4933394    2.441485
+   daughter #|
+     female #|
+       high  |    1.30172   .7974854     1.63   0.103    -.2613222    2.864763
+             |
+   daughters#|
+      female#|
+ c.birthyear |
+   daughter #|
+     female  |   .0301464   .0342519     0.88   0.379     -.036986    .0972788
+             |
+       _cons |   16.35045   9.862849     1.66   0.097     -2.98038    35.68128
+-------------+----------------------------------------------------------------
+e2_lnvar     |
+       _cons |   .5462694   .1296715     4.21   0.000      .292118    .8004208
+------------------------------------------------------------------------------
+
+.         
+.         *obtain conditional marginal effect 
+.         margins, dydx(daughters) predict(equation(e1_mean)) predict(equation(
+> e2_mean)) at(female=(0 1) (mean) syear educ birthyear) post
+warning: cannot perform check for estimable functions.
+
+Conditional marginal effects                             Number of obs = 3,065
+Model VCE: Robust
+
+dy/dx wrt: 1.daughters
+
+1._predict: Linear prediction, predict(equation(e1_mean))
+2._predict: Linear prediction, predict(equation(e2_mean))
+
+1._at: female     =        0
+       2000.syear = .0506607 (mean)
+       2001.syear = .0584643 (mean)
+       2002.syear = .0582221 (mean)
+       2003.syear = .0551275 (mean)
+       2004.syear = .0566644 (mean)
+       2005.syear = .0529399 (mean)
+       2006.syear = .0459781 (mean)
+       2007.syear = .0478321 (mean)
+       2008.syear = .0541221 (mean)
+       2009.syear = .0495538 (mean)
+       2010.syear = .0410134 (mean)
+       2011.syear = .0379274 (mean)
+       2012.syear = .0335027 (mean)
+       2013.syear = .0346457 (mean)
+       2014.syear = .0428493 (mean)
+       2015.syear = .0359063 (mean)
+       2016.syear = .0451302 (mean)
+       2017.syear = .0513315 (mean)
+       2018.syear = .0491203 (mean)
+       2019.syear = .0512203 (mean)
+       2020.syear = .0477879 (mean)
+       0.educ     = .0444856 (mean)
+       1.educ     = .6617299 (mean)
+       2.educ     = .2937844 (mean)
+       birthyear  = 1966.057 (mean)
+2._at: female     =        1
+       2000.syear = .0506607 (mean)
+       2001.syear = .0584643 (mean)
+       2002.syear = .0582221 (mean)
+       2003.syear = .0551275 (mean)
+       2004.syear = .0566644 (mean)
+       2005.syear = .0529399 (mean)
+       2006.syear = .0459781 (mean)
+       2007.syear = .0478321 (mean)
+       2008.syear = .0541221 (mean)
+       2009.syear = .0495538 (mean)
+       2010.syear = .0410134 (mean)
+       2011.syear = .0379274 (mean)
+       2012.syear = .0335027 (mean)
+       2013.syear = .0346457 (mean)
+       2014.syear = .0428493 (mean)
+       2015.syear = .0359063 (mean)
+       2016.syear = .0451302 (mean)
+       2017.syear = .0513315 (mean)
+       2018.syear = .0491203 (mean)
+       2019.syear = .0512203 (mean)
+       2020.syear = .0477879 (mean)
+       0.educ     = .0444856 (mean)
+       1.educ     = .6617299 (mean)
+       2.educ     = .2937844 (mean)
+       birthyear  = 1966.057 (mean)
+
+------------------------------------------------------------------------------
+             |            Delta-method
+             |      dy/dx   std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+0.daughters  |  (base outcome)
+-------------+----------------------------------------------------------------
+1.daughters  |
+_predict#_at |
+        1 1  |  -.6523633   2.277546    -0.29   0.775    -5.116271    3.811544
+        1 2  |   .5395361   3.916371     0.14   0.890    -7.136409    8.215481
+        2 1  |   .0696131    .141247     0.49   0.622    -.2072259     .346452
+        2 2  |  -.3729525   .2525641    -1.48   0.140     -.867969     .122064
+------------------------------------------------------------------------------
+Note: dy/dx for factor levels is the discrete change from the base level.
+
+.         // equivalent to running above regression with sample-demeaned covari
+> ates
+.         
+.         *flip signs to align direction of tes
+.         nlcom (-_b[1.daughters:1._predict#1._at]) (_b[1.daughters:1._predict#
+> 2._at]) (_b[1.daughters:2._predict#1._at]) (-_b[1.daughters:2._predict#2._at]
+> ), post
+
+       _nl_1: -_b[1.daughters:1._predict#1._at]
+       _nl_2: _b[1.daughters:1._predict#2._at]
+       _nl_3: _b[1.daughters:2._predict#1._at]
+       _nl_4: -_b[1.daughters:2._predict#2._at]
+
+------------------------------------------------------------------------------
+             | Coefficient  Std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+       _nl_1 |   .6523633   2.277546     0.29   0.775    -3.811544    5.116271
+       _nl_2 |   .5395361   3.916371     0.14   0.890    -7.136409    8.215481
+       _nl_3 |   .0696131    .141247     0.49   0.622    -.2072259     .346452
+       _nl_4 |   .3729525   .2525641     1.48   0.140     -.122064     .867969
+------------------------------------------------------------------------------
+
+.         
+.         *obtain inference statistics accounting for one-sided multiple testin
+> g
+.         sotable, alternative(upper)
+
+Max-t results
+       p-value = 0.220
+Critical value = 2.462  
+-----------------------------------------------------------------------------
+      depvar |      Coef.   Std. Err.      z    P>|z|      [97.5% Conf. Band]
+-------------+---------------------------------------------------------------
+       _nl_1 |   .6523633   2.277546     0.286  0.790    -4.95476          .
+       _nl_2 |   .5395361   3.916371     0.138  0.845   -9.102234          .
+       _nl_3 |   .0696131    .141247     0.493  0.699   -.2781249          .
+       _nl_4 |   .3729525   .2525641     1.477  0.220   -.2488387          .
+-----------------------------------------------------------------------------
+
+.         
+.         *post-processing output
+.         mat r = r(results)                                                   
+>                    // full results table
+
+.         mata: st_matrix("R", sort(st_matrix("r")',4))           // this sorts
+>  results accoring to pvalues (lowest first) 
+
+.         mat colnames R = b se z pvalues low up 
+
+.         mata: st_matrix("O",order(st_matrix("r")',4)')
+
+.         tokenize "workhours:male workhours:female housework:male housework:fe
+> male"
+
+.         local rn  "``=O[1,1]''  ``=O[1,2]'' ``=O[1,3]'' ``=O[1,4]''" 
+
+.         mat rownames R =  `rn'
+
+.         mat colnames R = b se z P>|z| low up
+
+. 
+.         local eq : roweq(R)
+
+.         local eq = word("`eq'",1)
+
+.         if "`eq'"=="workhours" est resto e1w
+
+.         if "`eq'"=="housework" est resto e2w
+(results e2w are active now)
+
+. 
+.                 qui {
+-------------------------------------------------------------------------------
+RESULTS
+Seemingly unrelated linear regression of  workhours & housework on daughters
+P-value and lower CI band adjusted for multiple one-sided testing
+-------------------------------------------------------------------------------
+
+             |      b      se       z   P>|z|     low 
+-------------+---------------------------------------
+housework    |                                       
+      female |  0.373   0.253   1.477   0.220  -0.249 
+        male |  0.070   0.141   0.493   0.699  -0.278 
+-------------+---------------------------------------
+workhours    |                                       
+        male |  0.652   2.278   0.286   0.790  -4.955 
+      female |  0.540   3.916   0.138   0.845  -9.102 
+-------------------------------------------------------------------------------
+
+Exported statistics for outcome with highest z / lowest p
+
+Coefficient: .3729524998823255
+Standard Error: .2525640701286462
+Test Statistic Family: z
+Residual Degrees of Freedom: 348
+Model Degrees of Freedom: 95
+p-value: .22
+Number of observations: 2992
+Number of participants: 633
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+*Statistical assessment on H1: cannot reject H0
+-------------------------------------------------------------------------------
+
+.         
+.         * Export results to csv 
+.         file open myfile using "$OUT/h3_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/5_res
+    > ults/h3_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

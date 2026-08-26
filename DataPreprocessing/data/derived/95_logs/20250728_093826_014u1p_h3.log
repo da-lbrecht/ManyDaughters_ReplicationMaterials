@@ -1,0 +1,1370 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmptxpj74cj.do 
+
+. do "95%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. * the following code automatically sets paths based on the project location o
+> n your system *
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/95%-sample" // folder, in which the or
+> iginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/95%-sample
+
+. global DATA "$ROOT/data/derived_confidential/95%-sample" // folder for datase
+> ts
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/95%-sample
+
+. global OUT "$ROOT/data/derived/95_results" // folder for output (results, tab
+> les)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/95_results
+
+. 
+end of do-file
+
+. do "20250728_093826_014u1p_h3.do"
+
+. *****************************************************************************
+> ***
+. ********************** Do-File H3: #ManyDaughters Project *******************
+> ***
+. *****************************************************************************
+> ***
+. 
+. * Authors: [REDACTED], [REDACTED]
+. 
+. * ============================
+. * Setup *
+. * ============================
+. 
+. * clear all
+. version 16.1 
+
+. set maxvar 10000 
+
+
+. 
+. * INSTALL PACKAGES * 
+. 
+. cap which outreg2
+
+. * if _rc ssc install outreg2
+. 
+. * CONFIGURE FILE PATHS * 
+. /*
+> 
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> */
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA * 
+. 
+. use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. //syear piyear - Erhebungsjahr
+.         * biobirth contains information on fertility history
+. merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches)
+(variable pid was long, now double to accommodate using data's values)
+(variable cid was long, now double to accommodate using data's values)
+(variable gebjahr was int, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. //bioyear - Erhebungsjahr
+.         * pgen contains user-friendly data on the individual level that are c
+> onsolidated from different sources
+. merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. //syear pgpiyear - Erhebungsjahr
+.         * pl contains all variables from the individual questionnaire
+. merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches)
+(variable inputdataset was str6, now str9 to accommodate using data's values)
+(label cid_EN already defined)
+(label pid_EN already defined)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. //syear iyear - Erhebungsjahr
+.         * hgen contains generated variables on household level from the house
+> hold interview; use for household net income
+. merge m:1 hid syear using "$IN/hgen.dta", nogen keep(master matches)
+(variable iyear was int, now float to accommodate using data's values)
+(label iyear already defined)
+(label iyear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. 
+. label language EN // change language of the labels to English
+
+. 
+. save "$DATA/h3_dataset.dta", replace 
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h3_dataset.dta saved
+
+. 
+. 
+. keep cid hid pid parid syear kidgeb01 pli0044_h pli0019_h pli0022_h pli0043_h
+>  pli0012_h pli0016_h
+
+. 
+. rename pid parid2
+
+. 
+. rename parid pid
+
+. 
+. rename parid2 parid
+
+. 
+. rename pli*_h pli*_hpar
+
+. 
+. save "$DATA/h3_dataset_par.dta", replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h3_dataset_par.dta not found)
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h3_dataset_par.dta saved
+
+. 
+. 
+. 
+. * ============================
+. * Analysis
+. * ============================
+. 
+. use "$DATA/h3_dataset.dta", clear 
+
+. 
+. merge 1:1 cid hid parid pid kidgeb01 syear using "$DATA/h3_dataset_par.dta", 
+> nogen keep(master matches)
+(variable parid was long, now double to accommodate using data's values)
+(label kidgeb01_EN already defined)
+(label pid_EN already defined)
+(label cid_EN already defined)
+(label kidgeb01 already defined)
+(label pli0044_h_EN already defined)
+(label pli0043_h_EN already defined)
+(label pli0022_h_EN already defined)
+(label pli0019_h_EN already defined)
+(label pli0016_h_EN already defined)
+(label pli0012_h_EN already defined)
+(label syear_EN already defined)
+(label hid_EN already defined)
+(label pli0044_h already defined)
+(label pli0043_h already defined)
+(label pli0022_h already defined)
+(label pli0019_h already defined)
+(label pli0016_h already defined)
+(label pli0012_h already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                       352,037
+        from master                   352,037  
+        from using                          0  
+
+    Matched                           311,086  
+    -----------------------------------------
+
+. 
+. sort pid syear
+
+. 
+. * CODE MISSINGS *
+. 
+. foreach var of varlist kidgeb01 kidgeb02 gebjahr syear piyear pld0133 pli0044
+> _h pli0019_h pli0022_h pli0043_h pli0012_h pli0016_h pli0044_hpar pli0019_hpa
+> r pli0022_hpar pli0043_hpar pli0012_hpar pli0016_hpar kidsex01 sex pgpsbil pl
+> g0014_v7 plg0014_v6 plg0014_v5 plg0014_v4 kidgeb01 gebjahr plh0258_h migback 
+> pld0131_v1 pld0131_v2 pld0131_v3 hghinc plb0022_h plb0186_h plc0446 birthregi
+> on_ew pla0011 pla0011 pla0017 pla0020 pla0023 pla0026 pla0029 pla0032 pla0035
+>  pla0038 pla0041 pla0044 {
+  2. recode `var' -1=. -2=.a -3=.b -4=.c -5=.d -8=.e
+  3. *[-1] No answer -> .
+. *[-2] Does not apply -> .a
+. *[-3] Answer improbable/Not valid -> .b
+. *[-5] Not included in this version of the questionnaire -> .d
+. *[-8] Question this year not part of survey -> .e
+. }
+(217,072 changes made to kidgeb01)
+(340,439 changes made to kidgeb02)
+(8 changes made to gebjahr)
+(0 changes made to syear)
+(7,935 changes made to piyear)
+(420,376 changes made to pld0133)
+(27,097 changes made to pli0044_h)
+(290,762 changes made to pli0019_h)
+(290,883 changes made to pli0022_h)
+(21,018 changes made to pli0043_h)
+(284,538 changes made to pli0012_h)
+(286,288 changes made to pli0016_h)
+(13,357 changes made to pli0044_hpar)
+(149,624 changes made to pli0019_hpar)
+(149,697 changes made to pli0022_hpar)
+(11,038 changes made to pli0043_hpar)
+(146,795 changes made to pli0012_hpar)
+(147,641 changes made to pli0016_hpar)
+(216,893 changes made to kidsex01)
+(13 changes made to sex)
+(14,973 changes made to pgpsbil)
+(506,334 changes made to plg0014_v7)
+(511,310 changes made to plg0014_v6)
+(508,877 changes made to plg0014_v5)
+(514,490 changes made to plg0014_v4)
+(0 changes made to kidgeb01)
+(0 changes made to gebjahr)
+(384,767 changes made to plh0258_h)
+(0 changes made to migback)
+(81,927 changes made to pld0131_v1)
+(489,784 changes made to pld0131_v2)
+(489,693 changes made to pld0131_v3)
+(31,357 changes made to hghinc)
+(4 changes made to plb0022_h)
+(223,557 changes made to plb0186_h)
+(422,457 changes made to plc0446)
+(383,249 changes made to birthregion_ew)
+(493,129 changes made to pla0011)
+(0 changes made to pla0011)
+(499,096 changes made to pla0017)
+(505,488 changes made to pla0020)
+(509,879 changes made to pla0023)
+(512,104 changes made to pla0026)
+(513,185 changes made to pla0029)
+(513,817 changes made to pla0032)
+(514,112 changes made to pla0035)
+(514,281 changes made to pla0038)
+(514,365 changes made to pla0041)
+(514,418 changes made to pla0044)
+
+. 
+. 
+. * FILTERS * 
+. 
+. gen exclusion=1
+
+. //first child was born between the two waves
+. replace exclusion=0 if kidgeb01>2000 & kidgeb01<2021
+(125,000 real changes made)
+
+. //no further kids during this period -> implemented in generating domestic wo
+> rk variables
+. 
+. //(all missings) pld0176 parents who live with the child in the same househol
+> d
+. 
+. //younger than 18 or older than 42 years of age at the birth of the first chi
+> ld
+. replace exclusion=1 if (kidgeb01-gebjahr)<18
+(1,688 real changes made)
+
+. replace exclusion=1 if (kidgeb01-gebjahr)>42
+(2,317 real changes made)
+
+. //(not found) lb0646: Lives Together With Partner
+. replace exclusion=1 if pld0133!=1
+(102,840 real changes made)
+
+. 
+. 
+. * GENERATE VARIABLES * 
+. //naming convention for vars: *_t=wave at which the outcomes are measured; *_
+> bl=baseline wave
+. foreach var of varlist pli0044_h pli0019_h pli0022_h pli0043_h pli0012_h pli0
+> 016_h pli0044_hpar pli0019_hpar pli0022_hpar pli0043_hpar pli0012_hpar pli001
+> 6_hpar {
+  2. gen     `var'cap=`var'
+  3. replace `var'cap=12 if `var'cap>12 & !mi(`var')
+  4. }
+(175,730 missing values generated)
+(9,373 real changes made)
+(439,395 missing values generated)
+(8,551 real changes made)
+(439,516 missing values generated)
+(8,911 real changes made)
+(169,651 missing values generated)
+(40 real changes made)
+(433,171 missing values generated)
+(15 real changes made)
+(434,921 missing values generated)
+(10 real changes made)
+(410,026 missing values generated)
+(6,113 real changes made)
+(546,293 missing values generated)
+(5,393 real changes made)
+(546,366 missing values generated)
+(5,639 real changes made)
+(407,707 missing values generated)
+(29 real changes made)
+(543,464 missing values generated)
+(10 real changes made)
+(544,310 missing values generated)
+(6 real changes made)
+
+. 
+. * DV *
+. //total domestic work person surveyed at wave t
+. gen total_childcare=(5*pli0044_hcap+pli0019_hcap+pli0022_hcap) if (syear-kidg
+> eb01)<=18 & !mi(pli0044_hcap) & !mi(pli0019_hcap) & !mi(pli0022_hcap)
+(590,036 missing values generated)
+
+. 
+. gen total_housework=(5*pli0043_hcap+pli0012_hcap+pli0016_hcap) if (syear-kidg
+> eb01)<=18 & !mi(pli0043_hcap) & !mi(pli0012_hcap) & !mi(pli0016_hcap)
+(590,117 missing values generated)
+
+. 
+. gen total_childcare_t=total_childcare if (syear-kidgeb01)>=1 & !mi(kidgeb01) 
+> & syear<kidgeb02
+(641,738 missing values generated)
+
+. foreach i of numlist 1/20 {
+  2. replace total_childcare_t=. if pid==pid[_n-`i'] & total_childcare_t[_n-`i'
+> ]!=.
+  3. }
+(1,279 real changes made, 1,279 to missing)
+(6,914 real changes made, 6,914 to missing)
+(27 real changes made, 27 to missing)
+(3,015 real changes made, 3,015 to missing)
+(0 real changes made)
+(68 real changes made, 68 to missing)
+(8 real changes made, 8 to missing)
+(1,147 real changes made, 1,147 to missing)
+(0 real changes made)
+(10 real changes made, 10 to missing)
+(0 real changes made)
+(2 real changes made, 2 to missing)
+(0 real changes made)
+(1 real change made, 1 to missing)
+(0 real changes made)
+(68 real changes made, 68 to missing)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. 
+. gen total_housework_t=total_housework if (syear-kidgeb01)>=1 & !mi(kidgeb01) 
+> & syear<kidgeb02
+(641,837 missing values generated)
+
+. foreach i of numlist 1/20 {
+  2. replace total_housework_t=. if pid==pid[_n-`i'] & total_housework_t[_n-`i'
+> ]!=.
+  3. }
+(1,279 real changes made, 1,279 to missing)
+(6,886 real changes made, 6,886 to missing)
+(28 real changes made, 28 to missing)
+(2,991 real changes made, 2,991 to missing)
+(0 real changes made)
+(80 real changes made, 80 to missing)
+(8 real changes made, 8 to missing)
+(1,122 real changes made, 1,122 to missing)
+(0 real changes made)
+(14 real changes made, 14 to missing)
+(0 real changes made)
+(3 real changes made, 3 to missing)
+(0 real changes made)
+(4 real changes made, 4 to missing)
+(0 real changes made)
+(68 real changes made, 68 to missing)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. 
+. gen total_domesticwork_t=(total_childcare_t + total_housework_t) if !mi(total
+> _childcare_t) & !mi(total_housework_t)
+(654,439 missing values generated)
+
+. 
+. //total domestic work partner at wave t
+. gen total_childcare_par=(5*pli0044_hparcap+pli0019_hparcap+pli0022_hparcap) i
+> f (syear-kidgeb01)<=18 & !mi(pli0044_hparcap) & !mi(pli0019_hparcap) & !mi(pl
+> i0022_hparcap)
+(612,592 missing values generated)
+
+. 
+. gen total_housework_par=(5*pli0043_hparcap+pli0012_hparcap+pli0016_hparcap) i
+> f (syear-kidgeb01)<=18 & !mi(pli0043_hparcap) & !mi(pli0012_hparcap) & !mi(pl
+> i0016_hparcap)
+(612,771 missing values generated)
+
+. 
+. gen total_childcare_tpar=total_childcare_par if (syear-kidgeb01)>=1 & !mi(kid
+> geb01) & syear<kidgeb02
+(650,371 missing values generated)
+
+. foreach i of numlist 1/20 {
+  2. replace total_childcare_tpar=. if pid==pid[_n-`i'] & total_childcare_tpar[
+> _n-`i']!=.
+  3. }
+(571 real changes made, 571 to missing)
+(4,000 real changes made, 4,000 to missing)
+(12 real changes made, 12 to missing)
+(1,680 real changes made, 1,680 to missing)
+(0 real changes made)
+(35 real changes made, 35 to missing)
+(4 real changes made, 4 to missing)
+(630 real changes made, 630 to missing)
+(0 real changes made)
+(5 real changes made, 5 to missing)
+(0 real changes made)
+(1 real change made, 1 to missing)
+(0 real changes made)
+(1 real change made, 1 to missing)
+(0 real changes made)
+(27 real changes made, 27 to missing)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. 
+. gen total_housework_tpar=total_housework_par if (syear-kidgeb01)>=1 & !mi(kid
+> geb01) & syear<kidgeb02
+(650,467 missing values generated)
+
+. foreach i of numlist 1/20 {
+  2. replace total_housework_tpar=. if pid==pid[_n-`i'] & total_housework_tpar[
+> _n-`i']!=.
+  3. }
+(571 real changes made, 571 to missing)
+(3,970 real changes made, 3,970 to missing)
+(12 real changes made, 12 to missing)
+(1,658 real changes made, 1,658 to missing)
+(0 real changes made)
+(42 real changes made, 42 to missing)
+(4 real changes made, 4 to missing)
+(609 real changes made, 609 to missing)
+(0 real changes made)
+(11 real changes made, 11 to missing)
+(0 real changes made)
+(1 real change made, 1 to missing)
+(0 real changes made)
+(2 real changes made, 2 to missing)
+(0 real changes made)
+(29 real changes made, 29 to missing)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. 
+. gen total_domesticwork_tpar=(total_childcare_tpar + total_housework_tpar) if 
+> !mi(total_childcare_tpar) & !mi(total_housework_tpar)
+(657,447 missing values generated)
+
+. 
+. //share domestic work person surveyed at wave t
+. foreach var of varlist total_domesticwork_t total_domesticwork_tpar total_hou
+> sework_t total_housework_tpar {
+  2. bysort pid: egen `var'fill = total(`var')
+  3. }
+
+. 
+. gen share_domesticwork_t=total_domesticwork_tfill/(total_domesticwork_tfill+t
+> otal_domesticwork_tparfill) if !mi(total_domesticwork_tfill) & !mi(total_dome
+> sticwork_tparfill)
+(572,317 missing values generated)
+
+. 
+. gen share_housework_t=total_housework_tfill/(total_housework_tfill+total_hous
+> ework_tparfill) if !mi(total_housework_tfill) & !mi(total_housework_tparfill)
+(572,208 missing values generated)
+
+. 
+. 
+. * MAIN IV *
+. //total domestic work person surveyed at baseline wave
+. gen total_childcare_bl=total_childcare if (syear-kidgeb01)<=(-1) & !mi(kidgeb
+> 01) & !mi(pli0044_hcap) & !mi(pli0019_hcap) & !mi(pli0022_hcap)
+(656,781 missing values generated)
+
+. foreach i of numlist 1/20 {
+  2. replace total_childcare_bl=. if pid==pid[_n+`i'] & total_childcare_bl[_n+`
+> i']!=.
+  3. }
+(51 real changes made, 51 to missing)
+(3,681 real changes made, 3,681 to missing)
+(1 real change made, 1 to missing)
+(57 real changes made, 57 to missing)
+(0 real changes made)
+(42 real changes made, 42 to missing)
+(0 real changes made)
+(23 real changes made, 23 to missing)
+(0 real changes made)
+(10 real changes made, 10 to missing)
+(0 real changes made)
+(9 real changes made, 9 to missing)
+(0 real changes made)
+(5 real changes made, 5 to missing)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. 
+. gen total_housework_bl=total_housework if (syear-kidgeb01)<=(-1) & !mi(kidgeb
+> 01) & !mi(pli0043_hparcap) & !mi(pli0012_hcap) & !mi(pli0016_hparcap)
+(660,548 missing values generated)
+
+. foreach i of numlist 1/20 {
+  2. replace total_housework_bl=. if pid==pid[_n+`i'] & total_housework_bl[_n+`
+> i']!=.
+  3. }
+(10 real changes made, 10 to missing)
+(1,085 real changes made, 1,085 to missing)
+(0 real changes made)
+(10 real changes made, 10 to missing)
+(0 real changes made)
+(4 real changes made, 4 to missing)
+(0 real changes made)
+(2 real changes made, 2 to missing)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. 
+. gen total_domesticwork_bl=(total_childcare_bl + total_housework_bl) if !mi(to
+> tal_childcare_bl) & !mi(total_housework_bl)
+(661,756 missing values generated)
+
+. 
+. //total domestic work partner at baseline wave
+. gen total_childcare_blpar=total_childcare_par if (syear-kidgeb01)<=(-1) & !mi
+> (kidgeb01)
+(660,436 missing values generated)
+
+. foreach i of numlist 1/20 {
+  2. replace total_childcare_blpar=. if pid==pid[_n+`i'] & total_childcare_bl[_
+> n+`i']!=.
+  3. }
+(2 real changes made, 2 to missing)
+(664 real changes made, 664 to missing)
+(4 real changes made, 4 to missing)
+(296 real changes made, 296 to missing)
+(0 real changes made)
+(122 real changes made, 122 to missing)
+(2 real changes made, 2 to missing)
+(42 real changes made, 42 to missing)
+(0 real changes made)
+(8 real changes made, 8 to missing)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. 
+. gen total_housework_blpar=total_housework_par if (syear-kidgeb01)<=(-1) & !mi
+> (kidgeb01)
+(660,315 missing values generated)
+
+. foreach i of numlist 1/20 {
+  2. replace total_housework_blpar=. if pid==pid[_n+`i'] & total_housework_bl[_
+> n+`i']!=.
+  3. }
+(2 real changes made, 2 to missing)
+(684 real changes made, 684 to missing)
+(4 real changes made, 4 to missing)
+(321 real changes made, 321 to missing)
+(0 real changes made)
+(119 real changes made, 119 to missing)
+(2 real changes made, 2 to missing)
+(38 real changes made, 38 to missing)
+(0 real changes made)
+(7 real changes made, 7 to missing)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. 
+. gen total_domesticwork_blpar=(total_childcare_blpar + total_housework_blpar) 
+> if !mi(total_childcare_blpar) & !mi(total_housework_blpar)
+(661,609 missing values generated)
+
+. 
+. //share domestic work person surveyed at baseline wave
+. foreach var of varlist total_domesticwork_bl total_domesticwork_blpar total_h
+> ousework_bl total_housework_blpar {
+  2. bysort pid: egen `var'fill = total(`var')
+  3. }
+
+. 
+. gen share_domesticwork_bl=total_domesticwork_blfill/(total_domesticwork_blfil
+> l+total_domesticwork_blparfill) if !mi(total_domesticwork_blfill) & !mi(total
+> _domesticwork_blparfill)
+(643,537 missing values generated)
+
+. 
+. gen share_housework_bl=total_housework_blfill/(total_housework_blfill+total_h
+> ousework_blparfill) if !mi(total_housework_blfill) & !mi(total_housework_blpa
+> rfill)
+(642,357 missing values generated)
+
+. 
+. //(all missings) pld0175 Sex Of First Child
+. gen daughter=(kidsex01==2)
+
+. 
+. 
+. * CONTROLS1 *
+. //year of interview-> dummies for times t and t-1
+. gen year_t=syear if total_housework_t!=.
+(654,320 missing values generated)
+
+. 
+. gen year_bl=syear if total_housework_bl!=.
+(661,659 missing values generated)
+
+. 
+. foreach var of varlist year_t year_bl {
+  2. bysort pid: egen `var'fill = total(`var'), missing
+  3. replace `var'=`var'fill
+  4. }
+(572,928 missing values generated)
+(81,392 real changes made)
+(643,266 missing values generated)
+(18,393 real changes made)
+
+. 
+. //(not found) pl/pla0009_h Sex [harmonised] -> father dummy
+. gen father=(sex==1)
+
+. 
+. //(almost all missings) plg0037 School-leaving degree
+. gen     edu5=(!mi(plg0014_v7))
+
+. replace edu5=1 if plg0014_v6>=1 & plg0014_v6<=5 & mi(plg0014_v7)
+(3,180 real changes made)
+
+. replace edu5=1 if plg0014_v5>=1 & plg0014_v5<=5 & mi(plg0014_v7) & mi(plg0014
+> _v6)
+(5,613 real changes made)
+
+. replace edu5=1 if plg0014_v4>=1 & plg0014_v4<=5 & mi(plg0014_v7) & mi(plg0014
+> _v6) & mi(plg0014_v5)
+(0 real changes made)
+
+. replace edu5=1 if pid==pid[_n-1] & edu5[_n-1]==1
+(21,598 real changes made)
+
+. 
+. foreach i of numlist 1/4 {
+  2. gen edu`i'=(pgpsbil==`i')
+  3. replace edu`i'=1 if pid==pid[_n-1] & edu`i'[_n-1]==1
+  4. replace edu`i'=0 if edu5==1
+  5. }
+(27,214 real changes made)
+(428 real changes made)
+(27,051 real changes made)
+(4,434 real changes made)
+(5,714 real changes made)
+(3,822 real changes made)
+(16,593 real changes made)
+(26,354 real changes made)
+
+. replace edu1=0 if edu2==1 | edu3==1 | edu4==1
+(3,085 real changes made)
+
+. replace edu2=0 if edu3==1 | edu4==1
+(2,581 real changes made)
+
+. replace edu3=0 if edu4==1
+(810 real changes made)
+
+. 
+. //(all missings) pld0174 Birth Year Of First Child –> age child at wave t=t-p
+> ld0174
+. gen child_age_t=(year_t-kidgeb01)
+(572,928 missing values generated)
+
+. 
+. //(all missings) ple0001 Age Of Person Surveyed
+. gen age_t=(year_t-gebjahr)
+(572,928 missing values generated)
+
+. 
+. 
+. * CONTROLS2 *
+. //plh0258_h Church, Religion [harmonised]
+. gen catholic=(plh0258_h==1)
+
+. gen protestant=(plh0258_h==2)
+
+. gen nonreligious=(plh0258_h==6)
+
+. 
+. foreach i of numlist 1/3 { //Religion alle 4 Jahre abgefragt
+  2.         local j=`i'-2
+  3.         local l=`i'-3
+  4. replace catholic=1 if pid==pid[_n-`i'] & plh0258_h[_n-`i']==1  & !mi(plh02
+> 58_h[_n-`i']) & mi(plh0258_h)
+  5. replace protestant=1 if pid==pid[_n-`i'] & plh0258_h[_n-`i']==2 & !mi(plh0
+> 258_h[_n-`i']) & mi(plh0258_h)
+  6. replace nonreligious=1 if pid==pid[_n-`i'] & plh0258_h[_n-`i']==6 & !mi(pl
+> h0258_h[_n-`i']) & mi(plh0258_h)
+  7. }
+(32,894 real changes made)
+(36,270 real changes made)
+(38,596 real changes made)
+(24,233 real changes made)
+(27,189 real changes made)
+(26,912 real changes made)
+(22,128 real changes made)
+(25,000 real changes made)
+(24,800 real changes made)
+
+. replace catholic=0 if catholic==1 & (protestant==1 | nonreligious==1) & pid==
+> pid[_n-1] & catholic[_n-1]==0
+(50 real changes made)
+
+. replace protestant=0 if protestant==1 & (catholic==1 | nonreligious==1) & pid
+> ==pid[_n-1] & protestant[_n-1]==0
+(38 real changes made)
+
+. replace nonreligious=0 if nonreligious==1 & (catholic==1 | protestant==1) & p
+> id==pid[_n-1] & nonreligious[_n-1]==0
+(68 real changes made)
+
+. 
+. //migback Migration background
+. gen migrant=(migback==2 | migback==3)
+
+. 
+. //(not found) urban/rural
+. 
+. //(not found) pld0131_h 
+. gen     married=(pld0131_v1==1 | pld0131_v1==2 | pld0131_v1==6) if syear>=198
+> 4 & syear<=2018
+(75,648 missing values generated)
+
+. replace married=(pld0131_v2==1 | pld0131_v2==2 | pld0131_v2==6) if syear==201
+> 9
+(38,397 real changes made)
+
+. replace married=(pld0131_v3==1 | pld0131_v3==2 | pld0131_v3==6) if syear==202
+> 0
+(37,251 real changes made)
+
+. replace married=1 if married[_n-1]==married[_n+1] & married[_n-1]==1
+(25,825 real changes made)
+
+. 
+. //(not found) hlc0005_v2 Monthly HH net income (Euro) [2002-2023] 
+. sum hghinc, d
+
+             Monthly Household Net Income (EUR)
+-------------------------------------------------------------
+      Percentiles      Smallest
+ 1%          500          -3000
+ 5%          900           -400
+10%         1196              0       Obs             551,646
+25%         1700              0       Sum of wgt.     551,646
+
+50%         2500                      Mean           2963.757
+                        Largest       Std. dev.       3836.08
+75%         3600         300000
+90%         5000         999999       Variance       1.47e+07
+95%         6010         999999       Skewness       226.5779
+99%        10000        1700000       Kurtosis       86253.59
+
+. gen     hhincome_cap=hghinc
+(111,477 missing values generated)
+
+. replace hhincome_cap=`r(p99)' if hhincome_cap>`r(p99)' & !mi(hhincome_cap)
+(3,856 real changes made)
+
+. 
+. gen hhincome_miss=(mi(hghinc))
+
+. 
+. //plb0022_h Erwerbsstatus [harmonised]
+. gen     fulltime=(plb0022_h==1)
+
+. replace fulltime=1 if plb0022_h[_n-1]==1 & plb0022_h[_n-1]==plb0022_h[_n+1] &
+>  pid[_n-1]==pid[_n+1]
+(6,598 real changes made)
+
+. gen     parttime=(plb0022_h==2 | plb0022_h==4)
+
+. replace parttime=1 if (plb0022_h[_n-1]==2 | plb0022_h[_n-1]==4) & plb0022_h[_
+> n-1]==plb0022_h[_n+1] & pid[_n-1]==pid[_n+1]
+(3,920 real changes made)
+
+. 
+. //plb0186_h Actual Weekly Working Hours [harmonised]
+. sum plb0186_h, d
+
+       [de] Tatsaechliche Arbeitszeit mit ueberstunden
+                   Std./Wo. [harmonisiert]
+-------------------------------------------------------------
+      Percentiles      Smallest
+ 1%            4              0
+ 5%           10              0
+10%           15              0       Obs             290,933
+25%           30              0       Sum of wgt.     290,933
+
+50%           40                      Mean           37.20531
+                        Largest       Std. dev.      13.72635
+75%           45            100
+90%           50            100       Variance       188.4128
+95%           60            105       Skewness      -.3273545
+99%           70            126       Kurtosis       3.648783
+
+. gen     workhours_cap=plb0186_h
+(372,190 missing values generated)
+
+. replace workhours_cap=((workhours_cap[_n-1]+workhours_cap[_n+1])/2) if mi(wor
+> khours_cap) & !mi(workhours_cap[_n-1]) & !mi(workhours_cap[_n+1]) & pid[_n-1]
+> ==pid[_n+1]
+(12,881 real changes made)
+
+. replace workhours_cap=0 if mi(workhours_cap)
+(359,309 real changes made)
+
+. replace workhours_cap=`r(p99)' if workhours_cap>=`r(p99)'
+(2,203 real changes made)
+
+. 
+. gen workhours_miss=(mi(plb0186_h))
+
+. 
+. //plc0446 disability
+. gen disability=(plc0446==1)
+
+. 
+. 
+. * CONTROLS3 *
+. //birthregion_ew Birth place: German Federal Land (East-West Version)
+. gen birth_east=(birthregion_ew==22)
+
+. 
+. //(not found) lb1190 Mother's employment status, when respondent was under 6 
+> years old 
+. 
+. //(all missings) lb0067 No. Of Years Living With Single Mother
+. 
+. //pla0017-pla0044 -- X. Sibling, Sex
+. gen     siblings_female=0 
+
+. replace siblings_female=1 if pla0017==2
+(7,582 real changes made)
+
+. replace siblings_female=2 if pla0020==2
+(4,422 real changes made)
+
+. replace siblings_female=3 if pla0023==2
+(2,287 real changes made)
+
+. replace siblings_female=4 if pla0026==2
+(1,199 real changes made)
+
+. replace siblings_female=5 if pla0029==2
+(625 real changes made)
+
+. replace siblings_female=6 if pla0032==2
+(335 real changes made)
+
+. replace siblings_female=7 if pla0035==2
+(189 real changes made)
+
+. replace siblings_female=8 if pla0038==2
+(97 real changes made)
+
+. replace siblings_female=9 if pla0041==2
+(54 real changes made)
+
+. replace siblings_female=10 if pla0044==2
+(34 real changes made)
+
+. 
+. gen siblings_male=0 
+
+. replace siblings_male=1 if pla0017==1
+(7,812 real changes made)
+
+. replace siblings_male=2 if pla0020==1
+(4,580 real changes made)
+
+. replace siblings_male=3 if pla0023==1
+(2,324 real changes made)
+
+. replace siblings_male=4 if pla0026==1
+(1,187 real changes made)
+
+. replace siblings_male=5 if pla0029==1
+(680 real changes made)
+
+. replace siblings_male=6 if pla0032==1
+(338 real changes made)
+
+. replace siblings_male=7 if pla0035==1
+(189 real changes made)
+
+. replace siblings_male=8 if pla0038==1
+(112 real changes made)
+
+. replace siblings_male=9 if pla0041==1
+(71 real changes made)
+
+. replace siblings_male=10 if pla0044==1
+(38 real changes made)
+
+. 
+. 
+. * HYPOTHESIS TEST FOR H3 * 
+. 
+. //having a daughter, parents are more likely to share the domestic and housew
+> ork tasks equally between mothers and fathers within the same household
+. //we analyze the change in the time share on domestic and housework before an
+> d after having a child within the period of 2000 and 2020
+. //we generate an index of time spend on domestic work for the respondent and 
+> their partner, and then calculate the share for each partner
+. //we run a OLS regression analysis with either share of domestic work as depe
+> ndent variable as main independent variable as well as the dummy variable dau
+> ghter, share of domestic work at baseline wave, and the dummy variable father
+. //the second and third regressions of Model 1 are robustness checks, regressi
+> ons of Model 2 are also robustness checks
+. 
+. gl CONTROLS1 "father edu1 edu2 edu3 edu4 edu5 child_age_t age_t year_bl year_
+> t"
+
+. gl CONTROLS2 "catholic protestant nonreligious migrant married hhincome_cap h
+> gfhinc fulltime parttime workhours_cap workhours_miss disability"
+
+. gl CONTROLS3 "birth_east siblings_female siblings_male"
+
+. 
+. gl reg1 "reg share_domesticwork_t daughter share_domesticwork_bl $CONTROLS1 i
+> f exclusion==0 & syear==year_bl, cluster(hid)"
+
+. gl reg2 "reg share_domesticwork_t daughter share_domesticwork_bl $CONTROLS1 $
+> CONTROLS2 if exclusion==0 & syear==year_bl, cluster(hid)"
+
+. gl reg3 "reg share_domesticwork_t daughter share_domesticwork_bl $CONTROLS1 $
+> CONTROLS2 $CONTROLS3 if exclusion==0 & syear==year_bl, cluster(hid)"
+
+. 
+. gl reg4 "reg share_housework_t daughter share_housework_bl $CONTROLS1 if excl
+> usion==0 & syear==year_bl, cluster(hid)"
+
+. gl reg5 "reg share_housework_t daughter share_housework_bl $CONTROLS1 $CONTRO
+> LS2 if exclusion==0 & syear==year_bl, cluster(hid)"
+
+. gl reg6 "reg share_housework_t daughter share_housework_bl $CONTROLS1 $CONTRO
+> LS2 $CONTROLS3 if exclusion==0 & syear==year_bl, cluster(hid)"
+
+. 
+. sum share_domesticwork_* share_housework_* $CONTROLS1 $CONTROLS2 $CONTROLS3 i
+> f exclusion==0 & syear==year_bl
+
+    Variable |        Obs        Mean    Std. dev.       Min        Max
+-------------+---------------------------------------------------------
+share_dome~t |        525    .5099582    .3134373          0          1
+share_dome~l |        684    .4917807    .2437958          0          1
+share_hous~t |        527      .51062    .3133407          0          1
+share_hous~l |        723    .4954148     .220814          0          1
+      father |        723    .4937759    .5003074          0          1
+-------------+---------------------------------------------------------
+        edu1 |        723    .0940526    .2921039          0          1
+        edu2 |        723    .3015214    .4592363          0          1
+        edu3 |        723    .0733057     .260818          0          1
+        edu4 |        723     .264177    .4411992          0          1
+        edu5 |        723    .2116183    .4087384          0          1
+-------------+---------------------------------------------------------
+ child_age_t |        504    1.386905    .5702247          1          5
+       age_t |        504    32.36508    4.482088         20         45
+     year_bl |        723    2008.463    5.391819       2001       2019
+      year_t |        504    2010.782    5.134376       2003       2019
+    catholic |        723    .1798064    .3842919          0          1
+-------------+---------------------------------------------------------
+  protestant |        723    .2434302    .4294496          0          1
+nonreligious |        723    .2655602    .4419368          0          1
+     migrant |        723    .1452282    .3525747          0          1
+     married |        723    .0152144    .1224894          0          1
+hhincome_cap |        703    2972.592    1286.413        435       8560
+-------------+---------------------------------------------------------
+     hgfhinc |        723    .0276625    .1641175          0          1
+    fulltime |        723    .8049793     .396491          0          1
+    parttime |        723    .1051176    .3069172          0          1
+workhours_~p |        723    38.29564    14.06152          0         70
+workhours_~s |        723    .0968188    .2959156          0          1
+-------------+---------------------------------------------------------
+  disability |        723           0           0          0          0
+  birth_east |        723    .2171508    .4125915          0          1
+siblings_f~e |        723    .0857538     .387983          0          3
+siblings_m~e |        723    .0912863    .4007871          0          3
+
+. 
+. //using imputation for reg2 and reg3
+. mi import wide, imputed(hhincome_cap=hgi1hinc hgi2hinc hgi3hinc hgi4hinc hgi5
+> hinc) clear
+(32983 values of imputed variable hhincome_cap in m>0 updated to match values
+in m=0)
+
+. 
+. //accounting for error 
+. local i=1
+
+. foreach reg in reg1 reg2 reg3 {
+  2. capture $`reg'
+  3. if _rc != 2000 & _rc != 2001 {
+  4.     if `i'==1 | `i'==4 {
+  5.         $`reg'
+  6.         }
+  7.         else {
+  8.         mi estimate: $`reg'    
+  9.         }
+ 10. }
+ 11. }
+
+Linear regression                               Number of obs     =        476
+                                                F(12, 254)        =      62.12
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.6486
+                                                Root MSE          =     .17658
+
+                                  (Std. err. adjusted for 255 clusters in hid)
+------------------------------------------------------------------------------
+             |               Robust
+share_dome~t | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+    daughter |  -.0073652   .0102542    -0.72   0.473    -.0275592    .0128288
+share_dome~l |   .1318742    .041679     3.16   0.002     .0497938    .2139547
+      father |  -.4318993   .0233043   -18.53   0.000    -.4777936    -.386005
+        edu1 |  -.0710703   .0537067    -1.32   0.187    -.1768375    .0346968
+        edu2 |   -.016429     .04967    -0.33   0.741    -.1142464    .0813885
+        edu3 |  -.0652797   .0516392    -1.26   0.207    -.1669753    .0364159
+        edu4 |  -.0669636   .0485255    -1.38   0.169    -.1625271    .0285998
+        edu5 |  -.0689019   .0497881    -1.38   0.168     -.166952    .0291483
+ child_age_t |  -.1036401   .0373043    -2.78   0.006    -.1771052    -.030175
+       age_t |  -.0021258   .0016491    -1.29   0.199    -.0053735    .0011219
+     year_bl |  -.0446529   .0165906    -2.69   0.008    -.0773256   -.0119803
+      year_t |    .045736   .0166563     2.75   0.006     .0129339    .0785381
+       _cons |  -1.368197   1.879634    -0.73   0.467    -5.069849    2.333456
+------------------------------------------------------------------------------
+note: hgfhinc omitted because of collinearity.
+note: disability omitted because of collinearity.
+
+Linear regression                               Number of obs     =        469
+                                                F(22, 250)        =      40.95
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.6584
+                                                Root MSE          =     .17641
+
+                                  (Std. err. adjusted for 251 clusters in hid)
+------------------------------------------------------------------------------
+             |               Robust
+share_dome~t | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+    daughter |  -.0061775    .010808    -0.57   0.568    -.0274639    .0151089
+share_dome~l |   .1296282   .0409218     3.17   0.002     .0490328    .2102236
+      father |  -.4292346   .0235882   -18.20   0.000    -.4756915   -.3827777
+        edu1 |  -.0694925   .0571483    -1.22   0.225    -.1820461     .043061
+        edu2 |  -.0153981   .0521158    -0.30   0.768      -.11804    .0872439
+        edu3 |  -.0632825   .0563409    -1.12   0.262    -.1742457    .0476807
+        edu4 |  -.0736552   .0528729    -1.39   0.165    -.1777883    .0304779
+        edu5 |  -.0965357   .0575678    -1.68   0.095    -.2099153    .0168439
+ child_age_t |  -.0989882   .0376768    -2.63   0.009    -.1731926   -.0247837
+       age_t |  -.0040169   .0019898    -2.02   0.045    -.0079358    -.000098
+     year_bl |  -.0444663   .0164359    -2.71   0.007    -.0768368   -.0120958
+      year_t |   .0440537   .0164334     2.68   0.008     .0116882    .0764191
+    catholic |   .0621705   .0246191     2.53   0.012     .0136832    .1106578
+  protestant |   .0369298   .0196033     1.88   0.061    -.0016789    .0755385
+nonreligious |   .0305184   .0191617     1.59   0.112    -.0072205    .0682574
+     migrant |   .0202479   .0289137     0.70   0.484    -.0366976    .0771934
+     married |  -.1312727   .0788939    -1.66   0.097     -.286654    .0241087
+hhincome_cap |   .0000178   .0000103     1.72   0.086    -2.54e-06    .0000382
+     hgfhinc |          0  (omitted)
+    fulltime |  -.0027065    .043036    -0.06   0.950    -.0874659    .0820529
+    parttime |   .0389869   .0380478     1.02   0.307    -.0359482    .1139221
+workhours_~p |   .0005376   .0010158     0.53   0.597    -.0014631    .0025383
+workhours_~s |   .0726919    .036714     1.98   0.049     .0003838        .145
+  disability |          0  (omitted)
+       _cons |   1.591482   1.965597     0.81   0.419    -2.279758    5.462722
+------------------------------------------------------------------------------
+note: hgfhinc omitted because of collinearity.
+note: disability omitted because of collinearity.
+
+Linear regression                               Number of obs     =        469
+                                                F(25, 250)        =      36.07
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.6600
+                                                Root MSE          =      .1766
+
+                                  (Std. err. adjusted for 251 clusters in hid)
+------------------------------------------------------------------------------
+             |               Robust
+share_dome~t | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+    daughter |  -.0031154    .011417    -0.27   0.785    -.0256012    .0193704
+share_dome~l |   .1313747   .0410207     3.20   0.002     .0505845    .2121649
+      father |  -.4285254   .0235381   -18.21   0.000    -.4748836   -.3821673
+        edu1 |  -.0690744   .0564086    -1.22   0.222    -.1801711    .0420223
+        edu2 |  -.0178305   .0516189    -0.35   0.730    -.1194939    .0838329
+        edu3 |  -.0687168   .0558198    -1.23   0.219    -.1786539    .0412203
+        edu4 |  -.0740032   .0516649    -1.43   0.153    -.1757571    .0277507
+        edu5 |  -.0964787   .0563758    -1.71   0.088    -.2075107    .0145533
+ child_age_t |  -.1002475   .0368046    -2.72   0.007    -.1727341   -.0277609
+       age_t |  -.0039431   .0019899    -1.98   0.049    -.0078621    -.000024
+     year_bl |  -.0449815   .0162188    -2.77   0.006    -.0769245   -.0130385
+      year_t |   .0445923   .0162525     2.74   0.007      .012583    .0766015
+    catholic |   .0623856   .0253336     2.46   0.014     .0124912    .1122801
+  protestant |   .0355097   .0197614     1.80   0.074    -.0034104    .0744298
+nonreligious |   .0325186   .0205437     1.58   0.115    -.0079422    .0729794
+     migrant |   .0174613   .0294619     0.59   0.554    -.0405638    .0754864
+     married |  -.1304837   .0798083    -1.63   0.103    -.2876659    .0266986
+hhincome_cap |   .0000167   .0000108     1.55   0.122    -4.51e-06    .0000379
+     hgfhinc |          0  (omitted)
+    fulltime |   .0060091   .0426335     0.14   0.888    -.0779575    .0899756
+    parttime |     .04404   .0377844     1.17   0.245    -.0303764    .1184564
+workhours_~p |     .00046   .0010289     0.45   0.655    -.0015665    .0024864
+workhours_~s |   .0744591   .0368871     2.02   0.045       .00181    .1471082
+  disability |          0  (omitted)
+  birth_east |  -.0104601   .0189994    -0.55   0.582    -.0478794    .0269593
+siblings_f~e |  -.0308999   .0159935    -1.93   0.054     -.062399    .0005992
+siblings_m~e |   .0253813   .0197731     1.28   0.200    -.0135617    .0643244
+       _cons |   1.541563   2.065073     0.75   0.456    -2.525595    5.608721
+------------------------------------------------------------------------------
+
+. 
+. 
+. * EXTRACT AND EXPORT RESULTS * 
+. 
+.         * Extract the required statistics
+. 
+. foreach reg in reg1 /*reg2 reg3 reg4 reg5 reg6*/ {
+  2.         
+.         capture $`reg'
+  3.         if _rc != 2000 & _rc != 2001 {
+  4.         $`reg'
+  5.                                 
+.         * (i) coefficient estimate
+.         local coefficient = _b[daughter]
+  6. 
+.         * (ii) standard error
+.         local se = _se[daughter]
+  7. 
+.         * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.         local test_stat_family = "t"
+  8. 
+.         * (iv) residual and model degrees of freedom (DFs) if applicable
+.         local df_residual = e(df_r)
+  9.         local df_model = e(df_m)
+ 10. 
+.         * (v) p-value
+.         local p_value = _b[daughter] / _se[daughter]
+ 11.         local p_value = 2 * ttail(e(df_r), abs(`p_value'))
+ 12. 
+.         * (vi) number of observations
+.         local num_obs = e(N)
+ 13. 
+.         * (vii) number of participants
+.         quietly levelsof pid if e(sample), local(participants)
+ 14.         local num_participants : word count `participants'
+ 15. 
+.         * (viii) interpretation of directionality
+.         scalar coef_daughter = _b[daughter]
+ 16.                 local interpretation "positive coefficient is in line with
+>  hypothesis"
+ 17. 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+ 18.         di "Standard Error: `se'"
+ 19.         di "Test Statistic Family: `test_stat_family'"
+ 20.         di "Residual Degrees of Freedom: `df_residual'"
+ 21.         di "Model Degrees of Freedom: `df_model'"
+ 22.         di "p-value: " `p_value'
+ 23.         di "Number of observations: " `num_obs'
+ 24.         di      "Number of participants: " `num_participants'
+ 25.         di "Interpretation of directionality: " "`interpretation'"
+ 26.         }
+ 27.                 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h3_results.csv", write replace
+ 28.         file write myfile "coefficient,se,family,residual_df,model_df,p_va
+> lue,num_obs,num_participants,interpretation" _n
+ 29.         file write myfile "`coefficient', `se', `test_stat_family', `df_re
+> sidual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" 
+> _n
+ 30.         file close myfile
+ 31.         
+.         local i=`i'+1
+ 32. }
+
+Linear regression                               Number of obs     =        476
+                                                F(12, 254)        =      62.12
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.6486
+                                                Root MSE          =     .17658
+
+                                  (Std. err. adjusted for 255 clusters in hid)
+------------------------------------------------------------------------------
+             |               Robust
+share_dome~t | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+    daughter |  -.0073652   .0102542    -0.72   0.473    -.0275592    .0128288
+share_dome~l |   .1318742    .041679     3.16   0.002     .0497938    .2139547
+      father |  -.4318993   .0233043   -18.53   0.000    -.4777936    -.386005
+        edu1 |  -.0710703   .0537067    -1.32   0.187    -.1768375    .0346968
+        edu2 |   -.016429     .04967    -0.33   0.741    -.1142464    .0813885
+        edu3 |  -.0652797   .0516392    -1.26   0.207    -.1669753    .0364159
+        edu4 |  -.0669636   .0485255    -1.38   0.169    -.1625271    .0285998
+        edu5 |  -.0689019   .0497881    -1.38   0.168     -.166952    .0291483
+ child_age_t |  -.1036401   .0373043    -2.78   0.006    -.1771052    -.030175
+       age_t |  -.0021258   .0016491    -1.29   0.199    -.0053735    .0011219
+     year_bl |  -.0446529   .0165906    -2.69   0.008    -.0773256   -.0119803
+      year_t |    .045736   .0166563     2.75   0.006     .0129339    .0785381
+       _cons |  -1.368197   1.879634    -0.73   0.467    -5.069849    2.333456
+------------------------------------------------------------------------------
+Coefficient: -.0073652195630388
+Standard Error: .0102541546416492
+Test Statistic Family: t
+Residual Degrees of Freedom: 254
+Model Degrees of Freedom: 12
+p-value: .47325291
+Number of observations: 476
+Number of participants: 476
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/95_re
+    > sults/h3_results.csv not found)
+
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

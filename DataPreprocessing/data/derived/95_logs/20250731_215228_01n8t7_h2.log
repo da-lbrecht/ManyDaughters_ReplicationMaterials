@@ -1,0 +1,665 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmpvhwewzuj.do 
+
+. do "95%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. * the following code automatically sets paths based on the project location o
+> n your system *
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/95%-sample" // folder, in which the or
+> iginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/95%-sample
+
+. global DATA "$ROOT/data/derived_confidential/95%-sample" // folder for datase
+> ts
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/95%-sample
+
+. global OUT "$ROOT/data/derived/95_results" // folder for output (results, tab
+> les)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/95_results
+
+. 
+end of do-file
+
+. do "20250731_215228_01n8t7_h2.do"
+
+. *****************************************************************************
+> ***
+. ****************** Example Do-File H2: #ManyDaughters Project ***************
+> ***
+. *****************************************************************************
+> ***
+. 
+. * Authors: Tina Wang, David Albrecht
+. 
+. * ============================
+. * Setup * (Please adapt according to your needs)
+. * ============================
+. 
+. * clear all
+. version 16 // indicate the version of stata you are using here
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. /*
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> */
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA * (Please adapt according to your needs)
+. 
+.         use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. 
+.         * Merge ppathl with all datasets, that you deem relevant for your ana
+> lysis. (Tip: use keepusing() to specify which variables to keep from the usin
+> g dataset; the default is all.)
+. 
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches)
+(variable pid was long, now double to accommodate using data's values)
+(variable cid was long, now double to accommodate using data's values)
+(variable gebjahr was int, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * pgen contains user-friendly data on the individual level that are c
+> onsolidated from different sources
+.         merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * pl contains all variables from the individual questionnaire
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches)
+(variable inputdataset was str6, now str9 to accommodate using data's values)
+(label cid_EN already defined)
+(label pid_EN already defined)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * hgen contains generated variables on household level from the house
+> hold interview; use for household net income
+.         merge m:1 hid syear using "$IN/hgen.dta", nogen keep(master matches) 
+> keepusing(hid syear hghinc)
+(label iyear already defined)
+(label iyear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. 
+.         label language EN // change language of the labels to English
+
+. 
+.         save "$DATA/h2_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h2_dataset.dta saved
+
+. 
+. 
+. * ============================
+. * FILTER & PREPARE DATA
+. * ============================
+. 
+. * Keep only participants from private households (adjust as needed)
+. keep if inlist(pop, 1, 2)
+(89,279 observations deleted)
+
+. 
+. 
+. * ============================
+. * DEPENDENT VARIABLE: leftleaning
+. * ============================
+. 
+. gen leftleaning = .
+(573,844 missing values generated)
+
+. 
+. * Right to left scale: 1 (most right-wing) to 8 (most left-wing)
+. replace leftleaning = 1 if plh0012_h == 7                       // NPD/Republ
+> ikaner
+(1,808 real changes made)
+
+. replace leftleaning = 2 if plh0012_h == 27              // AfD
+(3,437 real changes made)
+
+. replace leftleaning = 3 if plh0012_h == 2 | plh0012_h == 3 |plh0012_h == 13  
+> // CDU, CSU, CDU/CSU
+(79,332 real changes made)
+
+. replace leftleaning = 4 if plh0012_h == 4               // FDP
+(8,398 real changes made)
+
+. replace leftleaning = 5 if plh0012_h == 1               // SPD
+(64,057 real changes made)
+
+. replace leftleaning = 6 if plh0012_h == 5                               // Bü
+> ndnis90/Die Grünen
+(26,664 real changes made)
+
+. replace leftleaning = 7 if plh0012_h == 26              // Piratenpartei
+(483 real changes made)
+
+. replace leftleaning = 8 if plh0012_h == 6               // Die Linke
+(13,102 real changes made)
+
+. 
+. * Label values for interpretability
+. label define leftleaning_lbl 1 "NPD" 2 "AfD" 3 "CDU/CSU" 4 "FDP" 5 "SPD" 6 "G
+> rüne" 7 "Piraten" 8 "Die Linke"
+
+. label values leftleaning leftleaning_lbl
+
+. 
+. 
+. * ============================
+. * INDEPENDENT VARIABLE: HAS DAUGHTER
+. * ============================
+. 
+. * Generate indicator for having any children 
+. gen has_child = 0
+
+. foreach i in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 {
+  2.     replace has_child = 1 if inlist(kidsex`i', 1, 2) & kidgeb`i' <= syear
+  3. }
+(373,666 real changes made)
+(183 real changes made)
+(54 real changes made)
+(6 real changes made)
+(15 real changes made)
+(6 real changes made)
+(9 real changes made)
+(11 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. 
+. * Filter out cases where has_child does not align with sumkids (e.g. stillbir
+> ths or children dying later in life)
+. drop if has_child == 0 & sumkids > 0
+(16,946 observations deleted)
+
+. drop if has_child == 1 & sumkids == 0
+(0 observations deleted)
+
+. 
+. * Count total number of children at time of survey to replace sumkids which i
+> s time-invariant
+. gen num_kids = 0
+
+. foreach i in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 {
+  2.     replace num_kids = num_kids + 1 if inlist(kidsex`i', 1, 2) & kidgeb`i'
+>  <= syear
+  3. }
+(373,666 real changes made)
+(266,349 real changes made)
+(104,993 real changes made)
+(35,558 real changes made)
+(12,828 real changes made)
+(5,321 real changes made)
+(2,405 real changes made)
+(1,127 real changes made)
+(584 real changes made)
+(360 real changes made)
+(209 real changes made)
+(104 real changes made)
+(19 real changes made)
+(13 real changes made)
+(12 real changes made)
+(12 real changes made)
+(9 real changes made)
+(3 real changes made)
+(3 real changes made)
+
+. 
+. 
+. * Initialize has_daughter as missing
+. gen d_daughter = .
+(556,898 missing values generated)
+
+. 
+. * Set to 0 if person has children 
+. replace d_daughter = 0 if has_child == 1
+(373,950 real changes made)
+
+. 
+. * Set to 1 if any daughter is found
+. foreach i in 01 02 03 04 05 06 07 08 09 10 11 12 13 14 15 16 17 18 19 {
+  2.     replace d_daughter = 1 if kidsex`i' == 2 & has_child == 1 & kidgeb`i' 
+> <= syear
+  3. }
+(181,781 real changes made)
+(66,866 real changes made)
+(12,720 real changes made)
+(2,455 real changes made)
+(525 real changes made)
+(91 real changes made)
+(43 real changes made)
+(10 real changes made)
+(16 real changes made)
+(3 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+(0 real changes made)
+
+. 
+. * ============================
+. * CLEAN CONTROL VARIABLES
+. * ============================
+. 
+. ***** household size
+. egen hhsize = count(pid), by(hid syear)
+
+. 
+. ***** region (east-west divide)
+. replace sampreg = . if sampreg < 0
+(78 real changes made, 78 to missing)
+
+. gen eastgermany = 1 if sampreg == 2
+(437,234 missing values generated)
+
+. replace eastgermany = 0 if sampreg == 1
+(437,156 real changes made)
+
+. 
+. ***** Age
+. gen age = syear - gebjahr
+
+. label variable age "Age at interview"
+
+. replace age = . if age < 0
+(0 real changes made)
+
+. 
+. ***** Number of children
+. replace num_kids = . if num_kids < 0
+(0 real changes made)
+
+. 
+. ***** Gender
+. replace sex = . if sex < 0
+(13 real changes made, 13 to missing)
+
+. gen male = 1 if sex == 1
+(289,715 missing values generated)
+
+. replace male = 0 if sex == 2
+(289,702 real changes made)
+
+. 
+. ***** Education (in years)
+. replace pgbilzeit = . if pgbilzeit < 0
+(26,221 real changes made, 26,221 to missing)
+
+. 
+. ***** Income
+. replace hghinc = . if hghinc < 0
+(29,969 real changes made, 29,969 to missing)
+
+. replace pglabgro = 0 if pglabgro < 0 & inlist(pgstib, 10, 11, 12, 13, 15) // 
+> Set unemployed people to 0 labor income
+(208,049 real changes made)
+
+. replace pglabgro = . if pglabgro < 0
+(185 real changes made, 185 to missing)
+
+. 
+. 
+. ***** Family status
+. replace pgfamstd = . if pgfamstd < 0
+(2,184 real changes made, 2,184 to missing)
+
+. 
+. 
+. ***** exclusion criteria
+. drop if pgfamstd > 6
+(63,230 observations deleted)
+
+. drop if d_daughter == .
+(134,899 observations deleted)
+
+. drop if sex == 3
+(0 observations deleted)
+
+. 
+. drop if leftleaning == .
+(215,635 observations deleted)
+
+. 
+. * ============================
+. * HYPOTHESIS TEST FOR H2
+. * ============================
+. 
+. * H2: Having daughters leads to more left-leaning political preferences. 
+. 
+. * To empirically test this hypothesis, an ordered logistic regression (ologit
+> ) model is employed. The dependent variable (leftleaning) captures political 
+> preferences on a scale from right-wing to left-wing, based on respondents' pa
+> rty preference.
+. 
+. * The main independent variable of interest is a binary indicator (d_daughter
+> ) representing whether respondents have at least one daughter (1) or none (0)
+> . Control variables include respondents' gender, age, number of children, hou
+> sehold size, years of education, labor income, migration background, family s
+> tatus, region, and survey year, with interactions between region and survey y
+> ear to account for temporal and regional variations. Standard errors are clus
+> tered at the household level to account for within-household correlations.
+. 
+. * The coefficient estimate for d_daughter specifically tests whether responde
+> nts with daughters exhibit significantly more left-leaning political preferen
+> ces compared to those without daughters.
+.         
+. ologit leftleaning d_daughter male age num_kids hhsize pgbilzeit pglabgro i.m
+> igback i.pgfamstd eastgermany##i.syear, cluster(hid)
+
+Iteration 0:  Log pseudolikelihood = -200239.83  
+Iteration 1:  Log pseudolikelihood = -196389.48  
+Iteration 2:  Log pseudolikelihood = -196373.14  
+Iteration 3:  Log pseudolikelihood = -196373.13  
+
+Ordered logistic regression                            Number of obs = 142,035
+                                                       Wald chi2(55) = 1284.64
+                                                       Prob > chi2   =  0.0000
+Log pseudolikelihood = -196373.13                      Pseudo R2     =  0.0193
+
+                               (Std. err. adjusted for 21,265 clusters in hid)
+------------------------------------------------------------------------------
+             |               Robust
+ leftleaning | Coefficient  std. err.      z    P>|z|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  d_daughter |   -.016833   .0384789    -0.44   0.662    -.0922502    .0585843
+        male |  -.2136807   .0217209    -9.84   0.000    -.2562528   -.1711085
+         age |  -.0063042   .0013089    -4.82   0.000    -.0088696   -.0037388
+    num_kids |  -.0091904   .0181001    -0.51   0.612    -.0446659    .0262851
+      hhsize |   .0429366    .019586     2.19   0.028     .0045488    .0813244
+   pgbilzeit |   .0978888   .0063281    15.47   0.000     .0854859    .1102917
+    pglabgro |  -.0000298   4.71e-06    -6.33   0.000     -.000039   -.0000206
+             |
+     migback |
+[2] direc..  |    .011338   .0476583     0.24   0.812    -.0820706    .1047465
+[3] indir..  |   .3576216   .0730773     4.89   0.000     .2143928    .5008504
+             |
+    pgfamstd |
+[2] Marri..  |   .4394414   .0717966     6.12   0.000     .2987227    .5801602
+ [3] Single  |   .3870904   .0730661     5.30   0.000     .2438836    .5302973
+[4] Divor..  |   .5098647    .052088     9.79   0.000      .407774    .6119553
+[5] [de] ..  |  -.0082076    .056604    -0.14   0.885    -.1191494    .1027343
+[6] husba..  |    -.14445   .4089856    -0.35   0.724     -.946047     .657147
+             |
+1.eastgerm~y |   .4319439   .0757965     5.70   0.000     .2833856    .5805023
+             |
+       syear |
+       2001  |   .0162813   .0179106     0.91   0.363    -.0188228    .0513854
+       2002  |  -.0859619   .0204676    -4.20   0.000    -.1260777   -.0458462
+       2003  |   -.173065   .0227229    -7.62   0.000    -.2176011   -.1285289
+       2004  |  -.1993398   .0247597    -8.05   0.000    -.2478679   -.1508118
+       2005  |  -.1137153   .0251577    -4.52   0.000    -.1630235   -.0644071
+       2006  |  -.1336462   .0261314    -5.11   0.000    -.1848628   -.0824296
+       2007  |  -.1010495   .0282322    -3.58   0.000    -.1563836   -.0457153
+       2008  |  -.1250723   .0295418    -4.23   0.000    -.1829731   -.0671714
+       2009  |  -.0846608   .0300568    -2.82   0.005    -.1435711   -.0257506
+       2010  |   .0187958   .0292234     0.64   0.520    -.0384809    .0760726
+       2011  |   .0921615   .0326894     2.82   0.005     .0280916    .1562315
+       2012  |    .080035   .0336716     2.38   0.017       .01404    .1460301
+       2013  |    .058155   .0334109     1.74   0.082    -.0073292    .1236392
+       2014  |   .0154046   .0331926     0.46   0.643    -.0496518    .0804609
+       2015  |  -.0201154   .0349517    -0.58   0.565    -.0886195    .0483886
+       2016  |  -.0603989   .0378348    -1.60   0.110    -.1345537    .0137559
+       2017  |  -.1456803    .036056    -4.04   0.000    -.2163487   -.0750119
+       2018  |  -.0830607   .0378809    -2.19   0.028    -.1573058   -.0088155
+       2019  |   .1112189   .0403804     2.75   0.006     .0320748     .190363
+       2020  |   .1383063   .0408367     3.39   0.001     .0582677    .2183448
+             |
+ eastgermany#|
+       syear |
+     1 2001  |    .017633   .0584339     0.30   0.763    -.0968953    .1321613
+     1 2002  |   .1490442    .068863     2.16   0.030     .0140753    .2840132
+     1 2003  |  -.0167811   .0672011    -0.25   0.803    -.1484929    .1149307
+     1 2004  |   .1725247   .0783272     2.20   0.028     .0190063    .3260432
+     1 2005  |   .1277439   .0808266     1.58   0.114    -.0306732    .2861611
+     1 2006  |   .1670812   .0823486     2.03   0.042      .005681    .3284814
+     1 2007  |   .3136227   .0915815     3.42   0.001     .1341263    .4931192
+     1 2008  |   .3368634   .0973988     3.46   0.001     .1459653    .5277616
+     1 2009  |   .3751323    .096242     3.90   0.000     .1865014    .5637632
+     1 2010  |   .1585544   .0916841     1.73   0.084    -.0211432     .338252
+     1 2011  |   .1741726   .0984206     1.77   0.077    -.0187283    .3670735
+     1 2012  |   .1440766   .0976578     1.48   0.140     -.047329    .3354823
+     1 2013  |  -.0114623   .0953247    -0.12   0.904    -.1982953    .1753708
+     1 2014  |  -.0557582   .0974439    -0.57   0.567    -.2467447    .1352284
+     1 2015  |  -.0286278   .1064786    -0.27   0.788    -.2373219    .1800664
+     1 2016  |  -.3731638   .1210305    -3.08   0.002    -.6103792   -.1359484
+     1 2017  |  -.1805695   .1080065    -1.67   0.095    -.3922583    .0311194
+     1 2018  |  -.2642098   .1180449    -2.24   0.025    -.4955736    -.032846
+     1 2019  |  -.4543293   .1176287    -3.86   0.000    -.6848773   -.2237812
+     1 2020  |  -.3516808   .1200064    -2.93   0.003     -.586889   -.1164726
+-------------+----------------------------------------------------------------
+       /cut1 |  -4.076226   .1570365                     -4.384012   -3.768441
+       /cut2 |  -2.814862   .1397918                     -3.088849   -2.540875
+       /cut3 |    .654348   .1289407                       .401629    .9070671
+       /cut4 |   .8184582   .1287483                      .5661162      1.0708
+       /cut5 |   2.424269   .1280262                      2.173342    2.675196
+       /cut6 |   3.661234   .1335389                      3.399503    3.922966
+       /cut7 |   3.683945   .1335488                      3.422194    3.945696
+------------------------------------------------------------------------------
+
+. 
+. 
+. * EXTRACT AND EXPORT RESULTS * (Please check whether the suggested code autom
+> atically picks up the correct statistics for your chosen regression analysis 
+> and adapt if needed)
+. 
+.         * Extract the required statistics
+. 
+.                 * (i) coefficient estimate
+.                 local coefficient = _b[d_daughter]
+
+. 
+.                 * (ii) standard error
+.                 local se = _se[d_daughter]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "z" 
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 // n/a
+.                 
+.                 * (v) p-value
+.                 local z_stat = _b[d_daughter] / _se[d_daughter]
+
+.                 local p_value : display %6.4f 2 * (1 - normal(abs(`z_stat')))
+>  
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation of directionality
+.                 scalar coef_d_daughter = _b[d_daughter]
+
+.                 local interpretation "positive coefficient is in line with hy
+> pothesis"
+
+. 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: -.0168329552987029
+
+.         di "Standard Error: `se'"
+Standard Error: .0384789167356576
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: z
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: 
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 
+
+.         di "p-value: " `p_value'
+p-value: .6618
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 142035
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 30114
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h2_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/95_re
+    > sults/h2_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

@@ -1,0 +1,541 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmp_nhn3baa.do 
+
+. do "5%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. 
+. * the following code automatically sets paths based on the project location o
+> n your system *local curdir = c(pwd)
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/5%-sample" // folder, in which the ori
+> ginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/5%-sample
+
+. global DATA "$ROOT/data/derived_confidential/5%-sample" // folder for dataset
+> s
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/5%-sample
+
+. global OUT "$ROOT/data/derived/5_results" // folder for output (results, tabl
+> es)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/5_results
+
+. 
+end of do-file
+
+. do "20250730_004453_0150rx_h2.do"
+
+. *****************************************************************************
+> **********************************************************
+. ****************** Do-File H1 #ManyDaughters Project: (Having daughters incre
+> ases gender-equality attitudes) **************************
+. *****************************************************************************
+> **********************************************************
+. 
+. * Authors: [REDACTED], [REDACTED]
+. 
+. * ============================
+. * Setup *
+. * ============================
+. 
+. * clear all
+. version 17
+
+. set maxvar 10000
+
+
+. set linesize 255
+
+. * ssc install ftools, replace
+. * ssc install reghdfe, replace
+. /*
+> if strpos("`c(pwd)'", "code") {
+>         global ROOT "`c(pwd)'/.."
+> }
+> else{
+>         global ROOT "`c(pwd)'"
+> } 
+> 
+> global IN   "$ROOT/data/raw" 
+> global DATA "$ROOT/data/derived" 
+> global OUT  "$ROOT/out" 
+> */
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA * 
+. 
+.         * use ppathl as a starting dataset
+.         use "$IN/ppathl.dta", clear 
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+.         keep pid cid syear hid gebjahr sex erstbefr netto pop
+
+.         // pid: Individual unique Identifier (person id). The subsequent fixed-effect model needs to cluster by pid and must be able to identify the records of the same person in different years.
+.         // syear: Survey year. Together with pid, it forms the primary key of the panel (pid × syear).
+.         // hid: Family/Resident id. It is used to merge family-level data (such as income, housework duration).
+.         // sex: Gender. Used to construct parent dummy variables (MPD, MPS, FPD, FPS).
+.         // gebjahr: Year of birth. Calculate the age (Age = syear-gebjahr), and then apply the 18-50 age sample limit of PAP.
+.         // pop: Population types (for example, 1= private households, 2= institutional households). Robustness screening can be conducted (such as retaining only private residents).
+.         gen age = syear - gebjahr
+
+.         * Keep valid observations: interview year ≥ first interview; interview outcome acceptable
+.         keep if erstbefr <= syear & inlist(netto, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 29)    // Netto-codes 10-19 (and 29) define the respondents population of PGEN
+(7,837 observations deleted)
+
+. 
+.         * Merge child info
+.         merge m:1 pid using "$IN/biobirth.dta", keepusing(kidgeb01 kidsex01)
+(variable pid was long, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                            27,391  (_merge==3)
+    -----------------------------------------
+
+.         keep if _merge == 3
+(0 observations deleted)
+
+.         drop _merge
+
+.         // kidgeb01: birth year of first child
+.         // kidsex01: gender of firsr child
+.         
+.         * Merge education
+.         merge m:1 pid syear using "$IN/biol.dta", keepusing(lb0191)
+(label cid already defined)
+(label pid_EN already defined)
+(label cid_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                         7,837
+        from master                         0  (_merge==1)
+        from using                      7,837  (_merge==2)
+
+    Matched                            27,391  (_merge==3)
+    -----------------------------------------
+
+.         keep if _merge == 3
+(7,837 observations deleted)
+
+.         drop _merge
+
+.         // School-Leaving Degree: lb0191. This variable is not included into the data due to many missing values.
+.         
+.         * Merge country
+.         merge 1:1 pid syear using "$IN/pgen.dta", keepusing(pgnation)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                         7,837
+        from master                         0  (_merge==1)
+        from using                      7,837  (_merge==2)
+
+    Matched                            27,391  (_merge==3)
+    -----------------------------------------
+
+.         keep if _merge == 3
+(7,837 observations deleted)
+
+.         drop _merge
+
+.         // pgnation: the nationality of the responder.
+.         
+.         * Merge political preference from pl.dta
+.         merge m:1 pid syear using "$IN/pl.dta", keepusing(plh0004)
+(label hid already defined)
+(label cid already defined)
+(label pnr already defined)
+(label p_anker already defined)
+(label p_buh1 already defined)
+(label p_buh2 already defined)
+(label p_buh3 already defined)
+(label p_buh4 already defined)
+(label p_buh5 already defined)
+(label p_buh6 already defined)
+(label p_buh7 already defined)
+(label p_buh8 already defined)
+(label p_buh9 already defined)
+(label p_buh10 already defined)
+(label p_buh11 already defined)
+(label iyear already defined)
+(label intid already defined)
+(label instrument already defined)
+(label pid_EN already defined)
+(label hid_EN already defined)
+(label cid_EN already defined)
+(label pnr_EN already defined)
+(label syear_EN already defined)
+(label p_anker_EN already defined)
+(label p_buh1_EN already defined)
+(label p_buh2_EN already defined)
+(label p_buh3_EN already defined)
+(label p_buh4_EN already defined)
+(label p_buh5_EN already defined)
+(label p_buh6_EN already defined)
+(label p_buh7_EN already defined)
+(label p_buh8_EN already defined)
+(label p_buh9_EN already defined)
+(label p_buh10_EN already defined)
+(label p_buh11_EN already defined)
+(label iyear_EN already defined)
+(label intid_EN already defined)
+(label instrument_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                         7,837
+        from master                         0  (_merge==1)
+        from using                      7,837  (_merge==2)
+
+    Matched                            27,391  (_merge==3)
+    -----------------------------------------
+
+.         keep if _merge == 3
+(7,837 observations deleted)
+
+.         drop _merge
+
+. 
+.         * Political attitude: reverse (so higher = more left-leaning), then standardize
+.         gen polatt = 10 - plh0004 if inrange(plh0004, 0, 10)
+(22,828 missing values generated)
+
+.         egen political_pref = std(polatt)
+(22,828 missing values generated)
+
+.         label var political_pref "Standardized Political Preference (High = More Left-Leaning)"
+
+.                 
+.         * save data *
+.         label language EN // change language of the labels to English
+
+.         save "$DATA/h2_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confidential/5%-sample/h2_dataset.dta saved
+
+.         
+. * ============================
+. * Analysis *
+. * ============================
+. 
+. * FILTERS *
+.         
+.         * Restrict the sample to person-year observations in which respondents were aged between 18 and 50 years (inclusive), to focus on prime childbearing and child-rearing years *
+.         keep if inrange(age,18,50)
+(11,917 observations deleted)
+
+.         
+.         * Exclude respondents who were observed only once in the panel, as fixed-effects models require at least two observations per individual *
+.         egen n_obs = count(syear), by(pid)
+
+.         keep if n_obs>=2 
+(890 observations deleted)
+
+.         
+.         * Not impute missing outcome values *
+.         drop if missing(political_pref)
+(12,228 observations deleted)
+
+. 
+. * GENERATE VARIABLES * 
+.         
+.         * Key explanatory variable (MPD: male parent of daughters) *
+.         gen byte MPD = (sex==1 & !mi(kidgeb01) & kidgeb01<=syear & kidsex01==2) 
+
+.         gen byte MPS = (sex==1 & !mi(kidgeb01) & kidgeb01<=syear & kidsex01==1)
+
+.         gen byte FPD = (sex==2 & !mi(kidgeb01) & kidgeb01<=syear & kidsex01==2)
+
+.         gen byte FPS = (sex==2 & !mi(kidgeb01) & kidgeb01<=syear & kidsex01==1)
+
+.         fvset base 0 MPD MPS FPD FPS    
+
+. 
+.         * Control variables *
+.         gen age_sq = age^2
+
+.         egen country_id = group(pgnation), label
+
+.         
+. * HYPOTHESIS TEST FOR H2 (Does having a daughter increase left-leaning political preferences?) *
+. 
+.         * We test whether becoming a parent of a daughter (vs. a son) is associated with more left-leaning political preferences.
+. 
+.         * We estimate a fixed-effects panel regression model using individual-level panel data.
+. 
+.         * The dependent variable is a standardized index of political preferences (political_pref).
+. 
+.         * The key independent variables are four dummies: MPD (male parent of daughter), MPS (male parent of son), FPD (female parent of daughter), and FPS (female parent of son)
+. 
+.         * with people who do not have children during the survey duration as the reference group.
+. 
+.         global controls  c.age c.age_sq i.country_id i.syear
+
+.         reghdfe political_pref MPD MPS FPD FPS $controls, absorb(pid) vce(cluster pid)
+(dropped 914 singleton observations)
+(MWFE estimator converged in 1 iterations)
+note: 3bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 4bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 5bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 6bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 8bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 9bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 11bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 13bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 14bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 28bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 30bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 37bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 38bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 39bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 46bn.country_id is probably collinear with the fixed effects (all partialled-out values are close to zero; tol = 1.0e-09)
+note: 37.country_id omitted because of collinearity
+note: 46.country_id omitted because of collinearity
+note: 2019.syear omitted because of collinearity
+warning: missing F statistic; dropped variables due to collinearity or too few clusters
+
+HDFE Linear regression                            Number of obs   =      1,442
+Absorbing 1 HDFE group                            F(  16,    603) =          .
+Statistics robust to heteroskedasticity           Prob > F        =          .
+                                                  R-squared       =     0.6990
+                                                  Adj R-squared   =     0.4724
+                                                  Within R-sq.    =     0.0265
+Number of clusters (pid)     =        604         Root MSE        =     0.7050
+
+                                               (Std. err. adjusted for 604 clusters in pid)
+-------------------------------------------------------------------------------------------
+                          |               Robust
+           political_pref | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+--------------------------+----------------------------------------------------------------
+                      MPD |   .0299199   .1856155     0.16   0.872    -.3346115    .3944513
+                      MPS |  -.0230577   .1910714    -0.12   0.904    -.3983039    .3521885
+                      FPD |   .0072622   .1997677     0.04   0.971    -.3850627    .3995871
+                      FPS |   .0326113    .146066     0.22   0.823    -.2542485    .3194711
+                      age |    -.03429   .0341689    -1.00   0.316    -.1013945    .0328146
+                   age_sq |   .0004505   .0004438     1.02   0.310    -.0004211     .001322
+                          |
+               country_id |
+              [2] Turkey  |  -1.183688   .0717976   -16.49   0.000    -1.324692   -1.042684
+              [4] Greece  |          0  (omitted)
+               [5] Italy  |          0  (omitted)
+               [6] Spain  |          0  (omitted)
+            [10] Austria  |          0  (omitted)
+             [11] France  |  -.0958456   .0590358    -1.62   0.105    -.2117863    .0200951
+            [13] Denmark  |          0  (omitted)
+      [14] Great Britain  |          0  (omitted)
+             [15] Sweden  |   1.130087   .0566653    19.94   0.000     1.018802    1.241373
+                [18] USA  |          0  (omitted)
+            [21] Romania  |          0  (omitted)
+             [22] Poland  |          0  (omitted)
+           [29] Bulgaria  |   .5328872   .0572213     9.31   0.000       .42051    .6452645
+             [32] Russia  |   -.702055   .0604835   -11.61   0.000    -.8208389   -.5832712
+            [67] Morocco  |          0  (omitted)
+         [74] Kazakhstan  |          0  (omitted)
+           [85] Pakistan  |   2.912678   .0590358    49.34   0.000     2.796737    3.028619
+     [98] No Nationality  |  -.5853339    .199005    -2.94   0.003     -.976161   -.1945069
+            [102] Angola  |          0  (omitted)
+           [118] Holland  |          0  (omitted)
+           [119] Croatia  |          0  (omitted)
+[120] Bosnia-Herzegovina  |          0  (omitted)
+    [140] Kosovo-Albania  |  -1.157149   .7492361    -1.54   0.123    -2.628578    .3142802
+            [165] Serbia  |          0  (omitted)
+            [196] Kosovo  |          0  (omitted)
+                          |
+                    syear |
+                    2009  |   .0309484   .0477437     0.65   0.517    -.0628157    .1247126
+                    2014  |   .0888169   .0474186     1.87   0.062    -.0043087    .1819425
+                    2019  |          0  (omitted)
+                          |
+                    _cons |   .5735541   .6141496     0.93   0.351    -.6325779    1.779686
+-------------------------------------------------------------------------------------------
+
+Absorbed degrees of freedom:
+-----------------------------------------------------+
+ Absorbed FE | Categories  - Redundant  = Num. Coefs |
+-------------+---------------------------------------|
+         pid |       604         604           0    *|
+-----------------------------------------------------+
+* = FE nested within cluster; treated as redundant for DoF computation
+
+.         est store reg_main
+
+. 
+. * ============================
+. * Extract and Export Results – H2
+. * ============================
+. * Joint test of MPD = MPS and FPD = FPS
+. test (MPD = MPS) (FPD = FPS)
+
+ ( 1)  MPD - MPS = 0
+ ( 2)  FPD - FPS = 0
+
+       F(  2,   603) =    0.03
+            Prob > F =    0.9726
+
+. scalar F_joint = r(F)
+
+. scalar p_joint = Ftail(e(df_m), e(df_r), F_joint)
+
+. 
+. * Differences in coefficients
+. local diff_m = _b[MPD] - _b[MPS]
+
+. local diff_f = _b[FPD] - _b[FPS]
+
+. 
+. * Standard errors of differences
+. local se_m = sqrt(_se[MPD]^2 + _se[MPS]^2 - 2*e(V)["MPD","MPS"])
+
+. local se_f = sqrt(_se[FPD]^2 + _se[FPS]^2 - 2*e(V)["FPD","FPS"])
+
+. 
+. * Combined standard error (pooled diff, not necessary for F-test but for display)
+. local se_joint = sqrt(`se_m'^2 + `se_f'^2)
+
+. 
+. * Degrees of freedom
+. local df_r = e(df_r)
+
+. local df_m = e(df_m)
+
+. 
+. * N and cluster count
+. local N = e(N)
+
+. local N_pid = e(N_clust)
+
+. 
+. * Interpretation
+. local interp_joint = "positive coefficient is in line with hypothesis"
+
+. 
+. 
+. 
+. 
+. 
+. * ============================
+. * Display Results – H2
+. * ============================
+. 
+. di _n "{hline 60}"
+
+------------------------------------------------------------
+
+. di ">>> H2 Joint Test: MPD > MPS and FPD > FPS"
+>>> H2 Joint Test: MPD > MPS and FPD > FPS
+
+. di "{hline 60}"
+------------------------------------------------------------
+
+. di "Diff MPD-MPS = " %6.3f `diff_m' "  (SE = " %6.3f `se_m' ")"
+Diff MPD-MPS =  0.053  (SE =  0.255)
+
+. di "Diff FPD-FPS = " %6.3f `diff_f' "  (SE = " %6.3f `se_f' ")"
+Diff FPD-FPS = -0.025  (SE =  0.230)
+
+. di "F(2, `df_r') = " %6.2f scalar(F_joint)
+F(2, 603) =   0.03
+
+. di "Joint p-value = " %6.4f scalar(p_joint)
+Joint p-value = 1.0000
+
+. di "N = `N', Participants = `N_pid'"
+N = 1442, Participants = 604
+
+. di "Interpretation: `interp_joint'"
+Interpretation: positive coefficient is in line with hypothesis
+
+. di "{hline 60}"
+------------------------------------------------------------
+
+. 
+. * ============================
+. * Export results to CSV
+. * ============================
+. tempname hdl
+
+. file open `hdl' using "$OUT/h2_results.csv", write replace
+(file C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/5_results/h2_results.csv not found)
+
+. file write `hdl' "coefficient,se,family,residual_df,model_df,p_value,num_obs,num_participants,interpretation" _n
+
+. 
+. // file write `hdl' "`diff_m'," "`se_joint'," "Wald," "`df_r'," "`df_m'," "`=scalar(p_joint)'," "`N'," "`N_pid'," "`interp_joint'" _n
+. file write `hdl' "`diff_m'," "`se_joint'," "F," "`df_r'," "`df_m'," "`=scalar(p_joint)'," "`N'," "`N_pid'," "`interp_joint'" _n // Adapted test stat family by DA during consistency check
+
+. file close `hdl'
+
+. 
+. 
+end of do-file
+
+. 
+end of do-file

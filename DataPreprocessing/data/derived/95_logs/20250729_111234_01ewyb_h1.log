@@ -1,0 +1,1006 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmprkmqpg_8.do 
+
+. do "95%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. * the following code automatically sets paths based on the project location o
+> n your system *
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/95%-sample" // folder, in which the or
+> iginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/95%-sample
+
+. global DATA "$ROOT/data/derived_confidential/95%-sample" // folder for datase
+> ts
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/95%-sample
+
+. global OUT "$ROOT/data/derived/95_results" // folder for output (results, tab
+> les)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/95_results
+
+. 
+end of do-file
+
+. do "20250729_111234_01ewyb_h1.do"
+
+. *****************************************************************************
+> ***
+. ****************** Example Do-File H1: #ManyDaughters Project ***************
+> ***
+. *****************************************************************************
+> ***
+. 
+. * Authors: [REDACTED], [REDACTED]
+. 
+. * ============================
+. * Setup * (Please adapt according to your needs)
+. * ============================
+. 
+. * clear all
+. version 17 // indicate the version of stata you are using here
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. * INSTALL PACKAGES * (Please adapt according to your needs)
+. * install all packages you need here, for example:
+. * ssc install outreg2
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. /*
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> 
+> 
+> 
+> */
+. global startyear 2000
+
+. global endyear 2020
+
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA * (Please adapt according to your needs)
+. 
+.         use "$IN/ppathl.dta", clear // use ppathl as a starting dataset
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+. keep(syear cid pid hid partner gebjahr sex migback sampreg)
+
+.         * Merge ppathl with all datasets, that you deem relevant for your ana
+> lysis. (Tip: use keepusing() to specify which variables to keep from the usin
+> g dataset; the default is all.)
+. 
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches) ke
+> epusing(kidgeb01-kidgeb19 kidsex01-kidsex19)
+(variable pid was long, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * pgen contains user-friendly data on the individual level that are c
+> onsolidated from different sources
+.         merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches) 
+> keepusing(pgemplst pglabgro pgvebzeit pgpartnr pgcasmin pgfamstd)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * pl contains all variables from the individual questionnaire
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches) ke
+> epusing(plh0302_v1 plh0302_v2 plh0308_v1 plh0308_v2 plh0301 plh0303 plh0304 p
+> lh0307 plh0309)
+(label cid_EN already defined)
+(label pid_EN already defined)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * bioparen contains all variables from the individual questionnaire o
+> n the individual's parent
+.         merge m:1 pid using "$IN/bioparen.dta", nogen keep(master matches) ke
+> epusing(fsedu msedu)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         * hgen contains generated variables on household level from the house
+> hold interview; use for household net income
+.         merge m:1 hid syear using "$IN/hgen.dta", nogen keep(master matches) 
+> keepusing(hid syear hghinc)
+(label iyear already defined)
+(label iyear_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. 
+.         label language EN // change language of the labels to English
+
+. 
+.         save "$DATA/h1_dataset_cs.dta", replace // save merged dataset
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h1_dataset_cs.dta not found)
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h1_dataset_cs.dta saved
+
+. 
+. 
+. * ============================
+. * Analysis
+. * ============================
+. 
+. 
+. * GENERATE VARIABLES * (Please adapt according to your needs)
+. * Clean up missing values according to plan
+. mvdecode _all , mv(-1=. \ -2=.a \ -3=.c \ -4=.d \ -5=.b \ -6=.e \ -7=.f \ -8=
+> .g \ -9=.h \ -10=.i)
+         hid: 1151 missing values generated
+     partner: 1151 missing values generated
+         sex: 13 missing values generated
+     gebjahr: 8 missing values generated
+     sampreg: 1361 missing values generated
+    kidgeb01: 217072 missing values generated
+    kidgeb02: 340439 missing values generated
+    kidgeb03: 533355 missing values generated
+    kidgeb04: 617900 missing values generated
+    kidgeb05: 646336 missing values generated
+    kidgeb06: 656160 missing values generated
+    kidgeb07: 659927 missing values generated
+    kidgeb08: 661674 missing values generated
+    kidgeb09: 662356 missing values generated
+    kidgeb10: 662649 missing values generated
+    kidgeb11: 662837 missing values generated
+    kidgeb12: 662982 missing values generated
+    kidgeb13: 663094 missing values generated
+    kidgeb14: 663103 missing values generated
+    kidgeb15: 663104 missing values generated
+    kidgeb16: 663107 missing values generated
+    kidgeb17: 663112 missing values generated
+    kidgeb18: 663118 missing values generated
+    kidgeb19: 663118 missing values generated
+    kidsex01: 216893 missing values generated
+    kidsex02: 340489 missing values generated
+    kidsex03: 533397 missing values generated
+    kidsex04: 617915 missing values generated
+    kidsex05: 646325 missing values generated
+    kidsex06: 656112 missing values generated
+    kidsex07: 659897 missing values generated
+    kidsex08: 661654 missing values generated
+    kidsex09: 662340 missing values generated
+    kidsex10: 662645 missing values generated
+    kidsex11: 662837 missing values generated
+    kidsex12: 662982 missing values generated
+    kidsex13: 663094 missing values generated
+    kidsex14: 663103 missing values generated
+    kidsex15: 663104 missing values generated
+    kidsex16: 663107 missing values generated
+    kidsex17: 663112 missing values generated
+    kidsex18: 663118 missing values generated
+    kidsex19: 663118 missing values generated
+    pgpartnr: 165585 missing values generated
+    pgfamstd: 2315 missing values generated
+    pglabgro: 217319 missing values generated
+    pgemplst: 42 missing values generated
+   pgvebzeit: 277095 missing values generated
+    pgcasmin: 13362 missing values generated
+     plh0301: 507770 missing values generated
+  plh0302_v1: 507738 missing values generated
+  plh0302_v2: 490218 missing values generated
+     plh0303: 507736 missing values generated
+     plh0304: 507848 missing values generated
+     plh0307: 507776 missing values generated
+  plh0308_v1: 507781 missing values generated
+  plh0308_v2: 490191 missing values generated
+     plh0309: 507745 missing values generated
+       fsedu: 91288 missing values generated
+       msedu: 88855 missing values generated
+      hghinc: 31357 missing values generated
+
+. 
+. * Age
+. gen age = syear - gebjahr if !missing(syear, gebjahr)
+(8 missing values generated)
+
+. 
+. * Male
+. gen male = (sex == 1) if !missing(sex)
+(13 missing values generated)
+
+. label var male "Male (yes/no)"
+
+. 
+. * Education 
+. gen university=.
+(663,123 missing values generated)
+
+. replace university=1 if inlist(pgcasmin,8,9)
+(112,027 real changes made)
+
+. replace university=0 if !inlist(pgcasmin,8,9)
+(551,096 real changes made)
+
+. 
+. label def unilab 1 "Universität" 0 "Sonstiges"
+
+. label values university unilab 
+
+. 
+. label var university "Höchster Bildungsabschluss (CASMIN)"
+
+. 
+. * Marital status
+. tab syear pgfamstd
+
+                      |        Marital Status In Survey Year
+          Survey Year | [1] Marri  [2] Marri  [3] Singl  [4] Divor |     Total
+----------------------+--------------------------------------------+----------
+                 2000 |    14,431        479      5,396      1,425 |    23,250 
+                 2001 |    12,972        447      4,986      1,343 |    21,125 
+                 2002 |    14,072        459      5,326      1,423 |    22,637 
+                 2003 |    13,016        460      5,192      1,393 |    21,393 
+                 2004 |    12,535        449      5,149      1,401 |    20,816 
+                 2005 |    11,850        439      5,010      1,376 |    19,940 
+                 2006 |    12,715        468      5,272      1,533 |    21,412 
+                 2007 |    11,800        439      5,007      1,474 |    20,042 
+                 2008 |    11,086        403      4,686      1,417 |    18,872 
+                 2009 |    11,626        434      4,903      1,556 |    19,907 
+                 2010 |    15,469        596      6,045      2,116 |    25,579 
+                 2011 |    16,367        686      6,507      2,391 |    27,504 
+                 2012 |    15,823        671      6,451      2,472 |    26,940 
+                 2013 |    17,366        757      7,469      2,637 |    29,770 
+                 2014 |    15,324        643      6,673      2,347 |    26,459 
+                 2015 |    15,002        621      6,848      2,238 |    26,135 
+                 2016 |    15,927        660      7,438      2,182 |    27,975 
+                 2017 |    17,584        767      8,634      2,431 |    31,255 
+                 2018 |    16,186        756      8,047      2,453 |    29,099 
+                 2019 |    16,324        659      7,524      2,541 |    28,627 
+                 2020 |    16,083        625      8,072      2,468 |    28,761 
+----------------------+--------------------------------------------+----------
+                Total |   303,558     11,918    130,635     40,617 |   517,498 
+
+
+                      |        Marital Status In Survey Year
+          Survey Year | [5] [de]   [6] husba  [7] Regis  [8] Regis |     Total
+----------------------+--------------------------------------------+----------
+                 2000 |     1,512          7          0          0 |    23,250 
+                 2001 |     1,370          7          0          0 |    21,125 
+                 2002 |     1,351          4          2          0 |    22,637 
+                 2003 |     1,323          5          4          0 |    21,393 
+                 2004 |     1,276          1          5          0 |    20,816 
+                 2005 |     1,252          4          9          0 |    19,940 
+                 2006 |     1,407          3         13          1 |    21,412 
+                 2007 |     1,307          1         13          1 |    20,042 
+                 2008 |     1,265          1         12          2 |    18,872 
+                 2009 |     1,373          1         12          2 |    19,907 
+                 2010 |     1,322          3         26          2 |    25,579 
+                 2011 |     1,504          2         43          4 |    27,504 
+                 2012 |     1,468          3         47          5 |    26,940 
+                 2013 |     1,458         10         65          8 |    29,770 
+                 2014 |     1,387         12         56         17 |    26,459 
+                 2015 |     1,333         25         55         13 |    26,135 
+                 2016 |     1,359        342         54         13 |    27,975 
+                 2017 |     1,432        323         70         14 |    31,255 
+                 2018 |     1,376        201         66         14 |    29,099 
+                 2019 |     1,326        138        100         15 |    28,627 
+                 2020 |     1,247        145        106         15 |    28,761 
+----------------------+--------------------------------------------+----------
+                Total |    28,648      1,238        758        126 |   517,498 
+
+. gen married=.
+(663,123 missing values generated)
+
+. replace married=1 if inlist(pgfamstd,1,2,6,7)
+(317,472 real changes made)
+
+. replace married=0 if inlist(pgfamstd,3,4,5)
+(199,900 real changes made)
+
+. label var married "Married"
+
+. tab married
+
+    Married |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |    199,900       38.64       38.64
+          1 |    317,472       61.36      100.00
+------------+-----------------------------------
+      Total |    517,372      100.00
+
+. 
+. * Migration background
+. rename          migback migback_c
+
+. gen                     migback=migback_c
+
+. recode          migback (1=0) (2=1) (3=0)
+(663,123 changes made to migback)
+
+. label           define migl 0 "No migration background" 1 "Direct migration b
+> ackground"
+
+. label           value migback migl
+
+. 
+. * East indicator (1 = East Germany)
+. gen east=.
+(663,123 missing values generated)
+
+. replace east=1 if sampreg==2
+(139,168 real changes made)
+
+. replace east=0 if sampreg==1
+(522,594 real changes made)
+
+. label var east "Ostdeutschland (ja/nein)"
+
+. 
+. // Labour Force Status
+. gen lfs = . if pgemplst==. | pgemplst < 0
+(663,123 missing values generated)
+
+. replace         lfs = 0 if pgemplst==5  // not working (nicht erwerbstätig)
+(217,916 real changes made)
+
+. replace         lfs = 1 if pgemplst==2 | pgemplst==4 | pgemplst==6 | pgemplst
+> ==1 | pgemplst==3 // full-time employment (Voll erwerbstätig, Ausbildung/Lehr
+> e)
+(301,855 real changes made)
+
+. 
+. * Value Labels
+. label def       llfs 0 "Not employed" 1 "Employed"
+
+. label val       lfs llfs
+
+. 
+. * Gross hourly wage 
+. gen workhours = pgvebzeit
+(420,405 missing values generated)
+
+. replace workhours = 0 if lfs==0
+(217,916 real changes made)
+
+. 
+. gen brstdlov=pglabgro/((52/12)*pgvebzeit ) // basierend auf vertraglichen Stu
+> nden
+(420,405 missing values generated)
+
+. label var brstdlov "Bruttostundenlohn (vertragliche Arbeitszeit)"
+
+. replace brstdlov = 0 if lfs==0
+(217,916 real changes made)
+
+. 
+. * Trimming am 1. und 99. Perzentil (pro Jahr)
+. 
+. 
+. *foreach var of varlist brstdlov {
+. *       qui gen t`var'=.
+. *       forval i = $startyear/$endyear {
+. *               qui centile `var'          if syear==`i', c(1 99)
+. *               qui replace t`var' = `var' if syear==`i' & inrange(`var', r(c
+> _1), r(c_2))
+. *       }
+. *}
+. 
+. foreach var of varlist brstdlov {
+  2.         qui gen t`var' = .
+  3.         forval i = $startyear/$endyear {
+  4.                 // Exclude zeros (i.e., non-employed) when calculating per
+> centiles
+.                 centile `var' if syear==`i' & `var' > 0  & `var' !=., c(1 99)
+  5.                 
+.                 // Assign trimmed values for employed people only
+.             qui replace t`var' = `var' if syear==`i' & inrange(`var', r(c_1),
+>  r(c_2))
+  6.                 
+.                 // Add zeros back in
+.                 qui replace t`var' = 0 if syear==`i' & `var' == 0
+  7.         }
+  8. }
+
+                                                          Binom. interp.   
+    Variable |       Obs  Percentile    Centile        [95% conf. interval]
+-------------+-------------------------------------------------------------
+    brstdlov |    10,754          1    1.665865        1.481301     1.84438
+             |                   99    38.30769         37.1412     40.0363
+
+                                                          Binom. interp.   
+    Variable |       Obs  Percentile    Centile        [95% conf. interval]
+-------------+-------------------------------------------------------------
+    brstdlov |    10,053          1    1.752192        1.563191     1.84037
+             |                   99    38.34808        37.22012    40.79858
+
+                                                          Binom. interp.   
+    Variable |       Obs  Percentile    Centile        [95% conf. interval]
+-------------+-------------------------------------------------------------
+    brstdlov |    10,413          1    1.771962        1.650746       1.875
+             |                   99    46.75484        45.64093    49.23077
+
+                                                          Binom. interp.   
+    Variable |       Obs  Percentile    Centile        [95% conf. interval]
+-------------+-------------------------------------------------------------
+    brstdlov |     9,918          1    1.788462        1.693138    1.948052
+             |                   99    48.53437        46.63295    51.39738
+
+                                                          Binom. interp.   
+    Variable |       Obs  Percentile    Centile        [95% conf. interval]
+-------------+-------------------------------------------------------------
+    brstdlov |     9,220          1    1.804702        1.730769     1.92199
+             |                   99    49.03208        46.15385    50.98506
+
+                                                          Binom. interp.   
+    Variable |       Obs  Percentile    Centile        [95% conf. interval]
+-------------+-------------------------------------------------------------
+    brstdlov |     8,775          1    1.624154        1.442308    1.730769
+             |                   99    47.11527        44.95731    48.72068
+
+                                                          Binom. interp.   
+    Variable |       Obs  Percentile    Centile        [95% conf. interval]
+-------------+-------------------------------------------------------------
+    brstdlov |     9,153          1    1.503465        1.316573    1.707692
+             |                   99    48.44492        45.54656    51.07873
+
+                                                          Binom. interp.   
+    Variable |       Obs  Percentile    Centile        [95% conf. interval]
+-------------+-------------------------------------------------------------
+    brstdlov |     8,841          1    1.664521        1.523345    1.818558
+             |                   99    47.30769        45.01095    50.47723
+
+                                                          Binom. interp.   
+    Variable |       Obs  Percentile    Centile        [95% conf. interval]
+-------------+-------------------------------------------------------------
+    brstdlov |     8,381          1    1.649703        1.448762    1.788462
+             |                   99    47.91923        46.14243    50.70776
+
+                                                          Binom. interp.   
+    Variable |       Obs  Percentile    Centile        [95% conf. interval]
+-------------+-------------------------------------------------------------
+    brstdlov |     8,884          1    1.788462        1.532019    1.905216
+             |                   99    50.04519        46.46849    53.43449
+
+                                                          Binom. interp.   
+    Variable |       Obs  Percentile    Centile        [95% conf. interval]
+-------------+-------------------------------------------------------------
+    brstdlov |    12,100          1    1.788462        1.533694       1.875
+             |                   99    50.48058        48.37826    52.46026
+
+                                                          Binom. interp.   
+    Variable |       Obs  Percentile    Centile        [95% conf. interval]
+-------------+-------------------------------------------------------------
+    brstdlov |    13,296          1    1.874845        1.717608    2.019231
+             |                   99    49.03846        47.30769    51.06171
+
+                                                          Binom. interp.   
+    Variable |       Obs  Percentile    Centile        [95% conf. interval]
+-------------+-------------------------------------------------------------
+    brstdlov |    13,082          1    1.926269        1.827908    2.142111
+             |                   99    49.03846        46.72133    51.92308
+
+                                                          Binom. interp.   
+    Variable |       Obs  Percentile    Centile        [95% conf. interval]
+-------------+-------------------------------------------------------------
+    brstdlov |    14,890          1    1.923077        1.823077    2.104802
+             |                   99    48.46154        46.77755    49.66875
+
+                                                          Binom. interp.   
+    Variable |       Obs  Percentile    Centile        [95% conf. interval]
+-------------+-------------------------------------------------------------
+    brstdlov |    13,392          1    2.124932        1.980074    2.307692
+             |                   99    50.46289        49.03846     52.0519
+
+                                                          Binom. interp.   
+    Variable |       Obs  Percentile    Centile        [95% conf. interval]
+-------------+-------------------------------------------------------------
+    brstdlov |    13,128          1    2.072722        1.873967    2.307692
+             |                   99    49.86031        48.53348    51.92308
+
+                                                          Binom. interp.   
+    Variable |       Obs  Percentile    Centile        [95% conf. interval]
+-------------+-------------------------------------------------------------
+    brstdlov |    12,118          1    2.223058        1.923077    2.423077
+             |                   99    51.92308        49.87485    54.83332
+
+                                                          Binom. interp.   
+    Variable |       Obs  Percentile    Centile        [95% conf. interval]
+-------------+-------------------------------------------------------------
+    brstdlov |    14,098          1    2.307692        2.016795     2.42915
+             |                   99    51.92319        50.66078    54.60831
+
+                                                          Binom. interp.   
+    Variable |       Obs  Percentile    Centile        [95% conf. interval]
+-------------+-------------------------------------------------------------
+    brstdlov |    14,032          1    2.076923            1.95    2.362681
+             |                   99    51.92308        50.96079    54.23077
+
+                                                          Binom. interp.   
+    Variable |       Obs  Percentile    Centile        [95% conf. interval]
+-------------+-------------------------------------------------------------
+    brstdlov |    13,334          1    2.434385        2.210419    2.596154
+             |                   99    57.69231        57.06269          60
+
+                                                          Binom. interp.   
+    Variable |       Obs  Percentile    Centile        [95% conf. interval]
+-------------+-------------------------------------------------------------
+    brstdlov |    14,145          1    2.596154        2.307692    2.797411
+             |                   99    58.28028         57.1564    61.21265
+
+. 
+. 
+. * Count number of children (born before syear)
+. 
+. forvalues i = 1/19 {
+  2.     gen _childage`i' = syear - kidgeb`=string(`i', "%02.0f")' if !missing(
+> kidgeb`=string(`i', "%02.0f")', syear)
+  3.     gen childpresent`i' = (kidgeb`=string(`i',"%02.0f")' <= syear) if !mis
+> sing(kidgeb`=string(`i',"%02.0f")', syear)
+  4.         
+.     gen childu16_`i' = (_childage`i' < 16 & _childage`i' >= 0) if !missing(_c
+> hildage`i')
+  5. 
+.     gen daughter`i' = (kidsex`=string(`i',"%02.0f")' == 2 & _childage`i' >= 0
+> ) ///
+>         if !missing(kidsex`=string(`i',"%02.0f")', _childage`i')
+  6. }
+(217,072 missing values generated)
+(217,072 missing values generated)
+(217,072 missing values generated)
+(217,439 missing values generated)
+(340,439 missing values generated)
+(340,439 missing values generated)
+(340,439 missing values generated)
+(340,771 missing values generated)
+(533,355 missing values generated)
+(533,355 missing values generated)
+(533,355 missing values generated)
+(533,567 missing values generated)
+(617,900 missing values generated)
+(617,900 missing values generated)
+(617,900 missing values generated)
+(618,023 missing values generated)
+(646,336 missing values generated)
+(646,336 missing values generated)
+(646,336 missing values generated)
+(646,386 missing values generated)
+(656,160 missing values generated)
+(656,160 missing values generated)
+(656,160 missing values generated)
+(656,169 missing values generated)
+(659,927 missing values generated)
+(659,927 missing values generated)
+(659,927 missing values generated)
+(659,938 missing values generated)
+(661,674 missing values generated)
+(661,674 missing values generated)
+(661,674 missing values generated)
+(661,674 missing values generated)
+(662,356 missing values generated)
+(662,356 missing values generated)
+(662,356 missing values generated)
+(662,356 missing values generated)
+(662,649 missing values generated)
+(662,649 missing values generated)
+(662,649 missing values generated)
+(662,649 missing values generated)
+(662,837 missing values generated)
+(662,837 missing values generated)
+(662,837 missing values generated)
+(662,837 missing values generated)
+(662,982 missing values generated)
+(662,982 missing values generated)
+(662,982 missing values generated)
+(662,982 missing values generated)
+(663,094 missing values generated)
+(663,094 missing values generated)
+(663,094 missing values generated)
+(663,094 missing values generated)
+(663,103 missing values generated)
+(663,103 missing values generated)
+(663,103 missing values generated)
+(663,103 missing values generated)
+(663,104 missing values generated)
+(663,104 missing values generated)
+(663,104 missing values generated)
+(663,104 missing values generated)
+(663,107 missing values generated)
+(663,107 missing values generated)
+(663,107 missing values generated)
+(663,107 missing values generated)
+(663,112 missing values generated)
+(663,112 missing values generated)
+(663,112 missing values generated)
+(663,112 missing values generated)
+(663,118 missing values generated)
+(663,118 missing values generated)
+(663,118 missing values generated)
+(663,118 missing values generated)
+(663,118 missing values generated)
+(663,118 missing values generated)
+(663,118 missing values generated)
+(663,118 missing values generated)
+
+. 
+. egen numchild = rowtotal(childpresent*)
+
+. egen childu16 = rowtotal(childu16_*)
+
+. egen numdaughters = rowtotal(daughter*)
+
+. 
+. egen numchildu16 = rowtotal(childu16*)
+
+. 
+.         * generate dummy variable for whether participant has at least one da
+> ughter (1) or not (0)
+.         * For illustrative purposes, we will generate the variable randomly:
+. 
+. gen d_daughter=.
+(663,123 missing values generated)
+
+. replace d_daughter=1 if numdaughters>0 & numchild>0
+(303,388 real changes made)
+
+. replace d_daughter=0 if numdaughters<=0 & numchild>0
+(125,676 real changes made)
+
+. 
+. drop _childage* childpresent* childu16_* daughter*
+
+. 
+. * Parent's education
+. gen father_abi =.
+(663,123 missing values generated)
+
+. replace father_abi = 1 if fsedu == 4 | fsedu == 7
+(79,337 real changes made)
+
+. replace father_abi = 0 if inrange(fsedu,1,3)| inrange(fsedu,5,6) | inrange(fs
+> edu,8,9)
+(445,053 real changes made)
+
+. 
+. gen mother_abi =.
+(663,123 missing values generated)
+
+. replace mother_abi = 1 if msedu == 4 | msedu == 7
+(52,150 real changes made)
+
+. replace mother_abi = 0 if inrange(msedu,1,3)| inrange(msedu,5,6) | inrange(ms
+> edu,8,9)
+(487,168 real changes made)
+
+. 
+. * ---------------  gender attitudes measure
+. *ADD STANDARDIZATION AND CREATION OF VARS
+. *based on the variables listed in our PAP: plh0302_v1 plh0302_v2 plh0308_v1 p
+> lh0308_v2 plh0301 plh0303 plh0304
+. 
+. * Child under age of 3 suffers if mother works: plh0302_v1 plh0302_v2
+. 
+.         * Reverse and rescale 2018 scale (so higher = more traditional)
+.         gen momwork = .
+(663,123 missing values generated)
+
+.         replace momwork = 1 + 0.5 * (plh0302_v2 - 1) if syear == 2018
+(24,272 real changes made)
+
+.         replace momwork = 5 - plh0302_v1 if syear == 2012
+(6,752 real changes made)
+
+. 
+. * Best if man and woman work the same amount so they can share the responsibi
+> lity:  plh0308_v1 plh0308_v2 
+. 
+.         * Reverse 2012 and rescale 2018 (so higher = more traditional)
+.         gen equalshare = .
+(663,123 missing values generated)
+
+.         replace equalshare = 1 + 0.5 * (8 - plh0308_v2 - 1) if syear == 2018
+(24,299 real changes made)
+
+.         replace equalshare = plh0308_v1 if syear == 2012
+(26,490 real changes made, 19,781 to missing)
+
+. 
+. * Gender attitude as the average of momwork and equalshare
+. 
+.         gen gender_attitudes = (momwork+equalshare)/2
+(632,310 missing values generated)
+
+. 
+. * FILTERS * 
+.         * only keep parents and people aged 18 to 65
+. keep if numchild > 0
+(234,059 observations deleted)
+
+. keep if inrange(age, 18,65)
+(85,604 observations deleted)
+
+. 
+. * HYPOTHESIS TEST FOR H1 * (Please adapt according to your needs)
+. 
+.         * Please add a verbal description of your model here
+. 
+. * We investigate whether having a daughter is associated with more traditiona
+> l gender attitudes. The dependent variable is a composite index created from:
+. * 1. "A child under 3 suffers if the mother works" (plh0302_v1, plh0302_v2)
+. * 2. "Best if man and woman work the same amount to share responsibility" (pl
+> h0308_v1, plh0308_v2)
+. 
+. *The variables measuring this are available in the years 2012 and 2018. Based
+>  on the specification listed in our PAP, we had initially proposed to run the
+>  analysis seperately for these years as they also individually include furthe
+> r measures of gender attitudes. However, for the sake of choosing our preferr
+> ed estimation, we opt here to the one that pools both years as to increase th
+> e number of observations, which reflects analysis 2 from the PAP, i.e.: 2012 
+> & 2018 combined: Individuals who had at least one child by the year of intere
+> st and responded to the 2 questions available both in 2012 and 2018.
+. 
+. * Due to different coding formats across years, we harmonize and rescale the 
+> items so that higher values consistently indicate more traditional gender att
+> itudes. 
+. * In the pre-analysis plan, we stated we would z-score standardize gender att
+> itude variables. However, upon closer inspection of the survey item formats a
+> cross years, we found that harmonizing the original scales into a common 1–4 
+> interpretation (higher = more traditional) yielded a more intuitive and trans
+> parent metric. This transformation preserves comparability across years and f
+> acilitates interpretation of coefficients in the analysis. We maintain consis
+> tency in directionality and range across waves, ensuring validity of cross-te
+> mporal comparisons.
+. 
+. * Interpretation:
+. * - Coefficient on d_daughter captures whether having at least one daughter i
+> s associated with more traditional gender role attitudes.
+. * - Controls include sex, age, education, migration background, region (East)
+> , marital status, number of children, number of children under 16, labor forc
+> e status, monthly income, working hours, and survey year fixed effects.
+. * - Robust standard errors are used.
+. 
+. * Disclaimer:
+. * In our PAP, we proposed three alternative model specifications (1)w/o contr
+> ols, 2)with core controls and 3)with additional controls) to test the hypothe
+> sis. However, as per the current request to report only a single regression a
+> nd associated p-value, we have selected the specification we consider most ap
+> propriate and transparent for capturing the effect. In our PAP this specifica
+> tion is listed as sepcification 2, i.e. the model with core controls. As expl
+> ained on page 2, sentence one in our PAP, it includes key demographic charact
+> eristics of the respondent, including age, gender, education, migration backg
+> round, East/West Germany indicator, employment variables (where this is not t
+> he outcome), and marital status. Note that we forgot to list the marital stat
+> us and the education variable in our table but included it here now, as we di
+> d mention it in our text. This model is reported and submitted in the present
+>  do-file. The results from the alternative specifications mentioned in the PA
+> P are available upon request. 
+. 
+.         reg gender_attitudes d_daughter male age migback university east numc
+> hild childu16 lfs tbrstdlov workhours married i.syear, r
+
+Linear regression                               Number of obs     =     16,979
+                                                F(13, 16965)      =     289.31
+                                                Prob > F          =     0.0000
+                                                R-squared         =     0.1666
+                                                Root MSE          =     .69559
+
+------------------------------------------------------------------------------
+             |               Robust
+gender_att~s | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  d_daughter |  -.0273788   .0124504    -2.20   0.028    -.0517829   -.0029748
+        male |   .2339597   .0131832    17.75   0.000     .2081194    .2598001
+         age |    .000013   .0007701     0.02   0.987    -.0014965    .0015225
+     migback |     .13102   .0142786     9.18   0.000     .1030325    .1590075
+  university |  -.2240129   .0146194   -15.32   0.000    -.2526685   -.1953573
+        east |  -.5249415    .013145   -39.93   0.000     -.550707   -.4991759
+    numchild |   .0563017   .0067597     8.33   0.000     .0430521    .0695514
+    childu16 |   .0112057   .0077818     1.44   0.150    -.0040475    .0264588
+         lfs |   .1008077   .0262618     3.84   0.000     .0493319    .1522835
+   tbrstdlov |  -.0039508   .0008243    -4.79   0.000    -.0055665    -.002335
+   workhours |  -.0050543   .0006913    -7.31   0.000    -.0064094   -.0036993
+     married |   .1062319   .0125544     8.46   0.000      .081624    .1308398
+             |
+       syear |
+       2018  |   -.079595   .0131411    -6.06   0.000    -.1053529   -.0538371
+             |
+       _cons |   2.244007   .0386142    58.11   0.000     2.168319    2.319695
+------------------------------------------------------------------------------
+
+. 
+. 
+. * EXTRACT AND EXPORT RESULTS * (Please check whether the suggested code autom
+> atically picks up the correct statistics for your chosen regression analysis 
+> and adapt if needed)
+. 
+.         * Extract the required statistics
+. 
+.                 * (i) coefficient estimate
+.                 local coefficient = _b[d_daughter]
+
+. 
+.                 * (ii) standard error
+.                 local se = _se[d_daughter]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "t"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 local p_value = _b[d_daughter] / _se[d_daughter]
+
+.                 local p_value = 2 * ttail(e(df_r), abs(`p_value'))
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation of directionality
+.                 scalar coef_d_daughter = _b[d_daughter]
+
+.                 local interpretation "negative coefficient is in line with hy
+> pothesis"
+
+. 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: -.0273788467262446
+
+.         di "Standard Error: `se'"
+Standard Error: .0124503977024371
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: t
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: 16965
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 13
+
+.         di "p-value: " `p_value'
+p-value: .02788896
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 16979
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 14354
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: negative coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h1_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/95_re
+    > sults/h1_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

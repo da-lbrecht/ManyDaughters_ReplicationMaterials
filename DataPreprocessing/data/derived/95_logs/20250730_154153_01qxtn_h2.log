@@ -1,0 +1,786 @@
+
+  ___  ____  ____  ____  ____ ®
+ /__    /   ____/   /   ____/      StataNow 19.5
+___/   /   /___/   /   /___/       MP—Parallel Edition
+
+ Statistics and Data Science       Copyright 1985-2025 StataCorp LLC
+                                   StataCorp
+                                   4905 Lakeway Drive
+                                   College Station, Texas 77845 USA
+                                   800-782-8272        https://www.stata.com
+                                   979-696-4600        service@stata.com
+
+Stata license: Single-user 4-core , expiring 28 May 2026
+Serial number: 501909316622
+  Licensed to: IT
+               WZB
+
+Notes:
+      1. Stata is running in batch mode.
+      2. Unicode is supported; see help unicode_advice.
+      3. More than 2 billion observations are allowed; see help obs_advice.
+      4. Maximum number of variables is set to 5,000 but can be increased;
+          see help set_maxvar.
+
+. do tmp1ymw49go.do 
+
+. do "95%-sample_Setup.do"
+
+. *****************************************************************************
+> ***
+. ***************************** General Stata Setup ***************************
+> ***
+. *****************************************************************************
+> ***
+. 
+. clear all
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. * the following code automatically sets paths based on the project location o
+> n your system *
+. local curdir = c(pwd)
+
+. if substr("`curdir'", -36, .) == "data\raw\dofiles_consistency_checked" | sub
+> str("`curdir'", -36, .) == "data/raw/dofiles_consistency_checked" {
+.     // Move three directories up - handle both separators
+.     local root : subinstr local curdir "\data\raw\dofiles_consistency_checked
+> " "", all
+.     local root : subinstr local root "/data/raw/dofiles_consistency_checked" 
+> "", all
+.     global ROOT "`root'"
+. }
+
+. else {
+.     global ROOT "`curdir'"
+. }
+
+. display as text "Resolved ROOT path: $ROOT"
+Resolved ROOT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing
+
+. 
+. global IN "$ROOT/data/raw_confidential/95%-sample" // folder, in which the or
+> iginal datasets are stored
+
+. display as text "Resolved IN path: $IN"
+Resolved IN path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaught
+> ers_DataPreprocessing/data/raw_confidential/95%-sample
+
+. global DATA "$ROOT/data/derived_confidential/95%-sample" // folder for datase
+> ts
+
+. display as text "Resolved DATA path: $DATA"
+Resolved DATA path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaug
+> hters_DataPreprocessing/data/derived_confidential/95%-sample
+
+. global OUT "$ROOT/data/derived/95_results" // folder for output (results, tab
+> les)
+
+. display as text "Resolved OUT path: $OUT"
+Resolved OUT path: C:\Users\dalbrecht\Research Projects\ManyDaughters\ManyDaugh
+> ters_DataPreprocessing/data/derived/95_results
+
+. 
+end of do-file
+
+. do "20250730_154153_01qxtn_h2.do"
+
+. *****************************************************************************
+> ***
+. ****************** Do-File H2: #ManyDaughters Project ******************
+. *****************************************************************************
+> ***
+. 
+. * Authors: [REDACTED], [REDACTED] (working with a template by Tina Wang,
+>  David Albrecht)
+. 
+. * ============================
+. * Setup * 
+. * ============================
+. 
+. * clear all
+. version 19.5 // indicate the version of stata you are using here
+
+. set maxvar 10000 // extend the maximum number of variables to 10,000
+
+
+. 
+. * INSTALL PACKAGES * 
+. ssc install outreg2
+checking outreg2 consistency and verifying not already installed...
+all files already exist and are up to date.
+
+. 
+. * CONFIGURE FILE PATHS * (Please do not change)
+. /*
+> * the following code automatically sets paths based on where you saved the di
+> stributed file-package on your system *
+> if strpos("`c(pwd)'", "code") {
+>     global ROOT "`c(pwd)'/.."
+> }
+> else {
+>     global ROOT "`c(pwd)'"
+> }
+> 
+> global IN "$ROOT/data/raw" // folder, in which the original datasets are stor
+> ed
+> global DATA "$ROOT/data/derived" // folder for datasets
+> global OUT "$ROOT/out" // folder for output (results, tables)
+> */
+. 
+. * ============================
+. * Data Preparation * 
+. * ============================
+. 
+. * LOAD AND MERGE DATA * 
+. 
+.         use "$IN/ppathl.dta", clear
+(SOEP-Core, v37 (EU Edition), doi:10.5684/soep.core.v37eu)
+
+.         keep cid pid hid syear parid partner sex gebjahr psample sampreg pop 
+> netto sexor phrf0 phrf1 piyear
+
+. 
+.         * biobirth contains information on fertility history
+.         merge m:1 pid using "$IN/biobirth.dta", nogen keep(master matches) //
+> /
+>         keepusing(sumkids kidpnr?? kidgeb?? kidsex?? kidmon??)
+(variable pid was long, now double to accommodate using data's values)
+(label sex already defined)
+(label sex_EN already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         
+.         * pgen contains user-friendly data on the individual level that are c
+> onsolidated from different sources
+.         merge 1:1 pid syear using "$IN/pgen.dta", nogen keep(master matches) 
+> ///
+>         keepusing(pid syear pgpiyear pgcasmin pgbilzeit pgmonth pgpiyear pgfa
+> mstd pgemplst pglfs pgpartz pgpartnr)
+(variable syear was long, now double to accommodate using data's values)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+.         
+.         * pl contains all variables from the individual questionnaire
+.         merge 1:1 pid syear using "$IN/pl.dta", nogen keep(master matches) //
+> /
+>         keepusing(plh0004 pld0152 plh0301 plh0303 plh0307 plh0301 plh0308_v1 
+> plh0308_v2 plj0620 plj0621 plj0622 plj0623 plj0624 plj0625 pli0010 pli0036 pl
+> i0051)
+(label cid_EN already defined)
+(label pid_EN already defined)
+(label cid already defined)
+
+    Result                      Number of obs
+    -----------------------------------------
+    Not matched                             0
+    Matched                           663,123  
+    -----------------------------------------
+
+. 
+. 
+.         label language EN 
+
+. 
+. * Missings *    
+.         mvdecode _all, mv(-8/-1 = .)
+         hid: 1151 missing values generated
+       parid: 249466 missing values generated
+     partner: 1151 missing values generated
+         sex: 13 missing values generated
+     gebjahr: 8 missing values generated
+     sampreg: 1361 missing values generated
+         pop: 3689 missing values generated
+      piyear: 7935 missing values generated
+    kidpnr01: 346391 missing values generated
+    kidpnr02: 422947 missing values generated
+    kidpnr03: 562860 missing values generated
+    kidpnr04: 628073 missing values generated
+    kidpnr05: 649921 missing values generated
+    kidpnr06: 657673 missing values generated
+    kidpnr07: 660665 missing values generated
+    kidpnr08: 662050 missing values generated
+    kidpnr09: 662471 missing values generated
+    kidpnr10: 662706 missing values generated
+    kidpnr11: 662854 missing values generated
+    kidpnr12: 663004 missing values generated
+    kidpnr13: 663103 missing values generated
+    kidpnr14: 663111 missing values generated
+    kidpnr15: 663107 missing values generated
+    kidpnr16: 663107 missing values generated
+    kidpnr17: 663112 missing values generated
+    kidpnr18: 663118 missing values generated
+    kidpnr19: 663118 missing values generated
+    kidgeb01: 217072 missing values generated
+    kidgeb02: 340439 missing values generated
+    kidgeb03: 533355 missing values generated
+    kidgeb04: 617900 missing values generated
+    kidgeb05: 646336 missing values generated
+    kidgeb06: 656160 missing values generated
+    kidgeb07: 659927 missing values generated
+    kidgeb08: 661674 missing values generated
+    kidgeb09: 662356 missing values generated
+    kidgeb10: 662649 missing values generated
+    kidgeb11: 662837 missing values generated
+    kidgeb12: 662982 missing values generated
+    kidgeb13: 663094 missing values generated
+    kidgeb14: 663103 missing values generated
+    kidgeb15: 663104 missing values generated
+    kidgeb16: 663107 missing values generated
+    kidgeb17: 663112 missing values generated
+    kidgeb18: 663118 missing values generated
+    kidgeb19: 663118 missing values generated
+    kidsex01: 216893 missing values generated
+    kidsex02: 340489 missing values generated
+    kidsex03: 533397 missing values generated
+    kidsex04: 617915 missing values generated
+    kidsex05: 646325 missing values generated
+    kidsex06: 656112 missing values generated
+    kidsex07: 659897 missing values generated
+    kidsex08: 661654 missing values generated
+    kidsex09: 662340 missing values generated
+    kidsex10: 662645 missing values generated
+    kidsex11: 662837 missing values generated
+    kidsex12: 662982 missing values generated
+    kidsex13: 663094 missing values generated
+    kidsex14: 663103 missing values generated
+    kidsex15: 663104 missing values generated
+    kidsex16: 663107 missing values generated
+    kidsex17: 663112 missing values generated
+    kidsex18: 663118 missing values generated
+    kidsex19: 663118 missing values generated
+    kidmon01: 377877 missing values generated
+    kidmon02: 442842 missing values generated
+    kidmon03: 570058 missing values generated
+    kidmon04: 630572 missing values generated
+    kidmon05: 650866 missing values generated
+    kidmon06: 658056 missing values generated
+    kidmon07: 660845 missing values generated
+    kidmon08: 662094 missing values generated
+    kidmon09: 662518 missing values generated
+    kidmon11: 662885 missing values generated
+    kidmon10: 662751 missing values generated
+    kidmon12: 663006 missing values generated
+    kidmon13: 663105 missing values generated
+    kidmon14: 663113 missing values generated
+    kidmon15: 663109 missing values generated
+    kidmon16: 663109 missing values generated
+    kidmon17: 663112 missing values generated
+    kidmon18: 663118 missing values generated
+    kidmon19: 663118 missing values generated
+    pgpartnr: 165585 missing values generated
+    pgfamstd: 2315 missing values generated
+    pgemplst: 42 missing values generated
+       pglfs: 21 missing values generated
+    pgcasmin: 13362 missing values generated
+   pgbilzeit: 28524 missing values generated
+     pgmonth: 18 missing values generated
+    pgpiyear: 381576 missing values generated
+     pld0152: 501768 missing values generated
+     plh0004: 428081 missing values generated
+     plh0301: 507770 missing values generated
+     plh0303: 507736 missing values generated
+     plh0307: 507776 missing values generated
+  plh0308_v1: 507781 missing values generated
+  plh0308_v2: 490191 missing values generated
+     pli0010: 285108 missing values generated
+     pli0036: 284952 missing values generated
+     pli0051: 14474 missing values generated
+     plj0620: 507664 missing values generated
+     plj0621: 507540 missing values generated
+     plj0622: 507538 missing values generated
+     plj0623: 507711 missing values generated
+     plj0624: 507512 missing values generated
+     plj0625: 507443 missing values generated
+
+.         save "$DATA/h2_dataset.dta", replace // save merged dataset
+file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived_confi
+    > dential/95%-sample/h2_dataset.dta saved
+
+. 
+. * ============================
+. * Analysis
+. * ============================
+. * FILTERS * 
+. 
+.         * The analysis sample consists of individuals from private households
+>  who conducted an individual questionnaire 
+.         keep if inlist(pop,1,2,5,6) & inrange(netto,10,19) 
+(150,712 observations deleted)
+
+.         sort pid syear
+
+.         
+. *Controls*
+. 
+.         * age
+.         gen age = syear - gebjahr if gebjahr<.
+(3 missing values generated)
+
+.         
+.         * education (CASMIN)
+.         recode pgcasmin (1/3 = 1 "Low education") (4/7 = 2 "Intermediate educ
+> ation") (8/9 = 3 "High Education") (0 . = 4 "Other"), gen(edu)
+(498,196 differences between pgcasmin and edu)
+
+.         tab pgcasmin edu, mis
+
+                      | RECODE of pgcasmin (CASMIN Classification)
+CASMIN Classification | Low educa  Intermedi  High Educ      Other |     Total
+----------------------+--------------------------------------------+----------
+    [0] (0) In School |         0          0          0     13,318 |    13,318 
+[1] (1a) Inadequately |    14,215          0          0          0 |    14,215 
+[2] (1b) General Elem |    45,606          0          0          0 |    45,606 
+[3] (1c) Basic Vocati |   118,636          0          0          0 |   118,636 
+[4] (2b) Intermediate |         0     14,835          0          0 |    14,835 
+[5] (2a) Intermediate |         0    114,274          0          0 |   114,274 
+[6] (2c_gen) General  |         0     24,865          0          0 |    24,865 
+[7] (2c_voc) Vocation |         0     42,769          0          0 |    42,769 
+[8] (3a) Lower Tertia |         0          0     38,073          0 |    38,073 
+[9] (3b) Higher Terti |         0          0     73,016          0 |    73,016 
+                    . |         0          0          0     12,804 |    12,804 
+----------------------+--------------------------------------------+----------
+                Total |   178,457    196,743    111,089     26,122 |   512,411 
+
+. 
+.         * marital status
+.         recode pgfamstd (1 2 6 = 1 "Married" ) (3 4 5 7 8 = 0 "Other" ), gen(
+> fam) 
+(208,688 differences between pgfamstd and fam)
+
+.         ta pgfamstd fam, mis
+
+                      |   RECODE of pgfamstd (Marital
+    Marital Status In |      Status In Survey Year)
+          Survey Year |     Other    Married          . |     Total
+----------------------+---------------------------------+----------
+          [1] Married |         0    301,481          0 |   301,481 
+[2] Married, But Sepa |         0     11,723          0 |    11,723 
+           [3] Single |   127,249          0          0 |   127,249 
+         [4] Divorced |    40,253          0          0 |    40,253 
+[5] [de] Verwitwet /  |    27,864          0          0 |    27,864 
+[6] husband/wife abro |         0        724          0 |       724 
+[7] Registered Same-S |       755          0          0 |       755 
+[8] Registered Same-S |       120          0          0 |       120 
+                    . |         0          0      2,242 |     2,242 
+----------------------+---------------------------------+----------
+                Total |   196,241    313,928      2,242 |   512,411 
+
+.                 
+.         * east/west
+.         recode sampreg (2 = 0), gen(west)
+(112,858 differences between sampreg and west)
+
+.         tab sampreg west, mis
+
+                      |    RECODE of sampreg (Current
+                      |      sample region (Berlin,
+Current sample region |           West-East))
+  (Berlin, West-East) |         0          1          . |     Total
+----------------------+---------------------------------+----------
+     [1] West-Germany |         0    399,479          0 |   399,479 
+     [2] East-Germany |   112,858          0          0 |   112,858 
+                    . |         0          0         74 |        74 
+----------------------+---------------------------------+----------
+                Total |   112,858    399,479         74 |   512,411 
+
+.         
+.         * labor force status
+.         tab pgemplst
+
+                      Employment Status |      Freq.     Percent        Cum.
+----------------------------------------+-----------------------------------
+               [1] Full-Time Employment |    194,135       37.89       37.89
+       [2] Regular Part-Time Employment |     64,211       12.53       50.42
+                [3] Vocational Training |     13,668        2.67       53.09
+[4] Marginal, Irregular Part-Time Emplo |     27,436        5.35       58.44
+                       [5] Not Employed |    212,289       41.43       99.87
+                 [6] Sheltered workshop |        644        0.13      100.00
+----------------------------------------+-----------------------------------
+                                  Total |    512,383      100.00
+
+.         recode pgemplst (1 2 3 4 6 = 1 "work") (5 = 0 "not employed"), gen(wo
+> rk)
+(318,248 differences between pgemplst and work)
+
+.         ta pgemplst work, mis
+
+                      |  RECODE of pgemplst (Employment
+                      |             Status)
+    Employment Status | not emplo       work          . |     Total
+----------------------+---------------------------------+----------
+[1] Full-Time Employm |         0    194,135          0 |   194,135 
+[2] Regular Part-Time |         0     64,211          0 |    64,211 
+[3] Vocational Traini |         0     13,668          0 |    13,668 
+[4] Marginal, Irregul |         0     27,436          0 |    27,436 
+     [5] Not Employed |   212,289          0          0 |   212,289 
+[6] Sheltered worksho |         0        644          0 |       644 
+                    . |         0          0         28 |        28 
+----------------------+---------------------------------+----------
+                Total |   212,289    300,094         28 |   512,411 
+
+.         
+.         * sex
+.         recode sex (1 = 0 "male")(2 = 1 "female"), gen(gender)
+(512,398 differences between sex and gender)
+
+.         ta sex gender, mis
+
+                      |      RECODE of sex (Gender)
+               Gender |      male     female          . |     Total
+----------------------+---------------------------------+----------
+             [1] Male |   242,468          0          0 |   242,468 
+           [2] Female |         0    269,930          0 |   269,930 
+                    . |         0          0         13 |        13 
+----------------------+---------------------------------+----------
+                Total |   242,468    269,930         13 |   512,411 
+
+.         
+. * Treatment var *
+. 
+.         * Generate dummy variable for whether first kid was daughter (1) or s
+> on (0) 
+.         gen daughter = cond(kidsex01 == 1,0,cond(kidsex01 == 2,1,.z))        
+>            
+(136,884 missing values generated)
+
+.         tab daughter kidsex01, mis                                           
+>                            
+
+           |          Sex 1st. Child
+  daughter |  [1] Male  [2] Femal          . |     Total
+-----------+---------------------------------+----------
+         0 |   192,962          0          0 |   192,962 
+         1 |         0    182,565          0 |   182,565 
+        .z |         0          0    136,884 |   136,884 
+-----------+---------------------------------+----------
+     Total |   192,962    182,565    136,884 |   512,411 
+
+. 
+.         * Generate indicator for child born 1-12 months before interview
+.         gen int_year = syear
+
+.         replace int_year = pgpiyear if syear!=pgpiyear & pgpiyear !=.        
+>    // correct, if interview year is differnt than survey year
+(3,239 real changes made)
+
+. 
+.         gen int_mth = ((int_year-1984)*12+pgmonth)                           
+>                            // Monthly timepoint of interview
+(18 missing values generated)
+
+.         gen geb_mth = (((kidgeb01-1984)*12+kidmon01))                        
+>                    // Monthly timepoint of birth first child
+(270,736 missing values generated)
+
+.         
+.         gen msb = int_mth-geb_mth 
+(270,739 missing values generated)
+
+.         recode msb (1/12 = 1) (else = 0), into(valid)                        
+>                    // indicator: child born 1-24 months before interview   
+(511,782 differences between msb and valid)
+
+.         
+.         * Check for mutliple births *
+.         gen multiple = (kidgeb01 == kidgeb02 & kidmon01 == kidmon02) & (kidge
+> b01 < . & kidmon01 < .)
+
+.         ta multiple valid, mis
+
+           |     RECODE of msb
+  multiple |         0          1 |     Total
+-----------+----------------------+----------
+         0 |   504,097      5,208 |   509,305 
+         1 |     2,973        133 |     3,106 
+-----------+----------------------+----------
+     Total |   507,070      5,341 |   512,411 
+
+.         
+. * Dependent var *
+.         recode plh0004 (10=0) (9=1) (8=2) (7=3) (6=4) (5=5) (4=6) (3=7) (2=8)
+>  (1=9) (0=10), gen(left) 
+(48,526 differences between plh0004 and left)
+
+.         ta plh0004 left, m
+
+                      |   RECODE of plh0004 (Political attitude)
+   Political attitude |         0          1          2          3 |     Total
+----------------------+--------------------------------------------+----------
+[0] [de] 0 ganz links |         0          0          0          0 |     1,176 
+           [1] [de] 1 |         0          0          0          0 |     1,367 
+           [2] [de] 2 |         0          0          0          0 |     5,601 
+           [3] [de] 3 |         0          0          0          0 |    10,633 
+           [4] [de] 4 |         0          0          0          0 |    10,801 
+           [5] [de] 5 |         0          0          0          0 |    37,515 
+           [6] [de] 6 |         0          0          0          0 |     8,595 
+           [7] [de] 7 |         0          0          0      6,064 |     6,064 
+           [8] [de] 8 |         0          0      3,133          0 |     3,133 
+           [9] [de] 9 |         0        626          0          0 |       626 
+[10] [de] 10 ganz rec |       530          0          0          0 |       530 
+                    . |         0          0          0          0 |   426,370 
+----------------------+--------------------------------------------+----------
+                Total |       530        626      3,133      6,064 |   512,411 
+
+
+                      |   RECODE of plh0004 (Political attitude)
+   Political attitude |         4          5          6          7 |     Total
+----------------------+--------------------------------------------+----------
+[0] [de] 0 ganz links |         0          0          0          0 |     1,176 
+           [1] [de] 1 |         0          0          0          0 |     1,367 
+           [2] [de] 2 |         0          0          0          0 |     5,601 
+           [3] [de] 3 |         0          0          0     10,633 |    10,633 
+           [4] [de] 4 |         0          0     10,801          0 |    10,801 
+           [5] [de] 5 |         0     37,515          0          0 |    37,515 
+           [6] [de] 6 |     8,595          0          0          0 |     8,595 
+           [7] [de] 7 |         0          0          0          0 |     6,064 
+           [8] [de] 8 |         0          0          0          0 |     3,133 
+           [9] [de] 9 |         0          0          0          0 |       626 
+[10] [de] 10 ganz rec |         0          0          0          0 |       530 
+                    . |         0          0          0          0 |   426,370 
+----------------------+--------------------------------------------+----------
+                Total |     8,595     37,515     10,801     10,633 |   512,411 
+
+
+                      |   RECODE of plh0004 (Political attitude)
+   Political attitude |         8          9         10          . |     Total
+----------------------+--------------------------------------------+----------
+[0] [de] 0 ganz links |         0          0      1,176          0 |     1,176 
+           [1] [de] 1 |         0      1,367          0          0 |     1,367 
+           [2] [de] 2 |     5,601          0          0          0 |     5,601 
+           [3] [de] 3 |         0          0          0          0 |    10,633 
+           [4] [de] 4 |         0          0          0          0 |    10,801 
+           [5] [de] 5 |         0          0          0          0 |    37,515 
+           [6] [de] 6 |         0          0          0          0 |     8,595 
+           [7] [de] 7 |         0          0          0          0 |     6,064 
+           [8] [de] 8 |         0          0          0          0 |     3,133 
+           [9] [de] 9 |         0          0          0          0 |       626 
+[10] [de] 10 ganz rec |         0          0          0          0 |       530 
+                    . |         0          0          0    426,370 |   426,370 
+----------------------+--------------------------------------------+----------
+                Total |     5,601      1,367      1,176    426,370 |   512,411 
+
+.         
+. * Housekeeping *
+.         
+.         keep if valid==1 & inlist(syear,2005, 2009,2014,2019) & multiple!=1
+(511,601 observations deleted)
+
+.         keep pid plh0004 daughter age west edu fam left syear msb hid cid gen
+> der work
+
+.         
+.         bys syear: ta daughter, m                                            
+>                                            //check number of daughters and so
+> ns per survey year
+
+-------------------------------------------------------------------------------
+-> syear = 2005
+
+   daughter |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |         79       41.15       41.15
+          1 |        113       58.85      100.00
+------------+-----------------------------------
+      Total |        192      100.00
+
+-------------------------------------------------------------------------------
+-> syear = 2009
+
+   daughter |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |         97       62.18       62.18
+          1 |         59       37.82      100.00
+------------+-----------------------------------
+      Total |        156      100.00
+
+-------------------------------------------------------------------------------
+-> syear = 2014
+
+   daughter |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |         83       43.01       43.01
+          1 |        110       56.99      100.00
+------------+-----------------------------------
+      Total |        193      100.00
+
+-------------------------------------------------------------------------------
+-> syear = 2019
+
+   daughter |      Freq.     Percent        Cum.
+------------+-----------------------------------
+          0 |        138       51.30       51.30
+          1 |        130       48.33       99.63
+         .z |          1        0.37      100.00
+------------+-----------------------------------
+      Total |        269      100.00
+
+
+.         
+. 
+.         * HYPOTHESIS TEST FOR H2 * 
+. 
+.         * Model description: Linear regression regressing political partisans
+> hip on having a daughter rather 
+.         * than a son as first child with some sociodemographic controls. The 
+> idea is that having a daughter 
+.         * as a first child is randomly distributed among parents and uncorrel
+> ated with unobserved characteristics
+.         * of parents. Excluding multiple births and estimating robust cluster
+> ed standard errors at the household level.
+. 
+. 
+.         reg left i.daughter c.age i.edu i.fam i.gender i.west i.work i.syear,
+>  vce(cluster hid)          
+
+Linear regression                               Number of obs     =        717
+                                                F(12, 463)        =       2.87
+                                                Prob > F          =     0.0008
+                                                R-squared         =     0.0505
+                                                Root MSE          =     1.6293
+
+                                  (Std. err. adjusted for 464 clusters in hid)
+------------------------------------------------------------------------------
+             |               Robust
+        left | Coefficient  std. err.      t    P>|t|     [95% conf. interval]
+-------------+----------------------------------------------------------------
+  1.daughter |  -.2136204   .1433613    -1.49   0.137    -.4953398     .068099
+         age |  -.0032113   .0142239    -0.23   0.821    -.0311626      .02474
+             |
+         edu |
+Intermedi..  |   .0074474   .2046788     0.04   0.971    -.3947671     .409662
+High Educ..  |   .3189044   .2228991     1.43   0.153    -.1191148    .7569235
+      Other  |   .0137197   .3722349     0.04   0.971    -.7177595    .7451989
+             |
+         fam |
+    Married  |  -.0669832   .1485524    -0.45   0.652    -.3589036    .2249373
+             |
+      gender |
+     female  |   .4681859   .2007994     2.33   0.020     .0735948     .862777
+      1.west |   .2421087   .1701961     1.42   0.156    -.0923439    .5765613
+             |
+        work |
+       work  |   .0479175   .2069961     0.23   0.817    -.3588508    .4546858
+             |
+       syear |
+       2009  |   .2499915    .224485     1.11   0.266    -.1911441    .6911271
+       2014  |   .1220134   .1930537     0.63   0.528    -.2573567    .5013835
+       2019  |   .4607778   .2000962     2.30   0.022     .0675687    .8539869
+             |
+       _cons |   4.913582   .5525528     8.89   0.000      3.82776    5.999404
+------------------------------------------------------------------------------
+
+. 
+. * EXTRACT AND EXPORT RESULTS * 
+. 
+.         * Extract the required statistics
+. 
+.                 * (i) coefficient estimate
+.                 local coefficient = _b[1.daughter]
+
+. 
+.                 * (ii) standard error
+.                 local se = _se[1.daughter]
+
+. 
+.                 * (iii) family of the test statistic (e.g. z, t, F, Chi²)
+.                 local test_stat_family = "t"
+
+. 
+.                 * (iv) residual and model degrees of freedom (DFs) if applica
+> ble
+.                 local df_residual = e(df_r)
+
+.                 local df_model = e(df_m)
+
+. 
+.                 * (v) p-value
+.                 local p_value = _b[1.daughter] / _se[1.daughter]
+
+.                 local p_value = 2 * ttail(e(df_r), abs(`p_value'))
+
+. 
+.                 * (vi) number of observations
+.                 local num_obs = e(N)
+
+. 
+.                 * (vii) number of participants
+.                 quietly levelsof pid if e(sample), local(participants)
+
+.                 local num_participants : word count `participants'
+
+. 
+.                 * (viii) interpretation of directionality
+.                 scalar coef_d_daughter = _b[1.daughter]
+
+.                 local interpretation "positive coefficient is in line with hy
+> pothesis"
+
+. 
+.         // Display the saved statistics
+.         di "Coefficient: `coefficient'"
+Coefficient: -.2136203838786334
+
+.         di "Standard Error: `se'"
+Standard Error: .1433612919578396
+
+.         di "Test Statistic Family: `test_stat_family'"
+Test Statistic Family: t
+
+.         di "Residual Degrees of Freedom: `df_residual'"
+Residual Degrees of Freedom: 463
+
+.         di "Model Degrees of Freedom: `df_model'"
+Model Degrees of Freedom: 12
+
+.         di "p-value: " `p_value'
+p-value: .13688301
+
+.         di "Number of observations: " `num_obs'
+Number of observations: 717
+
+.         di      "Number of participants: " `num_participants'
+Number of participants: 717
+
+.         di "Interpretation of directionality: " "`interpretation'"
+Interpretation of directionality: positive coefficient is in line with hypothes
+> is
+
+. 
+.         * Export results to csv 
+.         file open myfile using "$OUT/h2_results.csv", write replace
+(file C:\Users\dalbrecht\Research
+    Projects\ManyDaughters\ManyDaughters_DataPreprocessing/data/derived/95_re
+    > sults/h2_results.csv not found)
+
+.         file write myfile "coefficient,se,family,residual_df,model_df,p_value
+> ,num_obs,num_participants,interpretation" _n
+
+.         file write myfile "`coefficient', `se', `test_stat_family', `df_resid
+> ual', `df_model',`p_value',`num_obs',`num_participants',`interpretation'" _n
+
+.         file close myfile
+
+. 
+. 
+. *****************************************************************************
+> ***
+. 
+. exit
+
+end of do-file
+
+. 
+end of do-file

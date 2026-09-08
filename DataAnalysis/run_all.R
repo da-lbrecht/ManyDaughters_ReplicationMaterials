@@ -6,7 +6,7 @@
 # into a fresh environment keeps that from touching this script's workspace.
 
 if (!file.exists("code/01_data_processing.Rmd")) {
-  stop("please run this script from the project root")
+  stop("please run this script from the DataAnalysis directory")
 }
 
 for (f in list.files("code", pattern = "^0[1-4].*[.]Rmd$", full.names = TRUE)) {

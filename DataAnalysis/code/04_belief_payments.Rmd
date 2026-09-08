@@ -1,0 +1,533 @@
+---
+title: "#ManyDaughters: Belief Bonus Payments"
+author: "Felix Holzmeister"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    css: '_cstm.css'
+    toc: true
+    toc_depth: 2
+---
+
+
+<!-- ======================================================================= -->
+# Preamble
+<!-- ======================================================================= -->
+
+This `.Rmd` file resolves the incentivized belief elicitations and determines the bonus payments promised to the research teams in the two belief surveys of the pre-analysis plan available at [osf.io/cny7d/](https://osf.io/cny7d/overview){.uri} (Appendix C, Survey #1; Appendix D, Survey #2). It contains no hypothesis tests: it documents the payoff mechanism, executes the randomization it prescribes, and exports the resulting payment list. The preregistered analyses are reported in `03_preregistered_analyses.Rmd`; the beliefs themselves are described in `02_summary_stats.Rmd`.
+
+<!-- setup: packages, knit options, and the environment built by 01_data_processing.Rmd -->
+
+```{r "setup", echo = FALSE, message = FALSE, warning = FALSE}
+
+# clear workspace
+rm(list = ls())
+
+# install (if necessary) and load required packages
+packages <- c(
+  "here", "knitr",
+  "gt",
+  "tidyverse"
+)
+for (pkg in packages) {
+  if (!require(pkg, character.only = TRUE)) {
+    install.packages(pkg, dependencies = TRUE)
+    library(pkg, character.only = TRUE)
+  }
+}
+
+# anchor here() to the project root, so paths resolve regardless of the
+# working directory
+here::i_am("code/04_belief_payments.Rmd")
+
+# load the environment built by 01_data_processing.Rmd (df.* frames)
+load(here("data", "proc", "_env.RData"))
+
+# fixes the entire randomization below (winners, hypotheses, price-list rows,
+# and lottery draws); same seed as in 03_preregistered_analyses.Rmd
+set.seed(32844837)
+
+knitr::opts_chunk$set(
+  echo       = FALSE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.align  = "center",
+  fig.width  = 8,
+  fig.height = 5,
+  out.width  = "100%"
+)
+
+rm(pkg, packages)
+
+```
+
+<!-- shared parameters and helpers for this file; each is documented where defined -->
+
+```{r "functions"}
+
+# full-width gt table style
+gt_pct100 <- function(g) {
+  g %>% tab_options(table.width = pct(100), row_group.as_column = FALSE)
+}
+
+# italic math symbol for table headers, with an optional upright suffix
+math <- function(x, suffix = "") {
+  html(paste0("<i>", x, "</i>", if (nzchar(suffix)) paste0(" ", suffix)))
+}
+
+# mechanism parameters as promised in the surveys (PAP Appendix C/D):
+# 10 research teams are drawn per belief survey, and each member of a drawn
+# team receives EUR 100 if the option played out in their price list pays
+n.winners <- 10
+prize     <- 100
+
+# survey and hypothesis labels shared across the tables below
+stage.labels <- c("s1" = "Survey #1 (priors)", "s2" = "Survey #2 (posteriors)")
+hyp.labels   <- c("h1" = "Hypothesis 1", "h2" = "Hypothesis 2",
+                  "h3" = "Hypothesis 3", "h4" = "Hypothesis 4")
+hyp.all      <- names(hyp.labels)
+
+# drop a chunk's scratch objects, keeping the data frames (df.*), every helper
+# function, and the shared parameters and label vectors
+.keep <- c("n.winners", "prize", "stage.labels", "hyp.labels", "hyp.all")
+clean_slate <- function() {
+  env  <- parent.frame()
+  obj  <- ls(env)
+  funs <- obj[vapply(obj, function(o) is.function(get(o, env)), logical(1))]
+  rm(list = setdiff(obj, c(grep("^df\\.", obj, value = TRUE), funs, .keep)),
+     envir = env)
+}
+
+```
+
+
+
+<!-- ======================================================================= -->
+# The payoff mechanism
+<!-- ======================================================================= -->
+
+In both belief surveys, each research team (RT) reported, jointly and separately for each of the four hypotheses, the percentage chance $b \in \{0, 1, \dots, 100\}$ that its **final** result would *support* the hypothesis, where "support" is defined as obtaining a $p$-value below 5% with an effect in the hypothesized direction, and "final result" refers to the result obtained by running the RT's code on the 95% SOEP sample (not on the 5% sample). Survey #1 elicited these beliefs before Stage 1 (priors), Survey #2 after Stage 2 (posteriors).
+
+The elicitation was incentivized with a matching-probability price list: for each hypothesis $H$, the RT faces 101 rows, indexed $r = 0, \dots, 100$, and chooses between two options in every row.
+
+| Row $r$ | Option A | Option B |
+|:---|:---|:---|
+| 0 | €100 if your final result supports hypothesis $H$ | €100 with 0% chance |
+| 1 | €100 if your final result supports hypothesis $H$ | €100 with 1% chance |
+| $\vdots$ | $\vdots$ | $\vdots$ |
+| 100 | €100 if your final result supports hypothesis $H$ | €100 with 100% chance |
+
+Rather than filling in all 101 rows, RTs reported the switch point directly: the survey filled the list for them, "switching from A to B at the % chance you indicate." An RT that reports $b$ therefore holds Option A in every row $r < b$ and Option B in every row $r \geq b$. Reporting the true subjective probability is optimal under standard assumptions, since it secures the preferred option in every row.
+
+<div class="prereg">
+**The payoff procedure as announced in the surveys (Appendix C, p. 37; Appendix D, p. 49):** *"Upon completion of the entire project, we will randomly pick 10 RTs. If your RT is selected, we will randomly select one of the 4 hypotheses, for which each member of your RT may receive a bonus payment of €100 depending on the accuracy of your belief."* — *"If your team is selected for the €100 bonus payment for hypothesis H, one row will be chosen at random, and you will be paid according to your choice in that row."*
+</div>
+
+The resolution therefore proceeds in four steps: **(i)** draw `r n.winners` RTs at random; **(ii)** for each drawn RT, draw one of the four hypotheses at random; **(iii)** draw one of the 101 rows at random; and **(iv)** play out the option the RT holds in that row — Option A pays €`r prize` if the RT's final result on that hypothesis supports it, and Option B pays €`r prize` with probability $r/100$. The bonus accrues **per team member**, so a two-person RT collects €`r 2 * prize` whenever its gamble pays.
+
+<div class="nonprereg">
+**Implementation decisions not pinned down by the pre-analysis plan.** Three details are left open by the survey text and were fixed by the coordinators before the randomization was run.
+
+**(i) *Both* belief surveys are paid, with independent draws.** The bonus page is repeated verbatim in Survey #1 and Survey #2, and each survey carried its own parameters (`belief_lucky_rt` = `r n.winners`, `belief_bonus` = `r prize`). Each elicitation is therefore resolved separately, for a total of `r 2 * n.winners` drawn RTs.
+
+**(ii) All research teams that completed the project are eligible.** Seven completing RTs produced improper statistical estimates and are excluded from the results-based analyses in `03_preregistered_analyses.Rmd`; they are nevertheless kept in the pool here, since eligibility was promised on completion of the project. One further RT is ineligible for the Survey #1 draw only, because it never reported Stage-1 beliefs (see below).
+
+**(iii) Unresolvable Option-A draws are redrawn.** Option B is a plain lottery and always resolves. Option A requires the RT's result on the drawn hypothesis; where that result is not available, the hypothesis is redrawn among the hypotheses for which the RT does have a resolvable result, and if the RT has none, the RT itself is replaced by the next RT drawn from the remaining pool. All redraws and replacements are logged below. Note that the seven RTs concerned have no usable result for *any* of the four hypotheses — improper estimates led to their results being set aside team-wide rather than hypothesis by hypothesis — so in these data the hypothesis redraw cannot bind and the rule reduces to replacing the RT. The redraw is retained in the code as the general rule.
+
+The switch row itself ($r = b$) is assigned to Option B, following the survey's instruction that the list switches from A to B *at* the reported percentage. This is the RT's stated indifference row and the assignment is immaterial in expectation.
+</div>
+
+
+
+<!-- ======================================================================= -->
+# Eligible research teams
+<!-- ======================================================================= -->
+
+The pool comprises all RTs that completed the entire project, defined as completing all stages of the project and answering all surveys. One single-member RT abandoned Survey #1 before the belief task (19% progress) and therefore has no Stage-1 beliefs to resolve; it is excluded from the Survey #1 draw and retained for Survey #2. The table below reports the pool for each survey, by treatment condition, together with the number of individual researchers behind it — the latter is what determines the size of the payments, since the bonus is paid per team member.
+
+```{r "eligible pool"}
+
+# team size and treatment condition, one row per RT
+df.teams <-
+  df.srvy %>%
+  distinct(tid, group, size)
+
+# a team is eligible for a survey's draw if it reported a belief in it
+df.pool <-
+  df.blfs %>%
+  filter(!is.na(belief)) %>%
+  distinct(tid, stage) %>%
+  left_join(df.teams, by = "tid")
+
+df.pool %>%
+  mutate(group = as.character(group)) %>%
+  group_by(stage, group) %>%
+  summarise(rts = n(), mbrs = sum(size), .groups = "drop") %>%
+
+  # append the pooled row for each survey
+  bind_rows(
+    df.pool %>%
+      group_by(stage) %>%
+      summarise(group = "overall", rts = n(), mbrs = sum(size), .groups = "drop")
+  ) %>%
+
+  mutate(
+    stage = recode(factor(stage, levels = names(stage.labels)), !!!stage.labels),
+    group = factor(group, levels = c("no data", "data", "overall"),
+                   labels = c("No data", "Data", "Overall"))
+  ) %>%
+  arrange(stage, group) %>%
+
+  group_by(stage) %>%
+  gt(rowname_col = "group") %>%
+
+  cols_label(rts = "Research teams", mbrs = "Individual researchers") %>%
+  fmt_number(columns = c(rts, mbrs), decimals = 0) %>%
+
+  cols_align(align = "center", columns = c(rts, mbrs)) %>%
+  cols_align(align = "left",   columns = stub()) %>%
+  cols_width(stub() ~ pct(40), c(rts, mbrs) ~ pct(30)) %>%
+  gt_pct100() %>%
+
+  tab_source_note(html(
+    "<b>Note:</b> The pool for each survey comprises the research teams that completed the entire project and reported beliefs in that survey. One single-member team is missing from the Survey #1 pool because it did not reach the belief task in that survey."
+  ))
+
+clean_slate()
+
+```
+
+
+
+<!-- ======================================================================= -->
+# The draw
+<!-- ======================================================================= -->
+
+The randomization below is executed in the order prescribed by the surveys, separately for Survey #1 and Survey #2: the eligible RTs are shuffled, the first `r n.winners` are the winners and the remainder form the replacement queue, and each winner's hypothesis and price-list row are then drawn in turn. The entire sequence is determined by the seed fixed in the setup chunk, so re-running this file reproduces exactly the same winners, hypotheses, rows, and lottery outcomes.
+
+```{r "draw"}
+
+# resolvable (RT × hypothesis) cells: `ssc` is the preregistered
+# "p < 0.05 in the hypothesized direction" indicator, and it is defined only
+# for the teams whose submitted results could be reproduced
+ssc.of <- function(tid, hyp) {
+  i <- match(paste(tid, hyp), paste(df.rslts$tid, df.rslts$hyp))
+  if (is.na(i)) NA_character_ else as.character(df.rslts$ssc[i])
+}
+
+# draw and resolve the bonus for one belief survey; returns one row per winner
+draw_survey <- function(stg) {
+
+  blfs <- df.blfs %>% filter(stage == stg, !is.na(belief))
+  pool <- sort(unique(blfs$tid))
+
+  # the winners are the first n.winners of a random permutation of the pool;
+  # the remaining teams form the queue replacements are taken from
+  shuffled <- sample(pool)
+  winners  <- shuffled[seq_len(n.winners)]
+  queue    <- shuffled[-seq_len(n.winners)]
+
+  slots <- vector("list", n.winners)
+
+  for (i in seq_len(n.winners)) {
+
+    tid.i   <- winners[i]
+    rplcd.i <- character(0)    # teams replaced for this slot
+    redrwn  <- FALSE           # hypothesis redrawn for this slot
+
+    repeat {
+
+      # (ii) one of the four hypotheses and (iii) one of the 101 rows
+      hyp.i <- sample(hyp.all, 1)
+      row.i <- sample(0:100, 1)
+
+      # the team holds Option A on every row below its stated belief and
+      # Option B from that row onwards
+      blf.i <- round(blfs$belief[blfs$tid == tid.i & blfs$hyp == hyp.i] * 100)
+      opt.i <- if (row.i < blf.i) "A" else "B"
+
+      # Option B is a plain lottery and always resolves; Option A additionally
+      # requires the team's result on the drawn hypothesis
+      if (opt.i == "B" || !is.na(ssc.of(tid.i, hyp.i))) break
+
+      # the general rule; in these data results were set aside team-wide, so
+      # hyp.ok is either all four hypotheses or none and only the replacement
+      # branch below can ever be reached
+      hyp.ok <- hyp.all[!is.na(vapply(hyp.all, ssc.of, character(1), tid = tid.i))]
+
+      # no hypothesis of this team can resolve Option A: replace the team
+      if (length(hyp.ok) == 0L) {
+        if (length(queue) == 0L) {
+          stop("replacement queue exhausted while resolving survey ", stg)
+        }
+        rplcd.i <- c(rplcd.i, tid.i)
+        tid.i   <- queue[1L]
+        queue   <- queue[-1L]
+        next
+      }
+
+      # redraw restricted to the hypotheses with a resolvable result, which
+      # resolves whichever option the new row falls on
+      hyp.i  <- sample(hyp.ok, 1)
+      row.i  <- sample(0:100, 1)
+      blf.i  <- round(blfs$belief[blfs$tid == tid.i & blfs$hyp == hyp.i] * 100)
+      opt.i  <- if (row.i < blf.i) "A" else "B"
+      redrwn <- TRUE
+      break
+    }
+
+    # (iv) play out the option held in the drawn row
+    ssc.i <- ssc.of(tid.i, hyp.i)
+    lot.i <- if (opt.i == "B") runif(1) else NA_real_
+    pay.i <- if (opt.i == "A") ssc.i == "yes" else lot.i < row.i / 100
+
+    slots[[i]] <- tibble(
+      stage    = stg,
+      tid      = tid.i,
+      hyp      = hyp.i,
+      belief   = blf.i,
+      row      = row.i,
+      option   = opt.i,
+      ssc      = if (opt.i == "A") ssc.i else NA_character_,
+      lottery  = lot.i,
+      pays     = pay.i,
+      redrawn  = redrwn,
+      replaced = paste(rplcd.i, collapse = ", ")
+    )
+  }
+
+  bind_rows(slots)
+}
+
+
+# the two draws, in survey order; the seed is set once, in the setup chunk
+df.draw <-
+  bind_rows(lapply(levels(df.blfs$stage), draw_survey)) %>%
+  left_join(df.srvy %>% distinct(tid, group, size), by = "tid") %>%
+  mutate(payout = prize * size * pays)
+
+clean_slate()
+
+```
+
+The table below documents the outcome of every draw: the selected RT and its treatment condition, the drawn hypothesis, the belief $b$ the RT reported for it, the drawn row $r$, the option the RT holds in that row, and how that option resolved — for Option A, whether the RT's final result supported the hypothesis; for Option B, the realization of the lottery, which pays whenever the uniform draw falls below $r/100$.
+
+```{r "draw: outcomes"}
+
+df.draw %>%
+
+  mutate(
+    stage    = recode(factor(stage, levels = names(stage.labels)), !!!stage.labels),
+    hyp      = recode(factor(hyp,   levels = names(hyp.labels)),   !!!hyp.labels),
+    group    = factor(group, levels = c("no data", "data"),
+                      labels = c("No data", "Data")),
+    resolved = case_when(
+      option == "A" & ssc == "yes" ~ "Result supports H",
+      option == "A" & ssc == "no"  ~ "Result does not support H",
+      TRUE                         ~ sprintf("Lottery: %.3f vs. %.2f",
+                                             lottery, row / 100)
+    ),
+    pays = ifelse(pays, "yes", "no")
+  ) %>%
+  select(stage, tid, group, hyp, belief, row, option, resolved, pays, size, payout) %>%
+  arrange(stage, tid) %>%
+
+  group_by(stage) %>%
+  gt(rowname_col = "tid") %>%
+
+  cols_label(
+    group    = "Group",
+    hyp      = "Hypothesis",
+    belief   = math("b"),
+    row      = math("r"),
+    option   = "Option",
+    resolved = "Resolution",
+    pays     = "Pays",
+    size     = "Members",
+    payout   = "Payout"
+  ) %>%
+  fmt_number(  columns = c(belief, row, size), decimals = 0) %>%
+  fmt_currency(columns = payout, currency = "EUR", decimals = 0) %>%
+
+  cols_align(align = "center", columns = c(belief, row, option, pays, size)) %>%
+  cols_align(align = "right",  columns = payout) %>%
+  cols_align(align = "left",   columns = stub()) %>%
+  gt_pct100() %>%
+
+  tab_source_note(html(paste0(
+    "<b>Notes:</b> <i>b</i> is the percentage chance the research team reported ",
+    "for the drawn hypothesis; <i>r</i> is the randomly drawn row of the price ",
+    "list. The team holds Option A in every row <i>r</i> &lt; <i>b</i> and Option ",
+    "B from row <i>b</i> onwards. Option A pays &euro;", prize, " per team member ",
+    "if the team's final result supports the hypothesis; Option B pays &euro;",
+    prize, " per team member if the uniform draw falls below <i>r</i>/100."
+  )))
+
+clean_slate()
+
+```
+
+```{r "draw: redraws"}
+
+# a compact record of the redraws and replacements triggered by unresolvable
+# Option-A draws, rendered as prose below (empty if the draws needed neither)
+rdr <- df.draw %>% filter(redrawn | nzchar(replaced))
+
+msg <-
+  if (nrow(rdr) == 0) {
+    "No draw required a redraw or a replacement: every drawn (research team &times; hypothesis) cell either fell on Option B or had a resolvable result."
+  } else {
+    paste0(
+      "The following draws required intervention under decision (iii) above: ",
+      paste(
+        with(rdr, ifelse(
+          nzchar(replaced),
+          sprintf("%s &mdash; %s replaced by %s (no resolvable hypothesis)",
+                  recode(stage, !!!stage.labels), replaced, tid),
+          sprintf("%s &mdash; %s, hypothesis redrawn (no result for the first draw)",
+                  recode(stage, !!!stage.labels), tid)
+        )),
+        collapse = "; "
+      ), "."
+    )
+  }
+
+```
+
+`r msg`
+
+
+
+<!-- ======================================================================= -->
+# Payments
+<!-- ======================================================================= -->
+
+The bonus is owed per team member, so each winning RT's payout is €`r prize` times its number of members whenever the option played out in its price list pays. The table below aggregates the draws into the amount owed, by survey and treatment condition.
+
+```{r "payments: totals"}
+
+df.draw %>%
+  mutate(group = as.character(group)) %>%
+  group_by(stage, group) %>%
+  summarise(rts = n(), paid = sum(pays), mbrs = sum(size[pays]),
+            total = sum(payout), .groups = "drop") %>%
+
+  # append the pooled row for each survey, and the grand total
+  bind_rows(
+    df.draw %>%
+      group_by(stage) %>%
+      summarise(group = "overall", rts = n(), paid = sum(pays),
+                mbrs = sum(size[pays]), total = sum(payout), .groups = "drop")
+  ) %>%
+
+  mutate(
+    stage = recode(factor(stage, levels = names(stage.labels)), !!!stage.labels),
+    group = factor(group, levels = c("no data", "data", "overall"),
+                   labels = c("No data", "Data", "Overall"))
+  ) %>%
+  arrange(stage, group) %>%
+
+  group_by(stage) %>%
+  gt(rowname_col = "group") %>%
+
+  cols_label(rts   = "Teams drawn",
+             paid  = "Teams paid",
+             mbrs  = "Researchers paid",
+             total = "Total") %>%
+  fmt_number(  columns = c(rts, paid, mbrs), decimals = 0) %>%
+  fmt_currency(columns = total, currency = "EUR", decimals = 0) %>%
+
+  cols_align(align = "center", columns = c(rts, paid, mbrs)) %>%
+  cols_align(align = "right",  columns = total) %>%
+  cols_align(align = "left",   columns = stub()) %>%
+  cols_width(stub() ~ pct(28), c(rts, paid, mbrs) ~ pct(18)) %>%
+  gt_pct100() %>%
+
+  tab_source_note(html(paste0(
+    "<b>Note:</b> Each member of a paying research team receives &euro;", prize,
+    ". <i>Researchers paid</i> counts the individual members of the paying teams."
+  )))
+
+clean_slate()
+
+```
+
+```{r "payments: expected"}
+
+# ex-ante expected cost of the mechanism, as a sanity check on the realized
+# total: for a team reporting b (in percent) on hypothesis h, Option A is held
+# in the b rows below b and Option B in rows b..100, so the probability of
+# being paid is [b * 1{result supports h} + sum_{r=b}^{100} r/100] / 101
+exp.pay <-
+  df.blfs %>%
+  filter(!is.na(belief)) %>%
+  mutate(b = round(belief * 100)) %>%
+  left_join(df.rslts %>% select(tid, hyp, ssc) %>% mutate(hyp = factor(hyp)),
+            by = c("tid", "hyp")) %>%
+  left_join(df.srvy %>% distinct(tid, size), by = "tid") %>%
+  mutate(
+    p.a  = b * (!is.na(ssc) & ssc == "yes"),
+    p.b  = (5050 - b * (b - 1) / 2) / 100,
+    p    = (p.a + p.b) / 101,
+    cost = prize * size * p
+  ) %>%
+
+  # average over the four hypotheses within a team, then over the pool
+  group_by(stage, tid) %>%
+  summarise(cost = mean(cost), .groups = "drop_last") %>%
+  summarise(cost = n.winners * mean(cost), .groups = "drop")
+
+exp.total <- sum(exp.pay$cost)
+rlz.total <- sum(df.draw$payout)
+
+```
+
+Before the randomization is run, the mechanism implies an expected cost of €`r format(round(exp.total), big.mark = ",")` in total — the average, over the eligible pools and the four hypotheses, of €`r prize` times team size times the probability that a randomly drawn row pays, scaled by the `r n.winners` teams drawn per survey (this approximation ignores the redraw rule, which affects only the teams without resolvable results). The realized total is €`r format(rlz.total, big.mark = ",")`.
+
+
+
+<!-- ======================================================================= -->
+# Export
+<!-- ======================================================================= -->
+
+The payment list is written to `out/belief_payments.csv`, with one row per individual member of a drawn research team, so that teams paid nothing remain part of the record. Researchers are identified by the anonymous team and participant identifiers only; names and e-mail addresses are held in the raw Qualtrics data and are deliberately not carried into the processed environment, so the list has to be joined to the contact details separately before the transfers are made.
+
+```{r "export"}
+
+df.pay <-
+  df.draw %>%
+  select(stage, tid, group, hyp, belief, row, option, ssc, lottery, pays) %>%
+
+  # expand each drawn team into its individual members
+  left_join(df.srvy %>% select(tid, pid, member),
+            by = "tid", relationship = "many-to-many") %>%
+  mutate(payout = prize * pays) %>%
+
+  arrange(stage, tid, member) %>%
+  select(stage, tid, pid, member, group, hyp, belief, row, option,
+         ssc, lottery, pays, payout)
+
+readr::write_csv(df.pay, here("out", "belief_payments.csv"))
+
+df.pay %>%
+  count(stage, pays, name = "researchers") %>%
+  mutate(
+    stage = recode(factor(stage, levels = names(stage.labels)), !!!stage.labels),
+    pays  = factor(ifelse(pays, "yes", "no"), levels = c("no", "yes"))
+  ) %>%
+  pivot_wider(names_from = pays, values_from = researchers, values_fill = 0) %>%
+
+  gt(rowname_col = "stage") %>%
+  cols_label(no = "Not paid", yes = "Paid") %>%
+  fmt_number(columns = c(no, yes), decimals = 0) %>%
+  cols_align(align = "center", columns = c(no, yes)) %>%
+  cols_align(align = "left",   columns = stub()) %>%
+  cols_width(stub() ~ pct(50), c(no, yes) ~ pct(25)) %>%
+  gt_pct100() %>%
+  tab_source_note(html(
+    "<b>Note:</b> Rows of the exported payment list, i.e. individual researchers belonging to a drawn research team, by whether their team's price-list row paid out."
+  ))
+
+clean_slate()
+
+```

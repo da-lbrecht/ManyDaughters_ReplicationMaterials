@@ -1,0 +1,815 @@
+---
+title: "#ManyDaughters: Data Processing"
+author: "Felix Holzmeister"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    css: '_cstm.css'
+    toc: true
+    toc_depth: 2
+---
+
+
+<!-- ======================================================================= -->
+# Setup
+<!-- ======================================================================= -->
+
+The **Setup** chunk clears the workspace, loads the required packages, sets the session options, and reads the two pre-processed `.dta` files from `data/derived/` (the consistency-audit spreadsheet is read later, in its own chunk). Paths are resolved with the _here_ package, anchored to the project root via `here::i_am()`, so the working directory never has to be set manually.
+
+```{r "setup", echo = TRUE, message = FALSE, warning = FALSE}
+
+# clear workspace
+rm(list = ls())
+
+# install (if necessary) and load required packages
+packages <- c(
+  "here", "haven", "knitr",
+  "labelled", "readxl", "stringr",
+  "tidyverse"
+)
+for (pkg in packages) {
+  if (!require(pkg, character.only = TRUE)) {
+    install.packages(pkg, dependencies = TRUE)
+    library(pkg, character.only = TRUE)
+  }
+}
+
+# anchor here() to the project root, so paths resolve regardless of the
+# working directory
+here::i_am("code/01_data_processing.Rmd")
+
+options(scipen = 6)    # discourage scientific notation
+
+knitr::opts_chunk$set(
+  echo    = TRUE,
+  warning = FALSE,
+  message = FALSE
+)
+
+# drop haven/labelled metadata so downstream pipes see plain vectors
+strip_attrs <- function(x) { attributes(x) <- NULL; x }
+
+data.derived <-
+  read_dta(
+    here("data", "derived", "ManyDaughters_preprocessed.dta")
+  ) %>%
+  mutate(across(everything(), strip_attrs))
+
+data.idiosyncrasy <-
+  read_dta(
+    here("data", "derived", "idiosyncrasy_results_combined.dta")
+  ) %>%
+  mutate(across(everything(), strip_attrs))
+
+rm(pkg, packages, strip_attrs)
+
+```
+
+
+
+<!-- ======================================================================= -->
+# Functions
+<!-- ======================================================================= -->
+
+Project-wide helpers. `select.mutate()` wraps `dplyr::mutate()` and keeps only the columns the mutation introduced or changed. `as.dummy()` turns the "Yes"/"No" strings returned by Qualtrics into a two-level (`no`/`yes`) factor; `as.treatment()` maps the 0/1 treatment code to a `no data`/`data` factor; `yn()` builds a `no`/`yes` factor from a logical condition.
+
+```{r "functions"}
+
+# mutate, then keep only the newly created / modified columns
+select.mutate <- function(.data, ...) {
+  before <- names(.data)
+  after  <- dplyr::mutate(.data, ...)
+  dplyr::select(after, tidyselect::all_of(setdiff(names(after), before)))
+}
+
+# "Yes"/"No" string -> factor(no, yes)
+as.dummy <- function(x) {
+  factor(
+    case_when(
+      startsWith(x, "Yes") ~ 1,
+      startsWith(x, "No")  ~ 0,
+      TRUE                 ~ NA
+    ),
+    levels = c(0, 1),
+    labels = c("no", "yes")
+  )
+}
+
+# 0/1 treatment code -> factor(no data, data)
+as.treatment <- function(x) {
+  factor(x, levels = c(0, 1), labels = c("no data", "data"))
+}
+
+# logical condition -> factor(no, yes)
+yn <- function(cond) {
+  factor(ifelse(cond, 1, 0), levels = c(0, 1), labels = c("no", "yes"))
+}
+
+```
+
+
+
+<!-- ======================================================================= -->
+# Data processing
+<!-- ======================================================================= -->
+
+The chunks below build one frame per facet of the project (entry survey, belief surveys, peer assessments, consistency audit, RT estimates, and team-level analysis variables). Each frame keeps only the analysis-relevant variables, renames them to shorter working names, and attaches variable labels.
+
+
+## Entry survey
+<!-- ----------------------------------------------------------------------- -->
+
+The screening survey administered before randomization. `df.srvy` is in long format with one row per individual researcher and holds demographics, position, publication record, self-rated experience, and the recruitment channel, alongside team-level identifiers (team ID, size, treatment condition).
+
+```{r "entry survey"}
+
+# the ".m1" / ".m2" suffixes mark member-specific items (m1: lead respondent,
+# m2: partner) and are pivoted into a long-format `member` column below
+df.srvy <-
+  data.derived %>%
+
+  # completing research teams only (PAP §3)
+  filter(PT_dropout == 0) %>%
+
+  select.mutate(
+
+    # team-level identifiers and treatment
+    tid          = rt_id,
+    pid.m1       = EC_pid,
+    pid.m2       = EC_p_pid,
+    size         = EC_rt_size,
+    group        = as.treatment(EC_treatment),
+
+    # recruitment channel (m1 / m2)
+    recruit.m1   = ES_recruitment_channel,
+    recruit.m2   = EC_p_recruitment_channel,
+
+    # demographics (m1 / m2)
+    lctn.m1      = ES_location,
+    lctn.m2      = EC_p_location,
+    gndr.m1      = ES_gender,
+    gndr.m2      = EC_p_gender,
+    field.m1     = ES_research_field,
+    field.m2     = EC_p_research_field,
+    career.m1    = ES_position,
+    career.m2    = EC_p_position,
+
+    # publications (m1 / m2)
+    pub_top.m1   = as.dummy(ES_top_pub),
+    pub_top.m2   = as.dummy(EC_p_top_pub),
+    pub_emp.m1   = as.dummy(ES_empirical_publication),
+    pub_emp.m2   = as.dummy(EC_p_empirical_publication),
+    pub_rq.m1    = as.dummy(ES_study_daughters),
+    pub_rq.m2    = as.dummy(EC_p_study_daughters),
+
+    # self-rated experience (m1 / m2)
+    exp_reg.m1   = as.numeric(ES_experience_regression),
+    exp_reg.m2   = as.numeric(EC_p_experience_regression),
+    exp_stata.m1 = as.numeric(ES_experience_stata),
+    exp_stata.m2 = as.numeric(EC_p_experience_stata),
+    exp_data.m1  = as.numeric(ES_experience_large_data),
+    exp_data.m2  = as.numeric(EC_p_experience_large_data),
+    exp_pap.m1   = as.numeric(ES_experience_pap),
+    exp_pap.m2   = as.numeric(EC_p_experience_pap),
+    exp_meta.m1  = as.dummy(ES_participated_metasci_study),
+    exp_meta.m2  = as.dummy(EC_p_participated_metasci_study),
+    exp_soep.m1  = as.dummy(ES_used_soep),
+    exp_soep.m2  = as.dummy(EC_p_used_soep)
+  ) %>%
+
+  # reshape the m1 / m2 columns into a long-format `member` column
+  pivot_longer(
+    cols          = -c(tid, size, group),
+    names_to      = c(".value", "member"),
+    names_pattern = "(.*)\\.(m[12])"
+  ) %>%
+
+  # drop the empty m2 row for solo teams
+  filter(!is.na(pid) & pid != "") %>%
+
+  # collapse Qualtrics response strings into compact category labels
+  mutate(
+    recruit = case_when(
+      startsWith(recruit, "Heard about")  ~ "Coordinators",
+      startsWith(recruit, "Received")     ~ "Team member",
+      startsWith(recruit, "Through Lab2") ~ "Lab² announcement",
+      startsWith(recruit, "Through SOEP") ~ "SOEP announcement",
+      startsWith(recruit, "Other")        ~ "Other",
+      TRUE                                ~ NA_character_
+    ),
+    gndr = case_when(
+      startsWith(gndr, "Other") ~ "Other",
+      TRUE                      ~ gndr
+    ),
+    lctn = case_when(
+      startsWith(lctn, "Central") ~ "Latin America",
+      TRUE                        ~ lctn
+    ),
+    field = case_when(
+      startsWith(field, "Business")   ~ "Business",
+      startsWith(field, "Psychology") ~ "Psychology",
+      startsWith(field, "Other")      ~ "Other",
+      TRUE                            ~ field
+    ),
+    career = case_when(
+      startsWith(career, "Other")    ~ "Other position",
+      career == "PhD student"        ~ "PhD candidate",
+      startsWith(career, "Bachelor") ~ "BSc or MSc student",
+      TRUE                           ~ career
+    )
+  ) %>%
+
+  arrange(tid, member) %>%
+
+  set_variable_labels(.labels = list(
+    tid       = "Research Team ID",
+    pid       = "Participant ID",
+    member    = "Team Member ID",
+    size      = "Team Size",
+    group     = "Treatment Condition",
+    recruit   = "Recruitment Channel",
+    lctn      = "Geographic Location",
+    gndr      = "Gender",
+    field     = "Research Field",
+    career    = "Academic Position",
+    pub_top   = "Top Publication",
+    pub_emp   = "Empirical Publication",
+    pub_rq    = "Study on Daughters Hypothesis",
+    exp_reg   = "Experience: Regression (0-10)",
+    exp_stata = "Experience: Stata (0-10)",
+    exp_data  = "Experience: Large Data (0-10)",
+    exp_pap   = "Experience: PAPs (0-10)",
+    exp_meta  = "Experience: Meta-Science",
+    exp_soep  = "Experience: SOEP"
+  ))
+
+```
+
+
+## Belief surveys
+<!-- ----------------------------------------------------------------------- -->
+
+The prior beliefs elicited before Stage 1 (Survey #1) and the posterior beliefs elicited after Stage 2 (Survey #2). `df.blfs` is in long format with one row per (RT, hypothesis, stage); `belief` is each team's reported probability that the hypothesis is supported at the 5% level, rescaled from the elicited 0-100% to a 0-1 fraction.
+
+```{r "belief surveys"}
+
+df.blfs <-
+  data.derived %>%
+  filter(PT_dropout == 0) %>%
+
+  select.mutate(
+
+    tid          = rt_id,
+
+    # Stage 1 priors (PAP §2.1, "Initial beliefs")
+    belief.h1.s1 = as.numeric(BS1_prior_h1),
+    belief.h2.s1 = as.numeric(BS1_prior_h2),
+    belief.h3.s1 = as.numeric(BS1_prior_h3),
+    belief.h4.s1 = as.numeric(BS1_prior_h4),
+
+    # Stage 2 posteriors (PAP §2.1, "Beliefs after Stage 2")
+    belief.h1.s2 = as.numeric(BS2_posterior_h1),
+    belief.h2.s2 = as.numeric(BS2_posterior_h2),
+    belief.h3.s2 = as.numeric(BS2_posterior_h3),
+    belief.h4.s2 = as.numeric(BS2_posterior_h4)
+  ) %>%
+
+  # reshape h{1-4} × s{1,2} into long format
+  pivot_longer(
+    cols          = starts_with("belief"),
+    names_to      = c(".value", "hyp", "stage"),
+    names_pattern = "(.*)\\.([^.]+)\\.([^.]+)"
+  ) %>%
+
+  mutate(
+    belief = belief / 100,    # rescale 0-100% to a 0-1 fraction
+    hyp    = factor(hyp,   levels = c("h1", "h2", "h3", "h4")),
+    stage  = factor(stage, levels = c("s1", "s2"))
+  ) %>%
+
+  arrange(tid, hyp, stage) %>%
+
+  set_variable_labels(.labels = list(
+    tid    = "Research Team ID",
+    stage  = "Project Stage",
+    hyp    = "Hypothesis ID",
+    belief = "Belief: Support (0-1)"
+  ))
+
+```
+
+
+## Peer assessments
+<!-- ----------------------------------------------------------------------- -->
+
+The peer-evaluation stage (PAP §1.7): each completing RT rated ten anonymized RT-PAPs (five per treatment group, excluding its own) on reasonableness and informativeness for each hypothesis. `df.evls` is in long format with one row per (rated team, hypothesis, rater); `group` is the rated team's treatment condition and the per-rating quality `qulty` is the mean of `rsnbl` and `infrm` (PAP §2.1).
+
+```{r "peer assessments"}
+
+# rated team -> treatment condition (the same completer-level mapping used by
+# df.proc), attached so the rating regressions in 03 need no extra join
+rated.group <-
+  data.derived %>%
+  filter(PT_dropout == 0) %>%
+  distinct(tid = rt_id, group = as.treatment(EC_treatment))
+
+# raw columns are wide:
+#   PA_PAP{1..10}_h{1..4}_{reasonable,informative}  ratings the rater gave
+#   PA_rated_rt_id{1..10}                            team rated in slot k
+df.evls <-
+  data.derived %>%
+  filter(PT_dropout == 0) %>%
+
+  # here rt_id identifies the rater (rid)
+  rename(rid = rt_id) %>%
+
+  # pivot all ratings (PAP slot, hypothesis, dimension) into long format
+  pivot_longer(
+    cols          = matches("^PA_PAP\\d+_h\\d+_(reasonable|informative)$"),
+    names_pattern = "PA_(PAP\\d+)_h(\\d+)_(reasonable|informative)",
+    names_to      = c("pap", "hyp", ".value")
+  ) %>%
+
+  mutate(pap = as.numeric(str_remove(pap, "PAP"))) %>%
+
+  # look up the rated RT for this rater × PAP slot
+  rowwise() %>%
+  mutate(tid = get(paste0("PA_rated_rt_id", pap))) %>%
+  ungroup() %>%
+
+  # numeric ratings + PAP §2.1 quality rating (mean of the two)
+  mutate(
+    rsnbl = as.numeric(reasonable),
+    infrm = as.numeric(informative),
+    qulty = (rsnbl + infrm) / 2,
+    hyp   = factor(hyp, levels = 1:4, labels = c("h1", "h2", "h3", "h4"))
+  ) %>%
+
+  left_join(rated.group, by = "tid") %>%
+  select(tid, hyp, rid, group, rsnbl, infrm, qulty) %>%
+  arrange(tid, hyp, rid) %>%
+
+  set_variable_labels(.labels = list(
+    tid   = "Research Team ID",
+    hyp   = "Hypothesis ID",
+    rid   = "ID of Rating Team",
+    group = "Treatment Condition",
+    rsnbl = "Rating: Reasonableness (0-10)",
+    infrm = "Rating: Informativeness (0-10)",
+    qulty = "Rating: PAP Quality (0-10)"
+  ))
+
+rm(rated.group)
+
+```
+
+
+## Consistency checks
+<!-- ----------------------------------------------------------------------- -->
+
+The coordinators' audit of RT-PAP/code consistency (PAP §1.5). A random 10% of RT-PAPs was checked first; because the inconsistency rate exceeded the 20% escalation threshold, all pairs were subsequently reviewed. `df.cons` has one row per RT and records whether the team was in the initial 10% audit (`audit10`), the overall consistency verdict (`consistent`; PAP §2.1, 1 = consistent / 0 = inconsistent), and — for inconsistent pairs — the total number of inconsistencies (`n_incons`) and the count of each type. The 100%-sample file is read because it is a strict superset of the 10%-sample file, carrying the `10%_sample` flag and identical verdicts on the audited subset.
+
+```{r "consistency checks"}
+
+# the inc_* columns count inconsistencies of each type per RT (n_incons = sum)
+df.cons <-
+  read_excel(
+    here("data", "derived",
+         "PAPtoCode_ConsistencyCheck_100%sample_results.xlsx")
+  ) %>%
+
+  select.mutate(
+
+    # IDs and treatment
+    tid     = rt_id,
+    group   = factor(case_when(
+                startsWith(treatment_str, "data")    ~ "data",
+                startsWith(treatment_str, "no-data") ~ "no data",
+                TRUE                                 ~ NA_character_
+              ),
+              levels = c("no data", "data")),
+
+    # part of the random 10% audit (PAP §1.5)
+    audit10 = yn(`10%_sample` == 1),
+
+    # PAP §2.1 RT-PAP-to-code consistency (1 = consistent, 0 = inconsistent)
+    consistent = factor(as.integer(as.logical(is_consistent)),
+                        levels = c(0, 1),
+                        labels = c("inconsistent", "consistent")),
+
+    # number and type of inconsistencies (full review)
+    n_incons        = as.numeric(total_inconsistencies),
+    inc_filter_less = as.numeric(`less_strict_filter_in_code`),
+    inc_filter_more = as.numeric(`more_strict_filter in code`),
+    inc_dv          = as.numeric(`different_dv_in_code`),
+    inc_iv          = as.numeric(`different_iv_in_code`),
+    inc_ctrl_less   = as.numeric(`less_controls_in_code`),
+    inc_ctrl_more   = as.numeric(`more_controls_in_code`),
+    inc_test        = as.numeric(`different_test_in_code`),
+    inc_spec        = as.numeric(`different_specification_in_code`)
+  ) %>%
+
+  arrange(tid) %>%
+
+  set_variable_labels(.labels = list(
+    tid             = "Research Team ID",
+    group           = "Treatment Condition",
+    audit10         = "In Random 10% Audit",
+    consistent      = "PAP-to-Code Consistency",
+    n_incons        = "No. Inconsistencies",
+    inc_filter_less = "Inconsistency: Less Strict Filter",
+    inc_filter_more = "Inconsistency: More Strict Filter",
+    inc_dv          = "Inconsistency: Different DV",
+    inc_iv          = "Inconsistency: Different IV",
+    inc_ctrl_less   = "Inconsistency: Fewer Controls",
+    inc_ctrl_more   = "Inconsistency: More Controls",
+    inc_test        = "Inconsistency: Different Test",
+    inc_spec        = "Inconsistency: Different Specification"
+  ))
+
+```
+
+
+## Research teams' estimates
+<!-- ----------------------------------------------------------------------- -->
+
+The team-level results from running each RT's analysis code on the 95% sample, plus the variables the preregistered analyses require and the outlier flags. The chunk produces:
+
+- `z` — standardized effect size from the (logged) two-sided $p$-value, signed so that positive values indicate support for the hypothesis (PAP §1.8 / §2.1);
+- `dir`, `sig`, `ssc` — direction, significance at $\alpha$ = 5%, and the joint "$p$ < 0.05 in the hypothesized direction" criterion (PAP §2.1);
+- `abs_dev` — absolute deviation of `z` from the group × hypothesis mean (PAP §2.1);
+- `outl_rsnbl` — low-reasonableness flag (average demeaned reasonableness rating below $-2 \times SD$; PAP §3.1.1);
+- `outl_fences` — Tukey's-fences flag on `z`, per group × hypothesis (PAP §3.1.1);
+- `indx` — per-(RT × hypothesis) idiosyncrasy index $I_{i,h} = 1 - F_{i,h}(D_5)$, with `n_plac` recording the number of placebo draws behind each cell (PAP §2.1).
+
+See the pre-analysis plan ([osf.io/cny7d/](https://osf.io/cny7d/overview){.uri}) for full definitions.
+
+```{r "RT estimates"}
+
+df.rslts <-
+  data.derived %>%
+
+  # PAP §3 sample restrictions: completers only, excluding RTs whose
+  # submitted results could not be reproduced
+  filter(
+    PT_dropout              == 0,
+    RT_results_inconsistent == 0
+  ) %>%
+
+  # keep only the 95%-sample columns; *_5 holds the 5%-sample mirror and
+  # *_manual the RT-supplied summaries (neither used here)
+  select(
+    rt_id, EC_treatment,
+    starts_with("RT_h"),
+    -ends_with("_5"),
+    -ends_with("manual")
+  ) %>%
+
+  # reshape RT_h{1-4}_<field>95 to one row per RT × hypothesis
+  pivot_longer(
+    cols          = starts_with("RT_h"),
+    names_to      = c("hypothesis", ".value"),
+    names_pattern = "RT_(h[1-4])_(.*)95"
+  ) %>%
+
+  select.mutate(
+
+    # IDs and treatment
+    tid    = rt_id,
+    group  = as.treatment(EC_treatment),
+    hyp    = hypothesis,
+
+    # raw estimates
+    n_obs  = num_obs_,
+    n_ind  = num_participants_,
+    b      = as.numeric(coefficient_),
+    se     = as.numeric(se_),
+    fam    = family_,
+    df_m   = model_df_,
+    df_res = residual_df_,
+    stat   = b / se,
+
+    # log of the two-sided p-value, recovered analytically when the reported
+    # value underflows to zero (only z- and t-cases underflow in our data)
+    log_p = case_when(
+      p_value_ == 0 & fam == "z" ~ as.numeric(
+        log(2) + pnorm(-abs(stat), lower.tail = TRUE, log.p = TRUE)
+      ),
+      p_value_ == 0 & fam == "t" ~ as.numeric(
+        log(2) + pt(-abs(stat), df_res, lower.tail = TRUE, log.p = TRUE)
+      ),
+      TRUE ~ log(p_value_)
+    ),
+
+    # RT-supplied directionality of the test statistic relative to H_alt
+    intprt = case_when(
+      startsWith(interpretation_, "positive") ~ "positive >> support",
+      startsWith(interpretation_, "negative") ~ "negative >> support",
+      TRUE                                    ~ NA_character_
+    ),
+
+    # |z| from the (logged) two-sided p-value (PAP §1.8), signed so that
+    # positive values indicate support for the hypothesis (PAP §2.1)
+    abs_z = -qnorm(log_p - log(2), lower.tail = TRUE, log.p = TRUE),
+    z = abs_z * case_when(
+      intprt == "positive >> support" & b > 0 ~  1,
+      intprt == "positive >> support" & b < 0 ~ -1,
+      intprt == "negative >> support" & b < 0 ~  1,
+      intprt == "negative >> support" & b > 0 ~ -1,
+      TRUE                                    ~ NA_real_
+    ),
+
+    # direction, significance at α = 5%, and the PAP §2.1
+    # "p < 0.05 in the hypothesized direction" criterion
+    dir = factor(ifelse(z > 0, 1, 0),
+                 levels = c(0, 1),
+                 labels = c("negative", "positive")),
+    sig = factor(ifelse(log_p < log(0.05), 1, 0),
+                 levels = c(0, 1),
+                 labels = c("p > 0.05", "p < 0.05")),
+    ssc = yn(dir == "positive" & sig == "p < 0.05")
+  ) %>%
+
+  select(-abs_z) %>%
+
+  # PAP §2.1 absolute deviation: |z - mean(z within group × hypothesis)|
+  group_by(group, hyp) %>%
+  mutate(abs_dev = abs(z - mean(z, na.rm = TRUE))) %>%
+  ungroup()
+
+
+# (i) low-reasonableness flag (PAP §3.1.1): average demeaned reasonableness
+# rating below -2 × SD, where ratings are demeaned per rater × hypothesis and
+# the SD is taken over the demeaned distribution per hypothesis
+evls.dm <-
+  df.evls %>%
+  group_by(rid, hyp) %>%
+  mutate(rsnbl_dm = rsnbl - mean(rsnbl, na.rm = TRUE)) %>%
+  ungroup()
+
+df.rsnbl <-
+  evls.dm %>%
+
+  # average demeaned rating per RT × hypothesis
+  group_by(tid, hyp) %>%
+  summarise(rsnbl_avg = mean(rsnbl_dm, na.rm = TRUE), .groups = "drop") %>%
+
+  # per-hypothesis SD of the demeaned distribution
+  left_join(
+    evls.dm %>%
+      group_by(hyp) %>%
+      summarise(rsnbl_sd = sd(rsnbl_dm, na.rm = TRUE), .groups = "drop"),
+    by = "hyp"
+  ) %>%
+
+  mutate(outl_rsnbl = yn(rsnbl_avg < -2 * rsnbl_sd)) %>%
+  select(tid, hyp, outl_rsnbl)
+
+
+# (ii) Tukey's-fences flag on z, per group × hypothesis (PAP §3.1.1)
+df.fences <-
+  df.rslts %>%
+  group_by(group, hyp) %>%
+  summarise(
+    q1 = quantile(z, 0.25, na.rm = TRUE),
+    q3 = quantile(z, 0.75, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  right_join(df.rslts, by = c("group", "hyp")) %>%
+  mutate(outl_fences = yn(z < q1 - 3 * (q3 - q1) | z > q3 + 3 * (q3 - q1))) %>%
+  select(tid, hyp, outl_fences)
+
+
+# idiosyncrasy index (PAP §2.1): I_{i,h} = 1 - F_{i,h}(D_5), where F_{i,h} is
+# the ECDF of p-values from RT i's code on placebo 5%-subsamples (iteration
+# > 0) and D_5 is the original 5%-sample (iteration 0); the externally
+# prepared file supplies the placebo draws.
+#
+# `distinct()` on the (RT, hypothesis, iteration) key guards against repeated
+# iterations in the source file, which would otherwise enter the ECDF twice
+# and weight those draws double. `n_plac` records how many placebo draws each
+# cell actually rests on -- the target was 1,000, but not every cell reaches it.
+df.indx <-
+  data.idiosyncrasy %>%
+  mutate(
+    tid = rt_id,
+    hyp = paste0("h", hypothesis)
+  ) %>%
+  select(tid, hyp, iteration, p_value) %>%
+  filter(!is.na(p_value)) %>%
+  distinct(tid, hyp, iteration, .keep_all = TRUE) %>%
+  group_by(tid, hyp) %>%
+  summarise(
+    indx = {
+      p_orig <- p_value[iteration == 0]
+      p_plac <- p_value[iteration  > 0]
+      if (length(p_orig) >= 1 && length(p_plac) >= 1) {
+        1 - ecdf(p_plac)(p_orig[1])
+      } else {
+        NA_real_
+      }
+    },
+    n_plac = sum(iteration > 0),
+    .groups = "drop"
+  )
+
+
+# merge the flags and the index into df.rslts
+df.rslts <-
+  df.rslts %>%
+  left_join(df.rsnbl,  by = c("tid", "hyp")) %>%
+  left_join(df.fences, by = c("tid", "hyp")) %>%
+  left_join(df.indx,   by = c("tid", "hyp")) %>%
+
+  set_variable_labels(.labels = list(
+    tid         = "Research Team ID",
+    group       = "Treatment Condition",
+    hyp         = "Hypothesis ID",
+    n_obs       = "No. Observations",
+    n_ind       = "No. Individuals",
+    b           = "Coefficient Estimate",
+    se          = "Standard Error",
+    fam         = "Test Family",
+    df_m        = "Model DFs",
+    df_res      = "Residual DFs",
+    stat        = "Test Statistic",
+    log_p       = "log(p-Value)",
+    intprt      = "Interpretation",
+    z           = "z-Value",
+    dir         = "Directionality",
+    sig         = "Significance",
+    ssc         = "Stat. Sig. Criterion",
+    abs_dev     = "Absolute Deviation",
+    outl_rsnbl  = "Outlier: Low Reasonableness",
+    outl_fences = "Outlier: Tukey's Fences",
+    indx        = "Idiosyncrasy Index",
+    n_plac      = "Idiosyncrasy: No. Placebo Draws"
+  ))
+
+rm(evls.dm, df.rsnbl, df.fences, df.indx)
+
+```
+
+
+## Data preparation
+<!-- ----------------------------------------------------------------------- -->
+
+The team-level dependent variables (PAP §2.1) and the team-level independent variables used as controls (PAP §2.2), consolidated into one tidy frame `df.proc` with one row per RT. Together with `df.rslts` and `df.evls`, this frame is the basis for all preregistered analyses. See the pre-analysis plan ([osf.io/cny7d/](https://osf.io/cny7d/overview){.uri}) for full definitions.
+
+```{r "data preparation"}
+
+# team-reported dependent variables (PAP §2.1). The lit_search / smpl_anal /
+# mltp_reg / effort items are stored as labelled response strings; the leading
+# 0-10 numeral is extracted to recover the underlying score.
+df.dv <-
+  data.derived %>%
+  filter(PT_dropout == 0) %>%
+
+  mutate(across(
+    c(BS2_lit_searched,
+      BS2_simplest_analysis,
+      BS2_effort,
+      BS2_multi_regressions_considered),
+    ~ as.numeric(str_extract(.x, "\\d+"))
+  )) %>%
+
+  select.mutate(
+
+    tid         = rt_id,
+    group       = as.treatment(EC_treatment),
+
+    rprd_itrt   = PT_num_code_iterations,    # iterations to reproducibility
+    effort      = as.numeric(BS2_effort),
+    hours_spent = as.numeric(BS2_hours_spent),
+    lit_search  = as.numeric(BS2_lit_searched),
+    smpl_anal   = as.numeric(BS2_simplest_analysis),
+    mltp_reg    = as.numeric(BS2_multi_regressions_considered)
+  )
+
+
+# team-aggregated independent variables (PAP §2.2): any-member dummies
+# (seniority, economics, top_pub, exp_soep), member maxima of the experience
+# scores, and team_of_two from team size
+df.iv <-
+  df.srvy %>%
+
+  # member-level booleans / per-member averages
+  rowwise() %>%
+  mutate(
+    seniority = career %in% c("Full professor", "Associate professor"),
+    economics = field  %in% c("Economics", "Finance"),
+    exp_anal  = mean(c(exp_reg, exp_stata, exp_data), na.rm = TRUE)
+  ) %>%
+
+  # team-level rollup
+  group_by(tid) %>%
+  summarise(
+    group       = factor(first(as.character(group)),
+                         levels = levels(df.srvy$group)),
+    team_of_two = factor(ifelse(first(size) == 2, 1, 0),
+                         levels = c(0, 1),
+                         labels = c("no", "yes")),
+    seniority   = factor(ifelse(any(seniority), "senior", "junior"),
+                         levels = c("junior", "senior")),
+    economics   = factor(ifelse(any(economics), "yes", "no"),
+                         levels = c("no", "yes")),
+    top_pub     = factor(ifelse(any(pub_top  == "yes", na.rm = TRUE),
+                                "yes", "no"),
+                         levels = levels(df.srvy$pub_top)),
+    exp_soep    = factor(ifelse(any(exp_soep == "yes", na.rm = TRUE),
+                                "yes", "no"),
+                         levels = levels(df.srvy$exp_soep)),
+    exp_anal    = max(exp_anal, na.rm = TRUE),
+    exp_pap     = max(exp_pap,  na.rm = TRUE),
+    .groups = "drop"
+  )
+
+
+# RT-level idiosyncrasy index (PAP §2.1): mean of the four per-hypothesis
+# indices, computed only for RTs with all four available
+df.idxrt <-
+  df.rslts %>%
+  filter(!is.na(indx)) %>%
+  group_by(tid) %>%
+  summarise(
+    indx_rt = if (n() == 4) mean(indx) else NA_real_,
+    .groups = "drop"
+  )
+
+
+df.proc <-
+  df.dv %>%
+  left_join(df.iv,    by = c("tid", "group")) %>%
+  left_join(df.idxrt, by = "tid") %>%
+
+  set_variable_labels(.labels = list(
+    tid         = "Research Team ID",
+    group       = "Treatment Condition",
+    rprd_itrt   = "Reprod.: No. Iterations",
+    effort      = "Effort in Stages 1+2 (0-10)",
+    hours_spent = "Hours Spent in Stages 1+2",
+    lit_search  = "Literature Search (0-10)",
+    smpl_anal   = "Simplest Analysis (0-10)",
+    mltp_reg    = "Multiple Regressions (0-10)",
+    team_of_two = "Team of Two",
+    seniority   = "(Max.) Assoc./Full Prof.",
+    economics   = "(Max.) Economist",
+    top_pub     = "(Max.) AJG 4*/FT50 Pub.",
+    exp_soep    = "(Max.) Experience: SOEP Data",
+    exp_anal    = "(Max.) Experience: Analysis (0-10)",
+    exp_pap     = "(Max.) Experience: PAPs (0-10)",
+    indx_rt     = "RT Idiosyncrasy Index"
+  ))
+
+rm(df.dv, df.iv, df.idxrt)
+
+```
+
+
+
+<!-- ======================================================================= -->
+# Export Environment
+<!-- ======================================================================= -->
+
+The **Export** chunk drops the helpers and the raw input data, then saves the remaining objects to `data/proc/_env.RData`, the image that the subsequent report files load. In addition, each processed data frame is written individually to `data/proc/` as both an `.rds` file (preserving column types and variable labels) and a `.csv` file (portable, human-readable).
+
+```{r "export"}
+
+# participant-flow counts, captured before the raw data is removed
+# (PAP §3: report the number of RTs that drop out before completion)
+df.flow <- tibble(
+  recruited     = nrow(data.derived),
+  dropout       = sum(data.derived$PT_dropout != 0, na.rm = TRUE),
+  completed     = sum(data.derived$PT_dropout == 0, na.rm = TRUE),
+  results_valid = sum(data.derived$PT_dropout == 0 &
+                        data.derived$RT_results_inconsistent == 0, na.rm = TRUE)
+) %>%
+  set_variable_labels(.labels = list(
+    recruited     = "Research Teams Recruited",
+    dropout       = "Research Teams Dropped Out Before Completion",
+    completed     = "Research Teams Completing All Stages",
+    results_valid = "Completing RTs With Reproducible/Valid Results"
+  ))
+
+rm(as.dummy, as.treatment, yn, select.mutate)
+rm(data.derived, data.idiosyncrasy)
+
+# save(list = ls()) rather than save.image(): when the file is rendered into
+# a separate environment (as run_all.R does), the frames do not live in
+# .GlobalEnv and save.image() would write an empty file
+save(list = ls(), file = here("data", "proc", "_env.RData"))
+
+# per-frame copies: .rds keeps column types and labels, .csv is portable;
+# runs after save() so the loop's scratch objects stay out of the image
+for (nm in ls(pattern = "^df\\.")) {
+  obj <- get(nm)
+  saveRDS(obj,             here("data", "proc", paste0(nm, ".rds")))
+  readr::write_csv(obj,    here("data", "proc", paste0(nm, ".csv")))
+}
+rm(nm, obj)
+
+# write the Markdown codebook for the exported frames (see _codebook.R)
+source(here("code", "_codebook.R"), local = TRUE)
+write_codebook(here("data", "proc"))
+
+```

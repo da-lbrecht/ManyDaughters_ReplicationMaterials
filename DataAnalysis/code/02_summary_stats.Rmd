@@ -1,0 +1,725 @@
+---
+title: "#ManyDaughters: Descriptive Statistics"
+author: "Felix Holzmeister"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    css: '_cstm.css'
+    toc: true
+    toc_depth: 2
+---
+
+
+<!-- ======================================================================= -->
+# Preamble
+<!-- ======================================================================= -->
+
+
+This `.Rmd` file produces descriptive summary statistics for all variables that enter the preregistered analyses, along with several additional variables used to characterize the sample. The sections cover **(i)** individual-level characteristics, **(ii)** team-level characteristics, **(iii)** prior and posterior beliefs about the four hypotheses, **(iv)** peer evaluations of the submitted pre-analysis plans, **(v)** the research teams' empirical results on the four hypotheses, **(vi)** the per-hypothesis and RT-level idiosyncrasy index, and **(vii)** the consistency between the RT-PAPs and the submitted analysis code. All descriptives are based on the research teams that completed the entire project; deviations from this sample are stated where they apply.
+
+
+<!-- setup: packages, knit options, and the environment built by 01_data_processing.Rmd -->
+
+```{r "setup", echo = FALSE, message = FALSE, warning = FALSE}
+
+# clear workspace
+rm(list = ls())
+
+# install (if necessary) and load required packages
+packages <- c(
+  "here", "knitr",
+  "gt",
+  "tidyverse"
+)
+for (pkg in packages) {
+  if (!require(pkg, character.only = TRUE)) {
+    install.packages(pkg, dependencies = TRUE)
+    library(pkg, character.only = TRUE)
+  }
+}
+
+# anchor here() to the project root, so paths resolve regardless of the
+# working directory
+here::i_am("code/02_summary_stats.Rmd")
+
+# load the environment built by 01_data_processing.Rmd (df.* frames)
+load(here("data", "proc", "_env.RData"))
+
+knitr::opts_chunk$set(
+  echo       = FALSE,
+  warning    = FALSE,
+  message    = FALSE,
+  fig.align  = "center",
+  fig.width  = 8,
+  fig.height = 5,
+  out.width  = "100%"
+)
+
+rm(pkg, packages)
+
+```
+
+<!-- shared helpers for this file; each is documented where defined -->
+
+```{r "functions"}
+
+# full-width gt table style
+gt_pct100 <- function(g) {
+  g %>% tab_options(table.width = pct(100), row_group.as_column = FALSE)
+}
+
+# italic math symbol for table headers, with an optional upright suffix
+math <- function(x, suffix = "") {
+  html(paste0("<i>", x, "</i>", if (nzchar(suffix)) paste0(" ", suffix)))
+}
+
+# count + percentage for one categorical variable; returns lvl / cnt / prp (%)
+tally_lvls <- function(data, var) {
+  data %>%
+    count(.data[[var]], name = "cnt") %>%
+    mutate(prp = round(cnt / sum(cnt) * 100, 1),
+           lvl = as.character(.data[[var]])) %>%
+    select(lvl, cnt, prp)
+}
+
+# standard distribution statistics for one (optionally grouped) value column;
+# `count = TRUE` prepends the non-missing count n
+summarise_stats <- function(data, value, count = FALSE) {
+  data %>%
+    summarise(
+      n   = sum(!is.na({{ value }})),
+      m   = mean({{ value }}, na.rm = TRUE),
+      sd  = sd({{ value }}, na.rm = TRUE),
+      min = min({{ value }}, na.rm = TRUE),
+      q25 = quantile({{ value }}, 0.25, na.rm = TRUE),
+      q50 = quantile({{ value }}, 0.50, na.rm = TRUE),
+      q75 = quantile({{ value }}, 0.75, na.rm = TRUE),
+      max = max({{ value }}, na.rm = TRUE),
+      .groups = "drop"
+    ) %>%
+    { if (count) . else select(., -n) }
+}
+
+# shared formatting for a distribution table: italic stat headers, decimals
+# for m/sd vs the min-quartile-max block, and column widths
+stats_gt <- function(g, dec_ms = 2, dec_mm = 2, count = FALSE) {
+  g <- g %>%
+    cols_label(
+      m   = math("m"),   sd  = math("sd"),
+      min = math("min"), max = math("max"),
+      q25 = html("<i>q</i><sub>25</sub>"),
+      q50 = html("<i>q</i><sub>50</sub>"),
+      q75 = html("<i>q</i><sub>75</sub>")
+    ) %>%
+    fmt_number(columns = c(m, sd),                   decimals = dec_ms) %>%
+    fmt_number(columns = c(min, q25, q50, q75, max), decimals = dec_mm) %>%
+    cols_align(align = "left", columns = stub())
+  if (count) {
+    g %>%
+      cols_label(n = math("n")) %>%
+      cols_width(stub() ~ pct(35), n ~ pct(7), c(m, sd) ~ pct(10),
+                 min ~ pct(10), c(q25, q50, q75, max) ~ pct(8)) %>%
+      gt_pct100()
+  } else {
+    g %>%
+      cols_width(stub() ~ pct(35), c(m, sd) ~ pct(10),
+                 min ~ pct(15), c(q25, q50, q75, max) ~ pct(10)) %>%
+      gt_pct100()
+  }
+}
+
+# hypothesis labels shared across the by-hypothesis tables
+hyp.labels <- c("h1" = "Hypothesis 1", "h2" = "Hypothesis 2",
+                "h3" = "Hypothesis 3", "h4" = "Hypothesis 4")
+
+# drop a chunk's scratch objects, keeping the data frames (df.*), every helper
+# function, and the shared label vector
+.keep <- "hyp.labels"
+clean_slate <- function() {
+  env  <- parent.frame()
+  obj  <- ls(env)
+  funs <- obj[vapply(obj, function(o) is.function(get(o, env)), logical(1))]
+  rm(list = setdiff(obj, c(grep("^df\\.", obj, value = TRUE), funs, .keep)),
+     envir = env)
+}
+
+```
+
+
+
+<!-- ======================================================================= -->
+# Individual-level characteristics
+<!-- ======================================================================= -->
+
+This section describes the participating researchers as individuals: team composition, recruitment channel, gender, geographic location, primary research field, academic position, publication record, and self-rated experience. All counts and frequencies refer to individual researchers (rather than research teams).
+
+```{r "individual-level: tallies"}
+
+# overall sample size + one tally frame per categorical variable (each bound
+# to a global named after the variable, for the inline text below)
+cnt_rts <- length(unique(df.srvy$tid))
+cnt_ind <- length(unique(df.srvy$pid))
+
+for (var in c("recruit", "size",
+              "gndr", "lctn", "field", "career",
+              "pub_top", "pub_emp", "pub_rq",
+              "exp_meta", "exp_soep")) {
+  assign(var, tally_lvls(df.srvy, var))
+}
+
+```
+
+<!-- team composition -->
+__<span class="emph">[Team composition]</span>__
+Our sample comprises `r cnt_ind` individual researchers, organized in `r cnt_rts` research teams who completed all project stages: `r size$cnt[size$lvl == "2"] / 2` teams consist of two members, and `r size$cnt[size$lvl == "1"]` teams include only one member.
+
+<!-- recruitment channels -->
+__<span class="emph">[Recruitment channels]</span>__
+Of the researchers involved, `r recruit$cnt[recruit$lvl == "Lab² announcement"]` (`r recruit$prp[recruit$lvl == "Lab² announcement"]`%) learned about the study via _Lab²_ announcements, `r recruit$cnt[recruit$lvl == "SOEP announcement"]` (`r recruit$prp[recruit$lvl == "SOEP announcement"]`%) via _SOEP_ announcements, `r recruit$cnt[recruit$lvl == "Coordinators"]` (`r recruit$prp[recruit$lvl == "Coordinators"]`%) through one of the research coordinators, and `r recruit$cnt[recruit$lvl == "Team member"]` (`r recruit$prp[recruit$lvl == "Team member"]`%) through their research team member. `r recruit$cnt[recruit$lvl == "Other"]` (`r recruit$prp[recruit$lvl == "Other"]`%) researchers reported having learned about the study through other channels.
+
+<!-- gender -->
+__<span class="emph">[Gender]</span>__
+Of the `r cnt_ind` individual researchers involved as research team members, `r gndr$cnt[gndr$lvl == "Female"]` (`r gndr$prp[gndr$lvl == "Female"]`%) identify as female and `r gndr$cnt[gndr$lvl == "Male"]` (`r gndr$prp[gndr$lvl == "Male"]`%) identify as male; `r gndr$cnt[gndr$lvl == "Other"]` (`r gndr$prp[gndr$lvl == "Other"]`%) classify themselves as "other."
+
+<!-- location -->
+__<span class="emph">[Location]</span>__
+The vast majority of participants are from Europe ($n$ = `r lctn$cnt[lctn$lvl == "Europe"]`; `r lctn$prp[lctn$lvl == "Europe"]`%), followed by Northern America ($n$ = `r lctn$cnt[lctn$lvl == "North America"]`; `r lctn$prp[lctn$lvl == "North America"]`%), Asia ($n$ = `r lctn$cnt[lctn$lvl == "Asia"]`; `r lctn$prp[lctn$lvl == "Asia"]`%), Latin America ($n$ = `r lctn$cnt[lctn$lvl == "Latin America"]`; `r lctn$prp[lctn$lvl == "Latin America"]`%), and Oceania ($n$ = `r lctn$cnt[lctn$lvl == "Oceania"]`; `r lctn$prp[lctn$lvl == "Oceania"]`%).
+
+<!-- field of research -->
+__<span class="emph">[Research field]</span>__
+Most participants ($n$ = `r field$cnt[field$lvl == "Economics"]`; `r field$prp[field$lvl == "Economics"]`%) report Economics as their primary field of research, followed by Sociology ($n$ = `r field$cnt[field$lvl == "Sociology"]`; `r field$prp[field$lvl == "Sociology"]`%), Business Administration ($n$ = `r field$cnt[field$lvl == "Business"]`; `r field$prp[field$lvl == "Business"]`%), Finance ($n$ = `r field$cnt[field$lvl == "Finance"]`; `r field$prp[field$lvl == "Finance"]`%), Political Science ($n$ = `r field$cnt[field$lvl == "Political science"]`; `r field$prp[field$lvl == "Political science"]`%), Psychology ($n$ = `r field$cnt[field$lvl == "Psychology"]`; `r field$prp[field$lvl == "Psychology"]`%), and other fields ($n$ = `r field$cnt[field$lvl == "Other"]`; `r field$prp[field$lvl == "Other"]`%).
+
+<!-- career stage -->
+__<span class="emph">[Position]</span>__
+Among the `r cnt_ind` researchers involved, `r career$cnt[career$lvl == "Full professor"]` (`r career$prp[career$lvl == "Full professor"]`%) are full professors, `r career$cnt[career$lvl == "Associate professor"]` (`r career$prp[career$lvl == "Associate professor"]`%) are associate professors, `r career$cnt[career$lvl == "Assistant professor"]` (`r career$prp[career$lvl == "Assistant professor"]`%) are assistant professors, `r career$cnt[career$lvl == "Post-doctoral researcher"]` (`r career$prp[career$lvl == "Post-doctoral researcher"]`%) are post-doctoral researchers, and `r career$cnt[career$lvl == "PhD candidate"]` (`r career$prp[career$lvl == "PhD candidate"]`%) are PhD candidates. The remaining participants hold other positions within or beyond academia.
+
+<!-- publications -->
+__<span class="emph">[Publications]</span>__
+Of the `r cnt_ind` individual researchers, `r pub_top$cnt[pub_top$lvl == "yes"]` (`r pub_top$prp[pub_top$lvl == "yes"]`%) have published at least one article in a top-tier journal (_AJG 4*_ according to the _ABS_ rating, or included in the _FT50_ journal list). While `r pub_emp$cnt[pub_emp$lvl == "yes"]` (`r pub_emp$prp[pub_emp$lvl == "yes"]`%) researchers have at least one publication employing empirical methods, only `r pub_rq$cnt[pub_rq$lvl == "yes"]` (`r pub_rq$prp[pub_rq$lvl == "yes"]`%) have published work related to a study on the "daughters" hypothesis.
+
+<!-- experience -->
+__<span class="emph">[Experience]</span>__
+The table below summarizes participants' self-rated experience (rated on scales from 0 ["no experience"] to 10 ["extensive experience"]) in regression analysis, _Stata_, large datasets, and pre-analysis plans. Among the `r cnt_ind` researchers involved, `r exp_meta$cnt[exp_meta$lvl == "yes"]` (`r exp_meta$prp[exp_meta$lvl == "yes"]`%) had previously participated in a meta-scientific crowd-science project, and `r exp_soep$cnt[exp_soep$lvl == "yes"]` (`r exp_soep$prp[exp_soep$lvl == "yes"]`%) had used _SOEP_ data before.
+
+```{r "individual-level: experience"}
+
+# self-rated experience: distribution per dimension
+var.labels <- c(
+  "exp_reg"   = "Experience: Regression analysis",
+  "exp_stata" = "Experience: Analysis using Stata",
+  "exp_data"  = "Experience: Large datasets",
+  "exp_pap"   = "Experience: Pre-analysis plans"
+)
+
+df.srvy %>%
+  select(exp_reg, exp_stata, exp_data, exp_pap) %>%
+  pivot_longer(everything(), names_to = "var", values_to = "val") %>%
+  mutate(var = factor(var, levels = names(var.labels))) %>%
+  group_by(var) %>%
+  summarise_stats(val) %>%
+  mutate(var = recode(var, !!!var.labels)) %>%
+  gt(rowname_col = "var") %>%
+  stats_gt(dec_ms = 2, dec_mm = 0)
+
+clean_slate()
+
+```
+
+
+
+<!-- ======================================================================= -->
+# Team-level characteristics
+<!-- ======================================================================= -->
+
+This section describes the research teams. The first paragraph summarizes team composition (size, seniority, field affiliation, top-tier publication record, and prior _SOEP_ experience), using the team-level aggregations defined in PAP §2.2. The table that follows reports the teams' self-reported effort (__+__), modeling approach (__§__), and aggregated experience (__#__).
+
+```{r "team-level: tallies"}
+
+# tally frames for the inline-text statistics below
+cnt_rts <- length(unique(df.proc$tid))
+
+for (var in c("team_of_two", "seniority",
+              "economics", "top_pub",
+              "exp_soep")) {
+  assign(var, tally_lvls(df.proc, var))
+}
+
+```
+
+<!-- team composition -->
+__<span class="emph">[Team composition]</span>__
+Of the `r df.flow$recruited` research teams recruited into the project, `r df.flow$dropout` dropped out before completion (PAP §3), leaving `r cnt_rts` teams that completed all project stages and constitute our sample. `r team_of_two$cnt[team_of_two$lvl == "yes"]` (`r team_of_two$prp[team_of_two$lvl == "yes"]`%) teams consist of two members; `r team_of_two$cnt[team_of_two$lvl == "no"]` (`r team_of_two$prp[team_of_two$lvl == "no"]`%) teams include only one member. Of the participating teams, `r seniority$cnt[seniority$lvl == "senior"]` (`r seniority$prp[seniority$lvl == "senior"]`%) included at least one senior researcher (full or associate professor), `r economics$cnt[economics$lvl == "yes"]` (`r economics$prp[economics$lvl == "yes"]`%) had at least one member affiliated with economics or finance, `r top_pub$cnt[top_pub$lvl == "yes"]` (`r top_pub$prp[top_pub$lvl == "yes"]`%) included a member with a top-tier publication, and `r exp_soep$cnt[exp_soep$lvl == "yes"]` (`r exp_soep$prp[exp_soep$lvl == "yes"]`%) included a member experienced in using _SOEP_ data.
+
+<!-- effort, approach, experience -->
+__<span class="emph">[Effort, approach, experience]</span>__
+The table below presents team-level measures of research teams' self-reported effort (__+__), their approach to developing the analytical model (__§__), and their self-rated experience (__#__). The number of iterations to computational reproducibility was tracked by the project coordinators; effort, hours spent, and the modeling-approach items were reported jointly by each team in the post-Stage 2 survey. Experience-related variables are derived from individual-level survey responses and aggregated to the team level using the maximum across team members; _"Experience: Analysis"_ is the average of researchers' reported experience with _(i)_ regression analysis, _(ii)_ _Stata_, and _(iii)_ large datasets. Two teams (one per condition) reported more than 600 hours — far above the rest of the distribution — so the table additionally reports hours worked after excluding these two outliers.
+
+```{r "team-level: effort"}
+
+var.labels <- c(
+  # (+) effort indicators
+  "hours_spent"   = "(+) Hours worked in stages 1 and 2",
+  "hours_spent_x" = "(+) Hours worked, stages 1 and 2 (excl. 2 outliers)",
+  "effort"        = "(+) Effort in stages 1 and 2 (0-10)",
+  "rprd_itrt"     = "(+) Reproducibility: No. iterations",
+
+  # (§) modeling-approach indicators
+  "lit_search"  = "(§) Literature search for theory (0-10)",
+  "smpl_anal"   = "(§) Simplest analyses possible (0-10)",
+  "mltp_reg"    = "(§) Multiple analyses considered (0-10)",
+
+  # (#) experience indicators
+  "exp_anal"    = "(#) Experience: Analysis (0-10)",
+  "exp_pap"     = "(#) Experience: Pre-analysis plans (0-10)"
+)
+
+bind_rows(
+  df.proc %>%
+    select(rprd_itrt, hours_spent, effort, lit_search,
+           smpl_anal, mltp_reg, exp_anal, exp_pap) %>%
+    pivot_longer(everything(), names_to = "var", values_to = "val"),
+  # hours worked excluding the two >600h outliers (one per condition);
+  # not preregistered, reported for robustness
+  df.proc %>%
+    filter(hours_spent <= 600) %>%
+    transmute(var = "hours_spent_x", val = hours_spent)
+) %>%
+  mutate(var = factor(var, levels = names(var.labels))) %>%
+  group_by(var) %>%
+  summarise_stats(val) %>%
+  mutate(var = recode(var, !!!var.labels)) %>%
+  gt(rowname_col = "var") %>%
+  stats_gt(dec_ms = 2, dec_mm = 1) %>%
+
+  # visual separators between the three indicator groups
+  tab_style(
+    style     = cell_borders(sides = "bottom", color = "#d3d3d3",
+                             weight = gt::px(2)),
+    locations = cells_body(rows = c(4, 7))
+  ) %>%
+  tab_source_note(html(
+    "<b>Note:</b> The <i>excl. 2 outliers</i> row omits the two research teams that reported more than 600 hours (one per condition; 765 and 975 hours), which lie far above the rest of the distribution; all other rows use the full sample."
+  ))
+
+clean_slate()
+
+```
+
+
+
+<!-- ======================================================================= -->
+# Prior and posterior beliefs
+<!-- ======================================================================= -->
+
+This section summarizes research teams' beliefs about the likelihood (expressed as a 0-1 fraction) that Hypotheses 1 through 4 would be supported at the 5% significance level. Priors were elicited before Stage 1 (Survey #1) and posteriors after Stage 2 (Survey #2). The table reports descriptive statistics for the priors, the posteriors, and the within-team belief change (posterior minus prior), separately for each hypothesis.
+
+```{r "beliefs"}
+
+# priors, posteriors, and within-team change, by hypothesis
+var.labels <- c(
+  "blf.s1" = "Stage 1 Belief",
+  "blf.s2" = "Stage 2 Belief",
+  "chng"   = "Change (S2 - S1)"
+)
+
+df.blfs %>%
+
+  # one row per (RT × hypothesis), columns blf.s1 / blf.s2, then within-team change
+  pivot_wider(
+    id_cols      = c(tid, hyp),
+    names_from   = stage,
+    values_from  = belief,
+    names_prefix = "blf."
+  ) %>%
+  mutate(chng = blf.s2 - blf.s1) %>%
+  pivot_longer(c(blf.s1, blf.s2, chng), names_to = "var", values_to = "val") %>%
+
+  group_by(hyp, var) %>%
+  summarise_stats(val) %>%
+
+  mutate(
+    hyp = recode(factor(hyp, levels = names(hyp.labels)), !!!hyp.labels),
+    var = recode(factor(var, levels = names(var.labels)), !!!var.labels)
+  ) %>%
+  arrange(hyp, var) %>%
+
+  group_by(hyp) %>%
+  gt(rowname_col = "var") %>%
+  stats_gt(dec_ms = 2, dec_mm = 2)
+
+clean_slate()
+
+```
+
+
+
+<!-- ======================================================================= -->
+# Peer evaluations
+<!-- ======================================================================= -->
+
+This section summarizes the peer evaluations of the submitted RT-PAPs. Each completing RT rated ten anonymized RT-PAPs (five per group, excluding its own) on **(i)** the reasonableness of the proposed analysis and **(ii)** the informativeness of the pre-analysis plan, both on a 0-10 scale, separately for each of the four hypotheses; the per-rating PAP quality is the mean of the two scores (PAP §2.1).
+
+The table reports descriptive statistics for the raw scores and for the corresponding rater-demeaned scores (each rating minus the rater's mean rating for that hypothesis), the latter implicitly netting out rater fixed effects. Each statistic is computed across the per-(rated team $\times$ hypothesis) *mean* ratings — the individual ratings are first averaged over the (approximately ten) raters of each PAP — so the reported standard deviations are *between-PAP* standard deviations of the mean rating, smaller than the standard deviations of the individual ratings by roughly $\sqrt{10}$ (the individual-rating SDs are reported in the table note below). Demeaning here is for descriptive comparability only; the preregistered tests in PAP §3.2.2 use the individual ratings together with rater fixed effects.
+
+```{r "peer evaluations"}
+
+# raw and rater-demeaned ratings, by hypothesis
+var.labels <- c(
+  "rsnbl"    = "Reasonableness",
+  "infrm"    = "Informativeness",
+  "qulty"    = "Quality",
+  "rsnbl_dm" = "Reasonableness (demeaned)",
+  "infrm_dm" = "Informativeness (demeaned)",
+  "qulty_dm" = "Quality (demeaned)"
+)
+
+# SD of the individual ratings (pooled over hypotheses) -- the §3.2.2
+# regression scale; shown in the table note since the tabulated SDs are
+# between-PAP SDs of mean ratings
+ind.sd <- df.evls %>%
+  summarise(across(c(rsnbl, infrm, qulty), ~ sd(.x, na.rm = TRUE)))
+
+df.evls %>%
+
+  # demean each rating within rater × hypothesis
+  group_by(rid, hyp) %>%
+  mutate(
+    rsnbl_dm = rsnbl - mean(rsnbl, na.rm = TRUE),
+    infrm_dm = infrm - mean(infrm, na.rm = TRUE),
+    qulty_dm = qulty - mean(qulty, na.rm = TRUE)
+  ) %>%
+  ungroup() %>%
+
+  # aggregate ratings to the (rated team × hypothesis) level
+  group_by(tid, hyp) %>%
+  summarise(across(c(rsnbl, infrm, qulty,
+                     rsnbl_dm, infrm_dm, qulty_dm),
+                   ~ mean(.x, na.rm = TRUE)),
+            .groups = "drop") %>%
+
+  pivot_longer(-c(tid, hyp), names_to = "var", values_to = "val") %>%
+
+  group_by(hyp, var) %>%
+  summarise_stats(val) %>%
+
+  mutate(
+    hyp = recode(factor(hyp, levels = names(hyp.labels)), !!!hyp.labels),
+    var = recode(factor(var, levels = names(var.labels)), !!!var.labels)
+  ) %>%
+  arrange(hyp, var) %>%
+
+  group_by(hyp) %>%
+  gt(rowname_col = "var") %>%
+  stats_gt(dec_ms = 2, dec_mm = 2) %>%
+  tab_source_note(html(sprintf(
+    "<b>Note:</b> Statistics are computed across the per-(rated team × hypothesis) mean ratings. For reference, the standard deviation of the <i>individual</i> ratings (the unit of the §3.2.2 regressions, pooled over hypotheses) is %.2f (reasonableness), %.2f (informativeness), and %.2f (quality) — larger than the between-PAP SDs of mean ratings above by ≈√10, reflecting the ≈10 raters per PAP.",
+    ind.sd$rsnbl, ind.sd$infrm, ind.sd$qulty
+  )))
+
+clean_slate()
+
+```
+
+
+
+<!-- ======================================================================= -->
+# Research teams' results
+<!-- ======================================================================= -->
+
+This section summarizes the research teams' empirical estimates for the four hypotheses, restricted to teams that submitted valid estimates for all four. `r length(unique(df.proc$tid)) - length(unique(df.rslts$tid))` teams produced analyses that yielded improper statistical estimates (e.g., standard errors equal to zero) for at least one of the four hypotheses; these teams are excluded here, as in all results-based analyses (an exclusion that is **not preregistered**). Consequently, the descriptive statistics below are based on a sample of $n$ = `r length(unique(df.rslts$tid))` teams.
+
+The first table summarizes the standardized $z$-values and absolute deviations by hypothesis. Positive $z$-values indicate estimates consistent with the hypothesized effects, whereas negative $z$-values correspond to estimates in the opposite direction. Absolute deviations are computed relative to the group-specific mean of $z$; the table pools observations across groups.
+
+```{r "results: z and abs_dev"}
+
+# z-values and absolute deviations, by hypothesis
+var.labels <- c(
+  "z"       = "\U{1D467}-value",   # italic z
+  "abs_dev" = "Absolute deviation"
+)
+
+df.rslts %>%
+  pivot_longer(c(z, abs_dev), names_to = "var", values_to = "val") %>%
+
+  group_by(hyp, var) %>%
+  summarise_stats(val) %>%
+
+  mutate(
+    hyp = recode(factor(hyp, levels = names(hyp.labels)), !!!hyp.labels),
+    var = recode(factor(var, levels = names(var.labels)), !!!var.labels)
+  ) %>%
+  arrange(hyp, var) %>%
+
+  group_by(hyp) %>%
+  gt(rowname_col = "var") %>%
+  stats_gt(dec_ms = 3, dec_mm = 3)
+
+clean_slate()
+
+```
+
+The second table reports absolute and relative frequencies of five binary indicators by hypothesis: **(i)** the directionality of the estimate (positive = supports the hypothesis), **(ii)** statistical significance at the 5% level, **(iii)** the joint "$p$ < 0.05 in the hypothesized direction" criterion (PAP §2.1), and **(iv-v)** the two preregistered outlier flags used in the robustness analyses (low average reasonableness rating; Tukey's fences on $z$).
+
+```{r "results: frequencies"}
+
+# absolute and relative frequencies of the five binary indicators
+var.labels <- c(
+  "dir"         = "Directionality (support)",
+  "sig"         = "Statistically significant (\U{1D45D} < 0.05)",   # italic p
+  "ssc"         = "\U{1D45D} < 0.05 in hypothesized direction",      # italic p
+  "outl_rsnbl"  = "Outlier: Reasonableness",
+  "outl_fences" = "Outlier: Tukey's Fences"
+)
+
+df.rslts %>%
+  pivot_longer(c(dir, sig, ssc, outl_rsnbl, outl_fences),
+               names_to = "var", values_to = "val") %>%
+
+  # recode each factor to a 0/1 dummy, keeping NA so missing values
+  # are not silently counted as zeros
+  mutate(val = case_when(
+    is.na(val)                               ~ NA_real_,
+    var == "dir"         & val == "positive" ~ 1,
+    var == "sig"         & val == "p < 0.05" ~ 1,
+    var == "ssc"         & val == "yes"      ~ 1,
+    var == "outl_rsnbl"  & val == "yes"      ~ 1,
+    var == "outl_fences" & val == "yes"      ~ 1,
+    TRUE                                     ~ 0
+  )) %>%
+
+  group_by(hyp, var) %>%
+  summarise(abs_freq = sum(val,  na.rm = TRUE),
+            rel_freq = mean(val, na.rm = TRUE),
+            .groups = "drop") %>%
+
+  # one column per hypothesis × {abs_freq, rel_freq}
+  pivot_wider(names_from  = hyp,
+              values_from = c(abs_freq, rel_freq),
+              names_glue  = "{hyp}_{.value}") %>%
+
+  mutate(var = recode(factor(var, levels = names(var.labels)), !!!var.labels)) %>%
+  arrange(var) %>%
+
+  gt(rowname_col = "var") %>%
+
+  # spanners group {abs_freq, rel_freq} pairs by hypothesis
+  tab_spanner("Hypothesis 1", c(h1_abs_freq, h1_rel_freq)) %>%
+  tab_spanner("Hypothesis 2", c(h2_abs_freq, h2_rel_freq)) %>%
+  tab_spanner("Hypothesis 3", c(h3_abs_freq, h3_rel_freq)) %>%
+  tab_spanner("Hypothesis 4", c(h4_abs_freq, h4_rel_freq)) %>%
+
+  cols_label(
+    h1_abs_freq = "Abs.", h1_rel_freq = "Rel. %",
+    h2_abs_freq = "Abs.", h2_rel_freq = "Rel. %",
+    h3_abs_freq = "Abs.", h3_rel_freq = "Rel. %",
+    h4_abs_freq = "Abs.", h4_rel_freq = "Rel. %"
+  ) %>%
+  fmt_percent(columns = ends_with("rel_freq"), decimals = 1) %>%
+  fmt_number( columns = ends_with("abs_freq"), decimals = 0) %>%
+
+  cols_align(align = "center", columns = everything()) %>%
+  cols_align(align = "left",   columns = stub()) %>%
+  cols_width(stub() ~ pct(35),
+             ends_with("abs_freq") ~ pct(8),
+             ends_with("rel_freq") ~ pct(8)) %>%
+  gt_pct100()
+
+clean_slate()
+
+```
+
+
+
+<!-- ======================================================================= -->
+# Idiosyncrasy index
+<!-- ======================================================================= -->
+
+Following the pre-analysis plan (§2.1), the *idiosyncrasy index* for research team $i$ and Hypothesis $h$ is defined as $I_{i,h} = 1 - F_{i,h}(D_5)$, where $F_{i,h}$ denotes the empirical cumulative distribution of $p$-values obtained by applying RT $i$'s analysis code to placebo 5%-subsamples of the SOEP data and $D_5$ denotes the original 5%-sample. Higher values indicate that the team's $p$-value on the original 5%-sample is unusually small relative to the placebo distribution, suggestive of an idiosyncratic ("lucky") result on the original 5%-sample. The *RT idiosyncrasy index* aggregates the per-hypothesis indices to the team level as $I_i = \frac{1}{4} \sum_{h=1}^{4} I_{i,h}$.
+
+```{r "idiosyncrasy: placebo draws"}
+
+# realized number of placebo draws per (RT × hypothesis) cell, for the prose
+# below; the PAP target is 1,000 and not every cell attains it
+plac <- df.rslts %>% filter(!is.na(indx)) %>% pull(n_plac)
+
+```
+
+The pre-analysis plan specifies 1,000 placebo subsamples per (RT $\times$ hypothesis) cell. That target is met for `r sum(plac == 1000)` of the `r length(plac)` cells with a non-missing index; the remaining `r sum(plac < 1000)` cells rest on fewer draws (median `r median(plac[plac < 1000])`, minimum `r min(plac)`), because some teams' analysis code did not execute on every subsample. Cells resting on fewer draws estimate $F_{i,h}$ more coarsely, which makes the index granular rather than biased.
+
+The table below summarizes both indices, separately for the data and no-data groups and pooled across both groups. As in the previous section, the statistics are based on the $n$ = `r length(unique(df.rslts$tid))` teams with valid results. The $n$ column reports the number of (RT × hypothesis) cells with a non-missing index value (rows for h1-h4) and the number of RTs with a non-missing aggregated index (row "RT idiosyncrasy index").
+
+```{r "idiosyncrasy"}
+
+# per-(RT × hypothesis) index (df.rslts) and RT-level index (df.proc),
+# stacked into one long frame
+hyp.labels.rt <- c(hyp.labels, "rt" = "RT idiosyncrasy index")
+grp.labels    <- c("overall" = "Overall", "no data" = "No data", "data" = "Data")
+
+df_long <- bind_rows(
+  df.rslts %>%
+    transmute(tid, hyp = as.character(hyp), group, val = indx),
+  df.proc %>%
+    transmute(tid, hyp = "rt", group, val = indx_rt)
+) %>%
+  filter(!is.na(val)) %>%
+  mutate(group = as.character(group))
+
+# duplicate every observation under group = "overall" for a pooled summary
+bind_rows(df_long, df_long %>% mutate(group = "overall")) %>%
+
+  group_by(hyp, group) %>%
+  summarise_stats(val, count = TRUE) %>%
+
+  mutate(
+    hyp   = recode(factor(hyp,   levels = names(hyp.labels.rt)), !!!hyp.labels.rt),
+    group = recode(factor(group, levels = names(grp.labels)),    !!!grp.labels)
+  ) %>%
+  arrange(hyp, group) %>%
+
+  group_by(hyp) %>%
+  gt(rowname_col = "group") %>%
+  stats_gt(dec_ms = 3, dec_mm = 3, count = TRUE)
+
+clean_slate()
+
+```
+
+
+
+<!-- ======================================================================= -->
+# RT-PAP / code consistency
+<!-- ======================================================================= -->
+
+Following PAP §1.5, the project coordinators audited the consistency between each RT's pre-analysis plan and its submitted Stata code. A random 10% of RT-PAPs was checked first; because the inconsistency rate in that random sample exceeded the 20% escalation threshold, all RT-PAP/code pairs were subsequently reviewed. Deviating from the per-hypothesis indicator described in PAP §2.1, consistency was recorded as a single overall verdict per RT, together with the number and type of deviations of the code from the PAP. All statistics below are based on the `r length(unique(df.cons$tid))` research teams that completed the project.
+
+<!-- audit and escalation -->
+__<span class="emph">[Audit and escalation]</span>__
+The random 10% audit covered `r sum(df.cons$audit10 == "yes")` RT-PAP/code pairs, of which `r sum(df.cons$audit10 == "yes" & df.cons$consistent == "inconsistent")` (`r round(100 * mean(df.cons$consistent[df.cons$audit10 == "yes"] == "inconsistent"))`%) were judged inconsistent. As this exceeds the 20% escalation threshold (PAP §1.5), all `r nrow(df.cons)` completed RT-PAP/code pairs were reviewed; `r sum(df.cons$consistent == "inconsistent")` (`r round(100 * mean(df.cons$consistent == "inconsistent"))`%) were found inconsistent overall.
+
+Across the `r sum(df.cons$consistent == "inconsistent")` inconsistent pairs, the auditors recorded `r sum(df.cons$n_incons[df.cons$consistent == "inconsistent"])` individual deviations of the code from the PAP — a mean of `r round(mean(df.cons$n_incons[df.cons$consistent == "inconsistent"]), 1)` per inconsistent pair (median `r median(df.cons$n_incons[df.cons$consistent == "inconsistent"])`, maximum `r max(df.cons$n_incons[df.cons$consistent == "inconsistent"])`). A further `r sum(df.cons$consistent == "consistent" & df.cons$n_incons > 0)` pairs contained isolated deviations the auditors judged immaterial and classified as consistent; these are excluded from the category and severity counts below.
+
+The tables below report, in turn: **(i)** the number and share of inconsistent pairs, pooled and by treatment condition; **(ii)** the breakdown of the recorded deviations by category, among the inconsistent pairs (the number of pairs affected, their share of all inconsistent pairs, and the total number of occurrences); and **(iii)** the number of deviations per inconsistent pair, by treatment condition. Where the code's sample filters or control sets departed from the PAP, the deviations more often involved stricter filters and fewer controls than specified, rather than the reverse.
+
+```{r "consistency: by group"}
+
+# consistency verdicts, pooled and by treatment condition
+bind_rows(
+  df.cons %>% mutate(grp = "Overall"),
+  df.cons %>% mutate(grp = as.character(group))
+) %>%
+  mutate(grp = factor(grp,
+                      levels = c("Overall", "no data", "data"),
+                      labels = c("Overall", "No data", "Data"))) %>%
+
+  group_by(grp) %>%
+  summarise(
+    n                = n(),
+    n_consistent     = sum(consistent == "consistent"),
+    n_inconsistent   = sum(consistent == "inconsistent"),
+    pct_inconsistent = mean(consistent == "inconsistent"),
+    .groups = "drop"
+  ) %>%
+
+  gt(rowname_col = "grp") %>%
+  cols_label(
+    n                = math("n"),
+    n_consistent     = "Consistent",
+    n_inconsistent   = "Inconsistent",
+    pct_inconsistent = "% Inconsistent"
+  ) %>%
+  fmt_number(columns = c(n, n_consistent, n_inconsistent), decimals = 0) %>%
+  fmt_percent(columns = pct_inconsistent, decimals = 1) %>%
+  cols_width(stub() ~ pct(28), n ~ pct(12),
+             n_consistent ~ pct(20), n_inconsistent ~ pct(20),
+             pct_inconsistent ~ pct(20)) %>%
+  cols_align(align = "left", columns = stub()) %>%
+  gt_pct100()
+
+clean_slate()
+
+```
+
+```{r "consistency: inconsistency types"}
+
+# deviations by category among the inconsistent pairs (pairs affected,
+# share of inconsistent pairs, and total occurrences)
+inc.labels <- c(
+  "inc_filter_less" = "Less strict filter in code",
+  "inc_filter_more" = "More strict filter in code",
+  "inc_dv"          = "Different dependent variable",
+  "inc_iv"          = "Different independent variable",
+  "inc_ctrl_less"   = "Fewer controls in code",
+  "inc_ctrl_more"   = "More controls in code",
+  "inc_test"        = "Different test",
+  "inc_spec"        = "Different specification"
+)
+
+n_inc <- sum(df.cons$consistent == "inconsistent")
+
+df.cons %>%
+  filter(consistent == "inconsistent") %>%
+  select(starts_with("inc_")) %>%
+  pivot_longer(everything(), names_to = "type", values_to = "cnt") %>%
+
+  group_by(type) %>%
+  summarise(rts = sum(cnt > 0, na.rm = TRUE),
+            occ = sum(cnt,     na.rm = TRUE),
+            .groups = "drop") %>%
+
+  mutate(share = rts / n_inc,
+         type  = factor(type, levels = names(inc.labels), labels = inc.labels)) %>%
+  arrange(desc(occ)) %>%
+  select(type, rts, share, occ) %>%
+
+  gt(rowname_col = "type") %>%
+  cols_label(rts   = "Pairs affected",
+             share = "% of inconsistent",
+             occ   = "Total occurrences") %>%
+  fmt_number(columns = c(rts, occ), decimals = 0) %>%
+  fmt_percent(columns = share, decimals = 1) %>%
+  cols_width(stub() ~ pct(46), rts ~ pct(18),
+             share ~ pct(18), occ ~ pct(18)) %>%
+  cols_align(align = "left", columns = stub()) %>%
+  gt_pct100()
+
+clean_slate()
+
+```
+
+```{r "consistency: severity by group"}
+
+# number of deviations per inconsistent pair, by treatment condition
+bind_rows(
+  df.cons %>% filter(consistent == "inconsistent") %>% mutate(grp = "Overall"),
+  df.cons %>% filter(consistent == "inconsistent") %>% mutate(grp = as.character(group))
+) %>%
+  mutate(grp = factor(grp,
+                      levels = c("Overall", "no data", "data"),
+                      labels = c("Overall", "No data", "Data"))) %>%
+
+  group_by(grp) %>%
+  summarise(
+    rts    = n(),
+    total  = sum(n_incons),
+    mean   = mean(n_incons),
+    median = median(n_incons),
+    max    = max(n_incons),
+    .groups = "drop"
+  ) %>%
+
+  gt(rowname_col = "grp") %>%
+  cols_label(rts    = "Inconsistent pairs",
+             total  = "Total deviations",
+             mean   = "Mean",
+             median = "Median",
+             max    = "Max") %>%
+  fmt_number(columns = c(rts, total, median, max), decimals = 0) %>%
+  fmt_number(columns = mean, decimals = 2) %>%
+  cols_width(stub() ~ pct(24), rts ~ pct(18), total ~ pct(18),
+             mean ~ pct(13), median ~ pct(13), max ~ pct(14)) %>%
+  cols_align(align = "left", columns = stub()) %>%
+  gt_pct100()
+
+clean_slate()
+
+```

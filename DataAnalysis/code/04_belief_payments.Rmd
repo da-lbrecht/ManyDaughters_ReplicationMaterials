@@ -23,18 +23,20 @@ This `.Rmd` file resolves the incentivized belief elicitations and determines th
 # clear workspace
 rm(list = ls())
 
-# install (if necessary) and load required packages
+# load the required packages, pinned to the CRAN snapshot of `groundhog.day`
+# so that every run uses the same package versions (requires R >= 4.6);
+# knitr and rmarkdown come with the rendering front-end and stay unpinned
+if (!require("groundhog", quietly = TRUE)) {
+  install.packages("groundhog", repos = "https://cloud.r-project.org")
+  library(groundhog)
+}
+groundhog.day <- "2026-09-01"
 packages <- c(
-  "here", "knitr",
+  "here",
   "gt",
   "tidyverse"
 )
-for (pkg in packages) {
-  if (!require(pkg, character.only = TRUE)) {
-    install.packages(pkg, dependencies = TRUE)
-    library(pkg, character.only = TRUE)
-  }
-}
+groundhog.library(packages, groundhog.day)
 
 # anchor here() to the project root, so paths resolve regardless of the
 # working directory
@@ -57,7 +59,7 @@ knitr::opts_chunk$set(
   out.width  = "100%"
 )
 
-rm(pkg, packages)
+rm(groundhog.day, packages)
 
 ```
 
@@ -81,15 +83,17 @@ math <- function(x, suffix = "") {
 n.winners <- 10
 prize     <- 100
 
-# survey and hypothesis labels shared across the tables below
+# arm, survey and hypothesis labels shared across the tables below
+arm.labels   <- c("control" = "Control group", "data" = "Data group")
 stage.labels <- c("s1" = "Survey #1 (priors)", "s2" = "Survey #2 (posteriors)")
-hyp.labels   <- c("h1" = "Hypothesis 1", "h2" = "Hypothesis 2",
-                  "h3" = "Hypothesis 3", "h4" = "Hypothesis 4")
+hyp.labels   <- c("h1" = "RT Hypothesis 1", "h2" = "RT Hypothesis 2",
+                  "h3" = "RT Hypothesis 3", "h4" = "RT Hypothesis 4")
 hyp.all      <- names(hyp.labels)
 
 # drop a chunk's scratch objects, keeping the data frames (df.*), every helper
 # function, and the shared parameters and label vectors
-.keep <- c("n.winners", "prize", "stage.labels", "hyp.labels", "hyp.all")
+.keep <- c("n.winners", "prize", "arm.labels", "stage.labels", "hyp.labels",
+           "hyp.all")
 clean_slate <- function() {
   env  <- parent.frame()
   obj  <- ls(env)
@@ -173,8 +177,8 @@ df.pool %>%
 
   mutate(
     stage = recode(factor(stage, levels = names(stage.labels)), !!!stage.labels),
-    group = factor(group, levels = c("no data", "data", "overall"),
-                   labels = c("No data", "Data", "Overall"))
+    group = factor(group, levels = c("control", "data", "overall"),
+                   labels = c(unname(arm.labels), "Overall"))
   ) %>%
   arrange(stage, group) %>%
 
@@ -319,8 +323,8 @@ df.draw %>%
   mutate(
     stage    = recode(factor(stage, levels = names(stage.labels)), !!!stage.labels),
     hyp      = recode(factor(hyp,   levels = names(hyp.labels)),   !!!hyp.labels),
-    group    = factor(group, levels = c("no data", "data"),
-                      labels = c("No data", "Data")),
+    group    = factor(group, levels = names(arm.labels),
+                      labels = unname(arm.labels)),
     resolved = case_when(
       option == "A" & ssc == "yes" ~ "Result supports H",
       option == "A" & ssc == "no"  ~ "Result does not support H",
@@ -422,8 +426,8 @@ df.draw %>%
 
   mutate(
     stage = recode(factor(stage, levels = names(stage.labels)), !!!stage.labels),
-    group = factor(group, levels = c("no data", "data", "overall"),
-                   labels = c("No data", "Data", "Overall"))
+    group = factor(group, levels = c("control", "data", "overall"),
+                   labels = c(unname(arm.labels), "Overall"))
   ) %>%
   arrange(stage, group) %>%
 

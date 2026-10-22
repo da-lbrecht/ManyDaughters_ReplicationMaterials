@@ -9,7 +9,7 @@ This codebook documents the processed data frames exported to `data/proc/` — e
 - [`df.evls`](#dfevls) — 5080 rows × 7 variables
 - [`df.flow`](#dfflow) — 1 row × 4 variables
 - [`df.proc`](#dfproc) — 127 rows × 16 variables
-- [`df.rslts`](#dfrslts) — 480 rows × 22 variables
+- [`df.rslts`](#dfrslts) — 480 rows × 23 variables
 - [`df.srvy`](#dfsrvy) — 230 rows × 19 variables
 
 ## `df.blfs`
@@ -21,7 +21,7 @@ Belief elicitations — long format, one row per (team × hypothesis × stage): 
 | Variable | Label | Type | Values / range | Missing |
 |---|---|---|---|---|
 | `tid` | Research Team ID | character | 127 unique values | 0 |
-| `hyp` | Hypothesis ID | factor | h1; h2; h3; h4 | 0 |
+| `hyp` | RT Hypothesis ID | factor | h1; h2; h3; h4 | 0 |
 | `stage` | Project Stage | factor | s1; s2 | 0 |
 | `belief` | Belief: Support (0-1) | numeric | 0.00–1.00 | 4 |
 
@@ -34,7 +34,7 @@ RT-PAP / code consistency audit (PAP §1.5 / §2.1) — one row per research tea
 | Variable | Label | Type | Values / range | Missing |
 |---|---|---|---|---|
 | `tid` | Research Team ID | character | 127 unique values | 0 |
-| `group` | Treatment Condition | factor | no data; data | 0 |
+| `group` | Treatment Condition | factor | control; data | 0 |
 | `audit10` | In Random 10% Audit | factor | no; yes | 0 |
 | `consistent` | PAP-to-Code Consistency | factor | inconsistent; consistent | 0 |
 | `n_incons` | No. Inconsistencies | numeric | 0–15 | 0 |
@@ -56,9 +56,9 @@ Peer evaluations — long format, one row per (rated team × hypothesis × rater
 | Variable | Label | Type | Values / range | Missing |
 |---|---|---|---|---|
 | `tid` | Research Team ID | character | 127 unique values | 0 |
-| `hyp` | Hypothesis ID | factor | h1; h2; h3; h4 | 0 |
+| `hyp` | RT Hypothesis ID | factor | h1; h2; h3; h4 | 0 |
 | `rid` | ID of Rating Team | character | 127 unique values | 0 |
-| `group` | Treatment Condition | factor | no data; data | 0 |
+| `group` | Treatment Condition | factor | control; data | 0 |
 | `rsnbl` | Rating: Reasonableness (0-10) | numeric | 0–10 | 0 |
 | `infrm` | Rating: Informativeness (0-10) | numeric | 0–10 | 0 |
 | `qulty` | Rating: PAP Quality (0-10) | numeric | 0.00–10.00 | 0 |
@@ -85,7 +85,7 @@ Team-level analysis variables — one row per research team: process indicators,
 | Variable | Label | Type | Values / range | Missing |
 |---|---|---|---|---|
 | `tid` | Research Team ID | character | 127 unique values | 0 |
-| `group` | Treatment Condition | factor | no data; data | 0 |
+| `group` | Treatment Condition | factor | control; data | 0 |
 | `rprd_itrt` | Reprod.: No. Iterations | numeric | 1–7 | 0 |
 | `effort` | Effort in Stages 1+2 (0-10) | numeric | 3–10 | 0 |
 | `hours_spent` | Hours Spent in Stages 1+2 | numeric | 7–975 | 1 |
@@ -105,13 +105,13 @@ Team-level analysis variables — one row per research team: process indicators,
 
 Research-team results — one row per (team × hypothesis): z-values, directionality, significance, the idiosyncrasy index, and outlier flags.
 
-*480 rows × 22 variables*
+*480 rows × 23 variables*
 
 | Variable | Label | Type | Values / range | Missing |
 |---|---|---|---|---|
 | `tid` | Research Team ID | character | 120 unique values | 0 |
-| `group` | Treatment Condition | factor | no data; data | 0 |
-| `hyp` | Hypothesis ID | character | 4 unique values | 0 |
+| `group` | Treatment Condition | factor | control; data | 0 |
+| `hyp` | RT Hypothesis ID | character | 4 unique values | 0 |
 | `n_obs` | No. Observations | numeric | 211–573844 | 8 |
 | `n_ind` | No. Individuals | numeric | 0–85843 | 15 |
 | `b` | Coefficient Estimate | numeric | -7.10–77.23 | 0 |
@@ -128,6 +128,7 @@ Research-team results — one row per (team × hypothesis): z-values, directiona
 | `ssc` | Stat. Sig. Criterion | factor | no; yes | 0 |
 | `abs_dev` | Absolute Deviation | numeric | 0.00–55.86 | 0 |
 | `outl_rsnbl` | Outlier: Low Reasonableness | factor | no; yes | 0 |
+| `outl_rsnbl_rt` | Outlier: Low Reasonableness (RT-Level SD) | factor | no; yes | 0 |
 | `outl_fences` | Outlier: Tukey's Fences | factor | no; yes | 0 |
 | `indx` | Idiosyncrasy Index | numeric | 0.00–1.00 | 1 |
 | `n_plac` | Idiosyncrasy: No. Placebo Draws | numeric | 31–1000 | 1 |
@@ -142,7 +143,7 @@ Entry/screening survey — one row per individual researcher (demographics, posi
 |---|---|---|---|---|
 | `tid` | Research Team ID | character | 127 unique values | 0 |
 | `size` | Team Size | numeric | 1–2 | 0 |
-| `group` | Treatment Condition | factor | no data; data | 0 |
+| `group` | Treatment Condition | factor | control; data | 0 |
 | `member` | Team Member ID | character | 2 unique values | 0 |
 | `pid` | Participant ID | character | 230 unique values | 0 |
 | `recruit` | Recruitment Channel | character | 5 unique values | 0 |

@@ -24,6 +24,10 @@ In our preregistered robustness tests, we exclude teams based on two indicators.
 
 The two criteria are applied jointly, in a single "excl. outliers" sample, rather than one at a time. This follows §3.1.1, which states that the outlier exclusion is "in addition to the previous exclusion criterion" and reports "an additional set of descriptive results after applying the above exclusions." Outlier status is determined on the full sample, before the reasonableness exclusion is applied, as the pre-analysis plan prescribes.
 
+<div class="nonprereg">
+**Non-preregistered deviation — a corrected version of the low-reasonableness exclusion.** Feedback from the participating research teams uncovered an inconsistency in criterion **(i)** as registered: an RT-level *average* of (approximately ten) demeaned ratings is compared against a threshold scaled by the standard deviation of the *individual* demeaned ratings. Averages are far less dispersed than individual ratings (by roughly $\sqrt{10}$), so the registered $-2 \times SD$ threshold is effectively out of reach; it excludes no research team for any hypothesis, and the registered "excl. outliers" sample is determined by the Tukey's-fences criterion alone. The registered rule remains the rule of record and underlies all preregistered analyses below. In addition, we report a corrected version as a labeled deviation: the same rule, with the standard deviation taken over the distribution of the RT-level average demeaned ratings per hypothesis. The outlier-excluded descriptive statistics and the robustness versions of Primary hypothesis 1a-d and Primary hypothesis 2 are re-estimated under the corrected rule where they occur below; these re-estimations are **not preregistered**. Exclusion counts under both rules are reported in `02_summary_stats.Rmd`.
+</div>
+
 
 <!-- setup: packages, knit options, and the environment built by 01_data_processing.Rmd -->
 
@@ -32,19 +36,21 @@ The two criteria are applied jointly, in a single "excl. outliers" sample, rathe
 # clear workspace
 rm(list = ls())
 
-# install (if necessary) and load required packages
+# load the required packages, pinned to the CRAN snapshot of `groundhog.day`
+# so that every run uses the same package versions (requires R >= 4.6);
+# knitr and rmarkdown come with the rendering front-end and stay unpinned
+if (!require("groundhog", quietly = TRUE)) {
+  install.packages("groundhog", repos = "https://cloud.r-project.org")
+  library(groundhog)
+}
+groundhog.day <- "2026-09-01"
 packages <- c(
-  "here", "knitr",
+  "here",
   "tidyverse",
   "fixest", "modelsummary", "gt",
   "ggplot2", "viridis", "scales", "patchwork"
 )
-for (pkg in packages) {
-  if (!require(pkg, character.only = TRUE)) {
-    install.packages(pkg, dependencies = TRUE)
-    library(pkg, character.only = TRUE)
-  }
-}
+groundhog.library(packages, groundhog.day)
 
 # anchor here() to the project root, so paths resolve regardless of the
 # working directory
@@ -53,7 +59,9 @@ here::i_am("code/03_preregistered_analyses.Rmd")
 # load the environment built by 01_data_processing.Rmd (df.* frames)
 load(here("data", "proc", "_env.RData"))
 
-set.seed(32844837)    # reproducible jitter in the figures (geom_jitter)
+# no figure in this file draws random numbers any more; the seed fixes the
+# identifiers gt assigns to its tables, so the report renders identically
+set.seed(32844837)
 
 knitr::opts_chunk$set(
   echo       = FALSE,
@@ -65,7 +73,7 @@ knitr::opts_chunk$set(
   out.width  = "100%"
 )
 
-rm(pkg, packages)
+rm(groundhog.day, packages)
 
 ```
 
@@ -79,6 +87,9 @@ rm(pkg, packages)
 gt_pct100 <- function(g) {
   g %>% tab_options(table.width = pct(100), row_group.as_column = FALSE)
 }
+
+# "h1" -> "RT Hypothesis 1", the wording used in the paper and the PAP
+hyp_label <- function(h) paste("RT Hypothesis", sub("^h", "", h))
 
 # italic math symbol for table headers, with an optional upright suffix
 math <- function(x, suffix = "") {
@@ -137,20 +148,20 @@ ttest_table <- function(tbl, rowname = NULL) {
   is.z <- "z_stat" %in% names(tbl)
   tbl <- tbl %>%
     mutate(ci = sprintf("[%.3f, %.3f]", ci.lb, ci.ub)) %>%
-    select(any_of(c("hyp", "n", "m_data", "m_nodata", "diff", "se",
+    select(any_of(c("hyp", "n", "m_data", "m_control", "diff", "se",
                     "df", "t_stat", "z_stat", "p", "ci")))
   g <- if (is.null(rowname)) gt(tbl) else gt(tbl, rowname_col = rowname)
   g <- g %>%
     cols_label(
       n        = math("n"),
       m_data   = math("m", "(data)"),
-      m_nodata = math("m", "(no data)"),
+      m_control = math("m", "(control)"),
       diff     = "diff",
       se       = math("se"),
       p        = math("p"),
       ci       = "[95% CI]"
     ) %>%
-    fmt_number(columns = c(m_data, m_nodata, diff, se, p), decimals = 3) %>%
+    fmt_number(columns = c(m_data, m_control, diff, se, p), decimals = 3) %>%
     cols_align(align = "left", columns = ci) %>%
     gt_pct100()
   if (is.z) {
@@ -176,7 +187,7 @@ pb_corr_table <- function(stage_id) {
       mutate(ssc_num = as.numeric(ssc) - 1)
     cr <- cor.test(d$belief, d$ssc_num)
     tibble(
-      hyp = paste("Hypothesis", toupper(h)),
+      hyp = hyp_label(h),
       n   = nrow(d),
       r   = unname(cr$estimate),
       t   = unname(cr$statistic),
@@ -198,7 +209,7 @@ pb_corr_table <- function(stage_id) {
 
 # --- test helpers ---------------------------------------------------------- #
 
-# conservative pooled z-test of the mean z per hypothesis, one observation
+# approximate pooled z-test of the mean z per hypothesis, one observation
 # per RT: the mean z is treated as one standard-normal statistic (se = 1);
 # non-preregistered replacement for the infeasible bootstrap -- see the
 # Primary 1a-d deviation note. Also returns the PAP §1.8 effect sizes; r uses
@@ -229,8 +240,8 @@ pooled.test <- function(data) {
     )
 }
 
-# conservative z-test of the between-group difference in mean z (data minus
-# no data): each group mean carries se = 1 as in pooled.test(), so the
+# approximate z-test of the between-group difference in mean z (data minus
+# control): each group mean carries se = 1 as in pooled.test(), so the
 # difference has se = sqrt(2); non-preregistered -- see the Secondary 1a-d
 # deviation note
 diff.test <- function(data) {
@@ -239,11 +250,11 @@ diff.test <- function(data) {
     summarise(
       n        = sum(!is.na(z)),
       m_data   = mean(z[group == "data"],    na.rm = TRUE),
-      m_nodata = mean(z[group == "no data"], na.rm = TRUE),
+      m_control = mean(z[group == "control"], na.rm = TRUE),
       .groups = "drop"
     ) %>%
     mutate(
-      diff   = m_data - m_nodata,
+      diff   = m_data - m_control,
       se     = sqrt(2),
       z_stat = diff / se,
       p      = 2 * (1 - pnorm(abs(z_stat))),
@@ -263,8 +274,7 @@ sd.ci <- function(x) {
 
 # group and pooled z summaries per hypothesis: mean z with its PAP §3.1.1
 # p-value (mean z as one standard-normal statistic, matching pooled.test())
-# and sd with its chi-squared CI; the numeric CI bounds feed the SD figure,
-# the bracketed string the table
+# and sd with its chi-squared CI, as the bracketed string the table prints
 summary.stats <- function(data, groups) {
   stat <- function(d) {
     summarise(d,
@@ -290,18 +300,19 @@ summary.stats <- function(data, groups) {
     arrange(hyp, group)
 }
 
-# independent-samples t-test (equal variances) on df.proc[[var]] ~ group,
-# returned as a one-row tibble (Secondary 4-7)
-ttest_proc <- function(var) {
-  # "data" first, so the t.test difference is data - no data
-  d <- df.proc
-  d$group <- factor(d$group, levels = c("data", "no data"))
+# independent-samples t-test (equal variances) of var ~ group, returned as a
+# one-row tibble (Secondary 4-7); `data` defaults to the full team-level frame
+# and is passed explicitly by the restricted-sample robustness checks
+ttest_proc <- function(var, data = df.proc) {
+  # "data" first, so the t.test difference is data - control
+  d <- data
+  d$group <- factor(d$group, levels = c("data", "control"))
   tt <- t.test(reformulate("group", var), data = d, var.equal = TRUE)
   tibble(
-    n        = sum(!is.na(df.proc[[var]])),
-    m_data   = mean(df.proc[[var]][df.proc$group == "data"],    na.rm = TRUE),
-    m_nodata = mean(df.proc[[var]][df.proc$group == "no data"], na.rm = TRUE),
-    diff     = m_data - m_nodata,
+    n        = sum(!is.na(data[[var]])),
+    m_data   = mean(data[[var]][data$group == "data"],    na.rm = TRUE),
+    m_control = mean(data[[var]][data$group == "control"], na.rm = TRUE),
+    diff     = m_data - m_control,
     se       = tt$stderr,
     df       = unname(tt$parameter),
     t_stat   = unname(tt$statistic),
@@ -346,12 +357,14 @@ col.rule   <- "#333333"   # zero-reference lines / panel border
 col.hollow <- "#ffffff"   # hollow-marker fill (outlier-excluded sample)
 col.shade  <- "#d3d3d3"   # shaded significance region
 
-# viridis purple/teal for the data / no-data comparison, a distinct viridis
-# blue for figures that do not compare treatment groups, and a viridis pair
-# for the SSC indicator
-col.map  <- setNames(viridis(2, begin = 0.125, end = 0.625), c("no data", "data"))
-col.solo <- viridis(1, begin = 0.30, end = 0.30)
-ssc.cols <- setNames(viridis(2, begin = 0.20, end = 0.80), c("no", "yes"))
+# viridis purple/teal for the control / data comparison
+col.map  <- setNames(viridis(2, begin = 0.125, end = 0.625), c("control", "data"))
+
+# the names the paper gives the two arms, used in every figure legend and axis
+arm.labels <- c("control" = "Control group", "data" = "Data group")
+
+# the same names for the tables that stack the pooled sample and the two arms
+row.labels <- c("pooled" = "Pooled", arm.labels)
 
 # signed-log axis transform + breaks/limits (per-RT z figure only)
 signed.log <- function() {
@@ -376,8 +389,8 @@ theme_md <- function() {
 
     axis.text.x  = element_text(size = 9),
     axis.text.y  = element_text(size = 9),
-    axis.title.x = element_text(size = 10, face = "bold", margin = margin(t = 6)),
-    axis.title.y = element_text(size = 10, face = "bold", margin = margin(r = 6)),
+    axis.title.x = element_text(size = 10, margin = margin(t = 6)),
+    axis.title.y = element_text(size = 10, margin = margin(r = 6)),
 
     panel.grid.major = element_line(color = "#e6e6e6", linewidth = 0.3),
     panel.grid.minor = element_blank(),
@@ -396,8 +409,7 @@ theme_md <- function() {
 }
 
 # save a figure to out/figures, as PNG (dpi = fig$dpi) and as vector PDF
-# (cairo_pdf: the base pdf device cannot render all glyphs, e.g. the rotated
-# guillemets marking hidden outliers)
+# (cairo_pdf: the base pdf device cannot render all glyphs)
 save_fig <- function(plot, name, width, height) {
   ggsave(here("out", "figures", paste0(name, ".png")),
          plot, width = width, height = height, dpi = fig$dpi)
@@ -410,8 +422,9 @@ save_fig <- function(plot, name, width, height) {
 
 # drop a chunk's scratch objects, keeping the data frames (df.*), every helper
 # function, and the shared palette / size / label objects listed in .keep
-.keep <- c("col.map", "col.solo", "ssc.cols", "col.rule", "col.hollow",
-           "col.shade", "fig", "y_breaks_log", "y_limits_log", "coef_map_rtchars")
+.keep <- c("col.map", "col.rule", "col.hollow", "col.shade",
+           "arm.labels", "row.labels", "fig", "y_breaks_log", "y_limits_log",
+           "coef_map_rtchars")
 clean_slate <- function() {
   env  <- parent.frame()
   obj  <- ls(env)
@@ -432,14 +445,21 @@ clean_slate <- function() {
 <!-- ----------------------------------------------------------------------- -->
 
 <div class="prereg">
-**Summary of the preregistered analyses (see [§3.1.1](https://osf.io/cny7d/overview){.uri} for details):** For each hypothesis, we will plot the $z$-value obtained by each RT along with their 95% CIs, estimated as $\pm$1.96. Additionally, we will report the means for each group (*data*, *no data*) and pooled across both, interpreting these as simple pooled hypothesis tests by converting mean $z$-values to $p$-values. We will also report standard deviations and their 95% CIs for each group and the pooled data.
+**Summary of the preregistered analyses (see [§3.1.1](https://osf.io/cny7d/overview){.uri} for details):** For each hypothesis, we will plot the $z$-value obtained by each RT along with their 95% CIs, estimated as $\pm$1.96. Additionally, we will report the means for each group (*data*, *control*) and pooled across both, interpreting these as simple pooled hypothesis tests by converting mean $z$-values to $p$-values. We will also report standard deviations and their 95% CIs for each group and the pooled data.
 
 We will present these results for all RTs. To test robustness and assess the impact of removing low-quality and extreme cases, we will also report an additional set of descriptive results after excluding *(i)* research teams with low peer-rated analysis quality and *(ii)* statistical outliers.
 </div>
 
-**Results:** The left-hand subpanels in the figure below display the $z$-values obtained by each research team for each of the four hypotheses, sorted from lowest to highest (per hypothesis). The sample comprises all estimates by research teams who delivered proper results for all four hypotheses ($n$ = `r length(unique(df.rslts$tid))`). Error bars indicate 95% CIs, determined as $z \pm \Phi^{-1}(\frac{\alpha}{2})$. Hollow markers indicate estimates flagged as outliers (i.e., observations excluded in preregistered robustness analyses) as per the exclusion criteria detailed in the pre-analysis plan. The gray shaded regions indicate estimates that are statistically significant at the $\alpha$ = 5% level in either direction. The right-hand subpanels show the mean $z$-values by treatment condition; hollow markers depict means for the sample excluding outlying observations. Error bars around the means indicate conservative 95% CIs ($m \pm 1.96$): because the research teams' $z$-values are not independent, each group's mean $z$ is treated as a single standard-normal statistic ($se$ = 1) — the same convention as for the individual estimates in the left-hand subpanels. As these intervals replace the registered bootstrapped standard errors, they are **not preregistered** (see the deviation note in the [Primary hypothesis 1a-d](#primary-hypothesis-1a-d) section). Because the data exhibit substantial variation, the $y$-axes use a signed log scale.
+**Results:** The left-hand subpanels in the figure below display the $z$-values obtained by each research team for each of the four hypotheses, sorted from lowest to highest (per hypothesis). The sample comprises all estimates by research teams who delivered proper results for all four hypotheses ($n$ = `r length(unique(df.rslts$tid))`). Error bars indicate 95% CIs, determined as $z \pm \Phi^{-1}(\frac{\alpha}{2})$. Hollow markers indicate estimates flagged as outliers (i.e., observations excluded in preregistered robustness analyses) as per the exclusion criteria detailed in the pre-analysis plan. The gray shaded regions indicate estimates that are statistically significant at the $\alpha$ = 5% level in either direction. The right-hand subpanels show the mean $z$-values by treatment condition; hollow markers carrying a cross depict means for the sample excluding outlying observations. Error bars around the means indicate approximate 95% CIs ($m \pm 1.96$): because the research teams' $z$-values are not independent, each group's mean $z$ is treated as a single standard-normal statistic ($se$ = 1) — the same convention as for the individual estimates in the left-hand subpanels. As these intervals replace the registered bootstrapped standard errors, they are **not preregistered** (see the deviation note in the [Primary hypothesis 1a-d](#primary-hypothesis-1a-d) section). Because the data exhibit substantial variation, the $y$-axes use a signed log scale.
 
 ```{r "fig: per-RT z-values", fig.height = 12, fig.width = 10}
+
+# panel titles naming the hypothesis each panel tests
+hyp.titles <- c(
+  "h1" = "RT Hypothesis 1: support for gender equality",
+  "h2" = "RT Hypothesis 2: left-leaning political preferences",
+  "h3" = "RT Hypothesis 3: gender equality in the household",
+  "h4" = "RT Hypothesis 4: larger effect for men than for women")
 
 # augment df.rslts with 95% CIs, significance flags, and a combined outlier flag
 df <- df.rslts %>%
@@ -473,7 +493,7 @@ hyp.panel <- function(hypothesis) {
     summarise(xmin = min(x_num) - 0.66, xmax = max(x_num) + 0.66,
               .groups = "drop")
 
-  # group means with conservative 95% CIs (mean ± 1.96, se = 1), mirroring
+  # group means with approximate 95% CIs (mean ± 1.96, se = 1), mirroring
   # pooled.test(); non-preregistered -- see the Primary 1a-d deviation note
   grp.means <- function(d) {
     d %>%
@@ -492,31 +512,41 @@ hyp.panel <- function(hypothesis) {
     mutate(sample = factor(sample, levels = c("full", "fltr")))
 
 
+  # the marker fill is a constant (shape 16 ignores it, shape 21 renders
+  # hollow), which leaves the fill scale free to key the shaded region
   panel.left <-
-    ggplot(df.sub, aes(x = order, y = z, color = group, fill = outl)) +
-    geom_rect(data = sig.estm, aes(xmin = xmin, xmax = xmax),
-              ymin = -Inf, ymax = Inf, fill = col.shade, alpha = 0.4,
+    ggplot(df.sub, aes(x = order, y = z, color = group)) +
+    geom_rect(data = sig.estm, aes(xmin = xmin, xmax = xmax, fill = "sig"),
+              ymin = -Inf, ymax = Inf, alpha = 0.4,
               inherit.aes = FALSE) +
     geom_hline(yintercept = 0, color = col.rule) +
     geom_linerange(aes(ymin = ci.lb, ymax = ci.ub),
                    linewidth = 0.5, alpha = 0.7) +
-    geom_point(aes(shape = outl), size = 2.0, stroke = 0.7) +
+    geom_point(aes(shape = outl), fill = col.hollow, size = 2.0, stroke = 0.7) +
 
-    scale_shape_manual(values = c("no" = 16, "yes" = 21), guide = "none") +
-    scale_fill_manual(values = c("no" = NA, "yes" = col.hollow), guide = "none") +
-    scale_color_manual(values = col.map) +
+    # only the outlier key is shown: the solid marker is the default case and
+    # needs no entry, which keeps the collected legend to four entries
+    scale_shape_manual(values = c("no" = 16, "yes" = 21),
+                       breaks = "yes",
+                       labels = "flagged as outlier",
+                       name   = NULL) +
+    scale_fill_manual(values = c("sig" = col.shade),
+                      labels = expression(italic(p) < 0.05 ~ "(either direction)"),
+                      name   = NULL) +
+    scale_color_manual(values = col.map, labels = arm.labels, name = NULL) +
+    guides(fill  = guide_legend(order = 3, override.aes = list(alpha = 0.4)),
+           shape = guide_legend(order = 2),
+           color = guide_legend(order = 1)) +
     scale_y_continuous(trans = signed.log(), breaks = y_breaks_log,
                        labels = y_breaks_log, limits = y_limits_log) +
     scale_x_discrete(expand = expansion(mult = c(0.01, 0.01))) +
 
-    labs(x = "Research Team", y = expression(italic(z)*"-value"), color = "Group") +
-    ggtitle(paste0("Hypothesis ", toupper(hypothesis))) +
+    labs(x = "Research Team",
+         y = expression(italic(z)*"-value  (signed log scale)")) +
+    ggtitle(hyp.titles[[hypothesis]]) +
 
     theme_md() +
     theme(
-      legend.position      = c(0.5, 0.0333),
-      legend.justification = c(0.5, 0),
-      legend.direction     = "horizontal",
       axis.text.x          = element_blank(),
       axis.ticks.x         = element_blank(),
       panel.grid.major.x   = element_blank(),
@@ -533,6 +563,11 @@ hyp.panel <- function(hypothesis) {
     geom_linerange(aes(ymin = ci.lb, ymax = ci.ub),
                    linewidth = 0.5, alpha = 0.7) +
     geom_point(aes(shape = sample), size = fig$pt.coef, stroke = 0.7) +
+
+    # a thin cross inside the hollow means, so that they are not read as the
+    # outlier-flagged estimates that the hollow markers denote on the left
+    geom_point(data = means.sub %>% filter(sample == "fltr"),
+               shape = 4, size = 1.5, stroke = 0.5, show.legend = FALSE) +
 
     scale_shape_manual(values = c("full" = 16, "fltr" = 21), guide = "none") +
     scale_fill_manual(values = c("full" = NA, "fltr" = col.hollow), guide = "none") +
@@ -553,13 +588,30 @@ hyp.panel <- function(hypothesis) {
       panel.grid.minor.x = element_blank()
     )
 
-  panel.left + panel.right + plot_layout(ncol = 2, widths = c(11, 1))
+  list(panel.left, panel.right)
 }
 
 
-# stack the four hypothesis panels vertically and export
-plot <- wrap_plots(lapply(c("h1", "h2", "h3", "h4"), hyp.panel),
-                   ncol = 1, heights = rep(1, 4))
+# the eight subpanels are laid out as one flat 4 x 2 grid rather than as four
+# nested two-panel rows: guide collection only reaches a single nesting level,
+# and a flat grid therefore yields one legend for the whole figure instead of
+# one per row. The panels carry identical guides, so the collected legend has
+# four entries; legend.background is cleared so that they share one shaded box
+# rather than getting one box per aesthetic.
+plot <- wrap_plots(do.call(c, lapply(c("h1", "h2", "h3", "h4"), hyp.panel)),
+                   ncol = 2, widths = c(11, 1), heights = rep(1, 4),
+                   guides = "collect") &
+  theme(
+    legend.position       = "bottom",
+    legend.direction      = "horizontal",
+    legend.box            = "horizontal",
+    legend.background     = element_blank(),
+    legend.box.background = element_rect(fill = "#f6f6f6", color = "#e6e6e6",
+                                         linewidth = 0.2),
+    legend.box.spacing    = unit(14, "pt"),
+    legend.box.margin     = margin(t = 3, r = 8, b = 3, l = 8),
+    legend.margin         = margin(t = 0, r = 4, b = 0, l = 4)
+  )
 
 print(plot)
 save_fig(plot, "figure_2", width = 10, height = 12)
@@ -569,7 +621,7 @@ clean_slate()
 ```
 
 
-The table below reports, for each of the four hypotheses, the mean $z$-value ($m$), the $p$-value implied by treating the mean $z$ as a standard-normal test statistic, the standard deviation of $z$-values ($sd$), and the 95% CI for the standard deviation. These quantities are tabulated **(i)** for the pooled sample and **(ii)** separately for the two treatment conditions (*data*, *no data*). Results are presented for **(a)** the full sample (preregistered primary analysis) and **(b)** the sample after excluding outliers (preregistered robustness tests). The means ($m$) and their associated $p$-values can be interpreted as simple pooled hypothesis tests: because the aggregated $z$-statistics are not independent, the mean $z$ is treated as a single standard-normal test statistic, so that the reported $p$-values coincide with the conservative pooled tests under [Primary hypothesis 1a-d](#primary-hypothesis-1a-d). The 95% CI for the standard deviation of $z$-values is calculated using the $\chi^2$ distribution with $n-1$ degrees of freedom (Sheskin, 2011).
+The table below reports, for each of the four hypotheses, the mean $z$-value ($m$), the $p$-value implied by treating the mean $z$ as a standard-normal test statistic, the standard deviation of $z$-values ($sd$), and the 95% CI for the standard deviation. These quantities are tabulated **(i)** for the pooled sample and **(ii)** separately for the two treatment conditions (*data*, *control*). Results are presented for **(a)** the full sample (preregistered primary analysis) and **(b)** the sample after excluding outliers (preregistered robustness tests). The means ($m$) and their associated $p$-values can be interpreted as simple pooled hypothesis tests: because the aggregated $z$-statistics are not independent, the mean $z$ is treated as a single standard-normal test statistic, so that the reported $p$-values coincide with the approximate pooled tests under [Primary hypothesis 1a-d](#primary-hypothesis-1a-d). The 95% CI for the standard deviation of $z$-values is calculated using the $\chi^2$ distribution with $n-1$ degrees of freedom (Sheskin, 2011).
 
 ```{r "tbl: descriptive z stats"}
 
@@ -589,7 +641,9 @@ smpl.combined <- bind_rows(
     values_from = c(n, m, p, sd, sd.ci),
     names_glue  = "{sample}_{.value}"
   ) %>%
-  mutate(hyp = paste("Hypothesis", toupper(hyp))) %>%
+  mutate(hyp   = hyp_label(hyp),
+         group = factor(group, levels = names(row.labels),
+                        labels = unname(row.labels))) %>%
   select(hyp, group, starts_with("full"), starts_with("fltr"))
 
 smpl.combined %>%
@@ -623,57 +677,35 @@ clean_slate()
 ```
 
 
-The figure below summarizes the dispersion in $z$-values documented in the table above. For each hypothesis, the bars depict the standard deviation of $z$-values, pooled across both treatment conditions and separately by condition, for **(a)** the full sample (saturated bars) and **(b)** the sample after excluding outliers (light bars). Error bars indicate the 95% CIs of the standard deviations, calculated using the $\chi^2$ distribution with $n-1$ degrees of freedom (Sheskin, 2011), as reported in the table above.
+<div class="nonprereg">
+**Non-preregistered robustness variant — corrected low-reasonableness rule.** The table below repeats the outlier-excluded descriptive statistics of panel **(b)** above with outliers defined by the corrected rule described in the preamble: the $-2 \times SD$ threshold of the low-reasonableness flag is scaled by the standard deviation of the RT-level average demeaned ratings rather than of the individual demeaned ratings. The Tukey's-fences criterion is unchanged, and the two criteria are again applied jointly.
+</div>
 
-```{r "fig: sd of z-values", fig.height = 3.4, fig.width = 10}
+```{r "tbl: descriptive z stats (corrected rule)"}
 
-# sd of z with its chi-squared 95% CI, by group and pooled, for the full and
-# outlier-excluded samples -- the same quantities as in the table above
+# same summary statistics as panel (b) above, with the corrected
+# low-reasonableness flag replacing the registered one
 groups <- levels(df.rslts$group)
 
-sd.combined <- bind_rows(
-  summary.stats(df.rslts, groups) %>% mutate(sample = "full"),
-  df.rslts %>%
-    filter(outl_rsnbl == "no", outl_fences == "no") %>%
-    summary.stats(groups) %>% mutate(sample = "fltr")
-) %>%
-  mutate(
-    sample = factor(sample, levels = c("full", "fltr")),
-    hyp    = paste("Hypothesis", toupper(hyp))
-  )
+df.rslts %>%
+  filter(outl_rsnbl_rt == "no", outl_fences == "no") %>%
+  summary.stats(groups) %>%
+  mutate(hyp   = hyp_label(hyp),
+         group = factor(group, levels = names(row.labels),
+                        labels = unname(row.labels))) %>%
+  select(hyp, group, n, m, p, sd, sd.ci) %>%
 
-# grouped bars: pooled in the "solo" blue, groups in the shared palette;
-# sample distinguished by fill alpha (outlines and error bars stay opaque)
-sd.cols <- c("pooled" = col.solo, col.map)
-pd      <- position_dodge(width = 0.72)
-
-plot <-
-  ggplot(sd.combined,
-         aes(x = group, y = sd, fill = group, color = group, group = sample)) +
-  geom_col(aes(alpha = sample), position = pd, width = 0.62,
-           linewidth = 0.4) +
-  geom_linerange(aes(ymin = sd.ci.lb, ymax = sd.ci.ub), position = pd,
-                 color = col.rule, linewidth = fig$lw.range) +
-  facet_wrap(~ hyp, nrow = 1) +
-
-  scale_fill_manual(values = sd.cols, guide = "none") +
-  scale_color_manual(values = sd.cols, guide = "none") +
-  scale_alpha_manual(values = c("full" = 0.75, "fltr" = 0.15),
-                     labels = c("full" = "full sample",
-                                "fltr" = "excl. outliers"),
-                     name   = "Sample") +
-  scale_y_continuous(expand = expansion(mult = c(0, 0.05))) +
-
-  guides(alpha = guide_legend(
-    override.aes = list(fill = "#999999", color = NA)
-  )) +
-
-  labs(x = NULL, y = expression("SD of "*italic(z)*"-values")) +
-  theme_md() +
-  theme(panel.grid.major.x = element_blank())
-
-print(plot)
-save_fig(plot, "figure_3", width = 10, height = 3.4)
+  gt(groupname_col = "hyp") %>%
+  cols_label(
+    group = "Group",
+    n     = math("n"), m = math("m"), p = math("p"),
+    sd    = math("sd"), sd.ci = "[95% CI]"
+  ) %>%
+  fmt_number(columns = c(m, p, sd), decimals = 3) %>%
+  cols_width(group ~ pct(24), n ~ pct(10), m ~ pct(15), p ~ pct(15),
+             sd ~ pct(15), sd.ci ~ pct(21)) %>%
+  cols_align(align = "left", columns = c(group, sd.ci)) %>%
+  gt_pct100()
 
 clean_slate()
 
@@ -690,12 +722,12 @@ clean_slate()
 </div>
 
 <div class="nonprereg">
-**Non-preregistered deviation — conservative instead of bootstrapped standard errors.** We planned to obtain pooled standard errors of the mean of $z$-values for RT Hypothesis 1--4 and of the difference in means between the data and control groups. In each bootstrap draw, we attempted to randomly draw 41,170 SOEP households with replacement from the 95%-sample to implement RT codes on these bootstrap samples for 1,000 iterations. This procedure has proven infeasible for two reasons. First, creating bootstrap samples that allow implementation of the RT codes without alteration requires keeping the variable structure and data formats, especially those of identifier variables in the SOEP data, identical to those in the original 95%-sample. At the same time, identifying variables needed to be de-duplicated so that any originally unique observation that appears more than once in the bootstrap sample, due to random sampling with replacement, appears as multiple unique observations in the bootstrap sample. It was not possible to meet both criteria simultaneously. Second, generating the bootstrap samples for all iterations and running RT analysis codes on them for all iterations turned out to be extremely resource-intensive and time-consuming, with expected computation times exceeding one year even on a dedicated multicore computation server.
+**Non-preregistered deviation — approximate instead of bootstrapped standard errors.** We planned to obtain pooled standard errors of the mean of $z$-values for RT Hypothesis 1--4 and of the difference in means between the data and control groups. In each bootstrap draw, we attempted to randomly draw 41,170 SOEP households with replacement from the 95%-sample to implement RT codes on these bootstrap samples for 1,000 iterations. This procedure has proven infeasible for two reasons. First, creating bootstrap samples that allow implementation of the RT codes without alteration requires keeping the variable structure and data formats, especially those of identifier variables in the SOEP data, identical to those in the original 95%-sample. At the same time, identifying variables needed to be de-duplicated so that any originally unique observation that appears more than once in the bootstrap sample, due to random sampling with replacement, appears as multiple unique observations in the bootstrap sample. It was not possible to meet both criteria simultaneously. Second, generating the bootstrap samples for all iterations and running RT analysis codes on them for all iterations turned out to be extremely resource-intensive and time-consuming, with expected computation times exceeding one year even on a dedicated multicore computation server.
 
-In place of bootstrapped standard errors, we use deliberately conservative ones. All RTs analyze the same 95% sample, so their $z$-values are correlated reanalyses of a single dataset rather than independent pieces of evidence. A conventional standard error of the mean, $sd(z) \div \sqrt{n}$, would treat the RTs' estimates as independent and thereby overstate the precision of the mean $z$. Hence, we treat the mean $z$-value itself as a standard-normal test statistic; i.e., we fix its standard error ($se$) at 1, the theoretical standard deviation of a single $z$-value. This choice is exact if the RTs' results are perfectly dependent and conservative otherwise, and it aligns with the mean-$z$-to-$p$ conversion preregistered for the descriptive results in PAP §3.1.1. For the pooled tests (PH 1a-d), the test statistic is thus $z = m$, with two-sided $p = 2 \cdot \left( 1 - \Phi(|m|) \right)$ and 95% CI $m \pm 1.96$, where $m$ denotes the mean $z$-value. For the between-group comparisons (SH 1a-d), each group has $se=1$, so the difference in means has $se = \sqrt{2}$. Cohen's $d$ and correlation $r$ effect sizes are unaffected in their point estimates, which depend only on the mean $z$; their 95% CIs are obtained by applying the preregistered conversions (§1.8 in the PAP) to the conservative CI of the mean $z$ rather than the bootstrap distribution. Unlike the bootstrap, these standard errors are not estimated from the data; they are conservative bounds that treat the pooled evidence as no more informative than a single $z$-statistic. The tests below are therefore not preregistered.
+In place of bootstrapped standard errors, we use approximate ones. All RTs analyze the same 95% sample, so their $z$-values are correlated reanalyses of a single dataset rather than independent pieces of evidence. A conventional standard error of the mean, $sd(z) \div \sqrt{n}$, would treat the RTs' estimates as independent and thereby overstate the precision of the mean $z$. Hence, we treat the mean $z$-value itself as a standard-normal test statistic; i.e., we fix its standard error ($se$) at 1, the theoretical standard deviation of a single $z$-value. This choice is exact if the RTs' results are perfectly dependent and each RT's own test statistic is correctly calibrated; in general it is an approximation, which may overstate the standard error of the mean $z$ (if the dependence across the RTs' results is less than perfect) or understate it (if research teams' analyses understate their own standard errors). It aligns with the mean-$z$-to-$p$ conversion preregistered for the descriptive results in PAP §3.1.1. For the pooled tests (PH 1a-d), the test statistic is thus $z = m$, with two-sided $p = 2 \cdot \left( 1 - \Phi(|m|) \right)$ and 95% CI $m \pm 1.96$, where $m$ denotes the mean $z$-value. For the between-group comparisons (SH 1a-d), each group has $se=1$, so the difference in means has $se = \sqrt{2}$. Cohen's $d$ and correlation $r$ effect sizes are unaffected in their point estimates, which depend only on the mean $z$; their 95% CIs are obtained by applying the preregistered conversions (§1.8 in the PAP) to the approximate CI of the mean $z$ rather than the bootstrap distribution. Unlike the bootstrap, these standard errors are not estimated from the data; they are approximations that treat the pooled evidence as no more informative than a single $z$-statistic. The tests below are therefore not preregistered.
 </div>
 
-**Results:** The table below reports the mean $z$-value ($m$), the conservative standard error ($se$ = 1; see the deviation note above), the implied 95% CI ($m \pm 1.96$), the $z$-statistic (equal to $m$), and the two-sided $p$-value for each of the four hypotheses, separately for **(a)** the full sample and **(b)** the sample after excluding outliers (preregistered robustness exclusions). A positive mean indicates support consistent with the hypothesized direction. The PAP §1.8 effect-size conversions of the mean $z$ (Cohen's $d$ and the correlation $r$) are reported separately in the [effect-size table](#effect-size-conversions-cohens-d-and-r) below.
+**Results:** The table below reports the mean $z$-value ($m$), the approximate standard error ($se$ = 1; see the deviation note above), the implied 95% CI ($m \pm 1.96$), the $z$-statistic (equal to $m$), and the two-sided $p$-value for each of the four hypotheses, separately for **(a)** the full sample and **(b)** the sample after excluding outliers (preregistered robustness exclusions). A positive mean indicates support consistent with the hypothesized direction. The PAP §1.8 effect-size conversions of the mean $z$ (Cohen's $d$ and the correlation $r$) are reported separately in the [effect-size table](#effect-size-conversions-cohens-d-and-r) below.
 
 ```{r "tbl: primary 1a-d"}
 
@@ -716,7 +748,7 @@ prim1 <- bind_rows(
     values_from = c(n, m, se, ci, z_stat, p),
     names_glue  = "{sample}_{.value}"
   ) %>%
-  mutate(hyp = paste("Hypothesis", toupper(hyp))) %>%
+  mutate(hyp = hyp_label(hyp)) %>%
   select(hyp, starts_with("full"), starts_with("fltr"))
 
 prim1 %>%
@@ -741,16 +773,47 @@ clean_slate()
 ```
 
 
+<div class="nonprereg">
+**Non-preregistered robustness variant — corrected low-reasonableness rule.** The table below repeats the outlier-excluded pooled tests of panel **(b)** above with outliers defined by the corrected rule described in the preamble.
+</div>
+
+```{r "tbl: primary 1a-d (corrected rule)"}
+
+# pooled tests as in panel (b) above, with the corrected low-reasonableness
+# flag replacing the registered one
+df.rslts %>%
+  filter(outl_rsnbl_rt == "no", outl_fences == "no") %>%
+  pooled.test() %>%
+  mutate(
+    ci  = sprintf("[%.3f, %.3f]", ci.lb, ci.ub),
+    hyp = hyp_label(hyp)
+  ) %>%
+  select(hyp, n, m, se, ci, z_stat, p) %>%
+
+  gt(rowname_col = "hyp") %>%
+  cols_label(
+    n  = math("n"), m = math("m"), se = math("se"),
+    ci = "[95% CI]", z_stat = math("z"), p = math("p")
+  ) %>%
+  fmt_number(columns = c(m, se, z_stat, p), decimals = 3) %>%
+  cols_align(align = "left", columns = ci) %>%
+  gt_pct100()
+
+clean_slate()
+
+```
+
+
 
 ### Effect-size conversions: Cohen's $d$ and $r$ {#effect-size-conversions-cohens-d-and-r}
 <!-- ----------------------------------------------------------------------- -->
 
-PAP §1.8 converts the pooled mean $z$ for each hypothesis into a Cohen's $d$ and a correlation $r$ effect size: $d = 2\bar{z}/\sqrt{\bar{n}}$ and $r = \tanh\!\big(\bar{z}\,\sqrt{1/(\bar{n}-3)}\big)$, where $\bar{n}$ is the mean number of SOEP participants contributing to that hypothesis. The table below reports both, separately for **(a)** the full sample and **(b)** the sample after excluding outliers. The point estimates require only the mean $z$; the 95% CIs are obtained by applying each conversion to the bounds of the conservative 95% CI of the mean $z$ ($m \pm 1.96$, the interval used for PH 1a-d, which replaces the infeasible bootstrap — so the CIs, but not the point estimates, are non-preregistered). Note: the $r$ expression as printed in §1.8, $\tanh(\bar{z}/\sqrt{1/(\bar{n}-3)})$, saturates to $\pm1$ at these sample sizes; we report the inverse-Fisher form above, consistent with the cited method (Open Science Collaboration, 2015).
+PAP §1.8 converts the pooled mean $z$ for each hypothesis into a Cohen's $d$ and a correlation $r$ effect size: $d = 2\bar{z}/\sqrt{\bar{n}}$ and $r = \tanh\!\big(\bar{z}\,\sqrt{1/(\bar{n}-3)}\big)$, where $\bar{n}$ is the mean number of SOEP participants contributing to that hypothesis. The table below reports both, separately for **(a)** the full sample and **(b)** the sample after excluding outliers. The point estimates require only the mean $z$; the 95% CIs are obtained by applying each conversion to the bounds of the approximate 95% CI of the mean $z$ ($m \pm 1.96$, the interval used for PH 1a-d, which replaces the infeasible bootstrap — so the CIs, but not the point estimates, are non-preregistered). Note: the $r$ expression as printed in §1.8, $\tanh(\bar{z}/\sqrt{1/(\bar{n}-3)})$, saturates to $\pm1$ at these sample sizes; we report the inverse-Fisher form above, consistent with the cited method (Open Science Collaboration, 2015).
 
 ```{r "tbl: primary 1a-d effect sizes"}
 
 # PAP §1.8 effect-size conversions (Cohen's d, correlation r) of the pooled
-# mean z, with 95% CIs propagated from the conservative CI of the mean z
+# mean z, with 95% CIs propagated from the approximate CI of the mean z
 eff <- bind_rows(
   pooled.test(df.rslts) %>% mutate(sample = "full"),
   df.rslts %>%
@@ -768,7 +831,7 @@ eff <- bind_rows(
     values_from = c(d, d.ci, r, r.ci),
     names_glue  = "{sample}_{.value}"
   ) %>%
-  mutate(hyp = paste("Hypothesis", toupper(hyp))) %>%
+  mutate(hyp = hyp_label(hyp)) %>%
   select(hyp, starts_with("full"), starts_with("fltr"))
 
 eff %>%
@@ -801,7 +864,7 @@ clean_slate()
 <!-- ----------------------------------------------------------------------- -->
 
 <div class="prereg">
-**Summary of the preregistered analyses (see [§3.2.1](https://osf.io/cny7d/overview){.uri} for details):** The variability of results is lower in the *data* group than in the *no-data* group. We test this hypothesis using an OLS regression with "Absolute deviation, RT Hypothesis 1/2/3/4" as the dependent variable (four observations per RT, one per hypothesis) and the "Group" dummy (= 1 for the data group) as the independent variable. Standard errors are clustered at the RT level. The hypothesis is tested by examining the significance of the group dummy, with a hypothesized negative coefficient (lower variability in the data group).
+**Summary of the preregistered analyses (see [§3.2.1](https://osf.io/cny7d/overview){.uri} for details):** The variability of results is lower in the *data* group than in the *control* group. We test this hypothesis using an OLS regression with "Absolute deviation, RT Hypothesis 1/2/3/4" as the dependent variable (four observations per RT, one per hypothesis) and the "Group" dummy (= 1 for the data group) as the independent variable. Standard errors are clustered at the RT level. The hypothesis is tested by examining the significance of the group dummy, with a hypothesized negative coefficient (lower variability in the data group).
 
 **Robustness test of primary hypothesis 2.** Robustness test of PH 2, excluding outliers and RTs with a low analysis reasonableness rating for each hypothesis (defined as in §3.1.1).
 </div>
@@ -826,6 +889,25 @@ clean_slate()
 ```
 
 
+<div class="nonprereg">
+**Non-preregistered robustness variant — corrected low-reasonableness rule.** The regression below repeats panel **(b)** above with outliers defined by the corrected rule described in the preamble.
+</div>
+
+```{r "tbl: primary 2 (corrected rule)"}
+
+# pooled OLS as in panel (b) above, with the corrected low-reasonableness
+# flag replacing the registered one
+model.crct <- feols(abs_dev ~ group, cluster = ~ tid,
+                    data = df.rslts %>% filter(outl_rsnbl_rt == "no", outl_fences == "no"))
+
+cstm.ms(list("Excl. Outliers (corrected rule)" = model.crct),
+        cluster = "clustered at the RT level")
+
+clean_slate()
+
+```
+
+
 ## Secondary hypothesis 1a-d
 <!-- ----------------------------------------------------------------------- -->
 
@@ -834,15 +916,15 @@ clean_slate()
 </div>
 
 <div class="nonprereg">
-**Non-preregistered deviation — we replace the infeasible bootstrap standard error with a conservative $z$-test of the between-group difference in mean $z$.** As for PH 1a-d, the registered two-stage bootstrap standard error proved infeasible, and the research teams' $z$-values — correlated re-analyses of the same 95%-sample — are not independent (see the [deviation note above](#primary-hypothesis-1a-d)). Each group's mean $z$ is therefore treated as a single standard-normal statistic ($se$ = 1), so the difference in means has $se = \sqrt{2}$. This test is not preregistered.
+**Non-preregistered deviation — we replace the infeasible bootstrap standard error with an approximate $z$-test of the between-group difference in mean $z$.** As for PH 1a-d, the registered two-stage bootstrap standard error proved infeasible, and the research teams' $z$-values — correlated re-analyses of the same 95%-sample — are not independent (see the [deviation note above](#primary-hypothesis-1a-d)). Each group's mean $z$ is therefore treated as a single standard-normal statistic ($se$ = 1), so the difference in means has $se = \sqrt{2}$. This test is not preregistered.
 </div>
 
-**Results:** The table below reports, for each hypothesis, the per-group mean $z$-value, the difference in means (data minus no-data), the conservative standard error ($se = \sqrt{2}$), the $z$-statistic, the two-sided $p$-value, and the implied 95% CI ($\text{diff} \pm 1.96 \times \sqrt{2}$). A positive difference indicates that the data group's mean $z$ exceeds the no-data group's.
+**Results:** The table below reports, for each hypothesis, the per-group mean $z$-value, the difference in means (data minus control), the approximate standard error ($se = \sqrt{2}$), the $z$-statistic, the two-sided $p$-value, and the implied 95% CI ($\text{diff} \pm 1.96 \times \sqrt{2}$). A positive difference indicates that the data group's mean $z$ exceeds the control group's.
 
 ```{r "tbl: secondary 1a-d"}
 
 diff.test(df.rslts) %>%
-  mutate(hyp = paste("Hypothesis", toupper(hyp))) %>%
+  mutate(hyp = hyp_label(hyp)) %>%
   ttest_table(rowname = "hyp")
 
 clean_slate()
@@ -880,7 +962,7 @@ clean_slate()
 **Summary of the preregistered analyses (see [§3.2.2](https://osf.io/cny7d/overview){.uri} for details):** The rated *reasonableness* of the analyses in the PAP is higher in the data group than in the control group. The specification mirrors PH 3: an OLS regression of the per-rating reasonableness rating on the data-group dummy with rater fixed effects and two-way clustering at the rater and RT-PAP levels. The hypothesis is tested by examining the sign and significance of the group dummy, with a hypothesized positive coefficient.
 </div>
 
-**Results:** Reasonableness is reported in column **(b)** of the [combined ratings table](#primary-hypothesis-3) under PH 3 above, which estimates the same specification for all three rating outcomes (per-rating reasonableness on the data-group dummy, rater fixed effects, two-way clustering at the rater and RT-PAP levels). A positive coefficient indicates that, on average, reasonableness ratings in the data group exceed those in the no-data group.
+**Results:** Reasonableness is reported in column **(b)** of the [combined ratings table](#primary-hypothesis-3) under PH 3 above, which estimates the same specification for all three rating outcomes (per-rating reasonableness on the data-group dummy, rater fixed effects, two-way clustering at the rater and RT-PAP levels). A positive coefficient indicates that, on average, reasonableness ratings in the data group exceed those in the control group.
 
 
 ## Secondary hypothesis 3
@@ -890,7 +972,7 @@ clean_slate()
 **Summary of the preregistered analyses (see [§3.2.2](https://osf.io/cny7d/overview){.uri} for details):** The rated *informativeness* of the PAP is higher in the data group than in the control group. The specification mirrors PH 3: an OLS regression of the per-rating informativeness rating on the data-group dummy with rater fixed effects and two-way clustering at the rater and RT-PAP levels. The hypothesis is tested by examining the sign and significance of the group dummy, with a hypothesized positive coefficient.
 </div>
 
-**Results:** Informativeness is reported in column **(c)** of the [combined ratings table](#primary-hypothesis-3) under PH 3 above, estimated with the same specification (per-rating informativeness on the data-group dummy, rater fixed effects, two-way clustering at the rater and RT-PAP levels). A positive coefficient indicates that, on average, informativeness ratings in the data group exceed those in the no-data group.
+**Results:** Informativeness is reported in column **(c)** of the [combined ratings table](#primary-hypothesis-3) under PH 3 above, estimated with the same specification (per-rating informativeness on the data-group dummy, rater fixed effects, two-way clustering at the rater and RT-PAP levels). A positive coefficient indicates that, on average, informativeness ratings in the data group exceed those in the control group.
 
 
 ## Secondary hypothesis 4
@@ -900,7 +982,7 @@ clean_slate()
 **Summary of the preregistered analyses (see [§3.2.3](https://osf.io/cny7d/overview){.uri} for details):** The number of iterations required to achieve computational reproducibility is lower in the data group than in the control group. We test this hypothesis with an independent-samples $t$-test (equal variances) on the variable "Number of iterations to achieve computational reproducibility", with one observation per RT. We hypothesize a smaller mean in the data group.
 </div>
 
-**Results:** The independent-samples $t$-test indicates that, on average, RTs in the data group required $m_{\text{data}}$ = `r round(mean(df.proc$rprd_itrt[df.proc$group == "data"], na.rm = TRUE), 2)` iterations to reach computational reproducibility, compared to $m_{\text{no data}}$ = `r round(mean(df.proc$rprd_itrt[df.proc$group == "no data"], na.rm = TRUE), 2)` iterations in the no-data group ($t$ = `r round(ttest_proc("rprd_itrt")$t_stat, 2)`, $p$ = `r fmt_p(ttest_proc("rprd_itrt")$p)`). The figure under §[joint visualization of Secondary 4-6](#joint-visualization-of-secondary-4-6) below visualizes the per-RT distributions by group, and the table reports the test result in tabular form.
+**Results:** The independent-samples $t$-test indicates that, on average, RTs in the data group required $m_{\text{data}}$ = `r round(mean(df.proc$rprd_itrt[df.proc$group == "data"], na.rm = TRUE), 2)` iterations to reach computational reproducibility, compared to $m_{\text{control}}$ = `r round(mean(df.proc$rprd_itrt[df.proc$group == "control"], na.rm = TRUE), 2)` iterations in the control group ($t$ = `r round(ttest_proc("rprd_itrt")$t_stat, 2)`, $p$ = `r fmt_p(ttest_proc("rprd_itrt")$p)`). The figure under §[joint visualization of Secondary 4-6](#joint-visualization-of-secondary-4-6) below visualizes the per-RT distributions by group, and the table reports the test result in tabular form.
 
 ```{r "tbl: secondary 4"}
 
@@ -916,7 +998,7 @@ ttest_proc("rprd_itrt") %>% ttest_table()
 **Summary of the preregistered analyses (see [§3.2.3](https://osf.io/cny7d/overview){.uri} for details):** The number of hours worked by RTs in Stages 1 and 2 is lower in the data group than in the control group. We test this hypothesis with an independent-samples $t$-test (equal variances) on the variable "Hours worked in Stages 1 and 2", with one observation per RT. We hypothesize a smaller mean in the data group.
 </div>
 
-**Results:** The independent-samples $t$-test indicates that, on average, RTs in the data group spent $m_{\text{data}}$ = `r round(mean(df.proc$hours_spent[df.proc$group == "data"], na.rm = TRUE), 2)` hours on Stages 1 and 2, compared to $m_{\text{no data}}$ = `r round(mean(df.proc$hours_spent[df.proc$group == "no data"], na.rm = TRUE), 2)` hours in the no-data group ($t$ = `r round(ttest_proc("hours_spent")$t_stat, 2)`, $p$ = `r fmt_p(ttest_proc("hours_spent")$p)`). The figure under §[joint visualization of Secondary 4-6](#joint-visualization-of-secondary-4-6) below visualizes the per-RT distributions by group, and the table reports the test result in tabular form.
+**Results:** The independent-samples $t$-test indicates that, on average, RTs in the data group spent $m_{\text{data}}$ = `r round(mean(df.proc$hours_spent[df.proc$group == "data"], na.rm = TRUE), 2)` hours on Stages 1 and 2, compared to $m_{\text{control}}$ = `r round(mean(df.proc$hours_spent[df.proc$group == "control"], na.rm = TRUE), 2)` hours in the control group ($t$ = `r round(ttest_proc("hours_spent")$t_stat, 2)`, $p$ = `r fmt_p(ttest_proc("hours_spent")$p)`). The figure under §[joint visualization of Secondary 4-6](#joint-visualization-of-secondary-4-6) below visualizes the per-RT distributions by group, and the table reports the test result in tabular form.
 
 ```{r "tbl: secondary 5"}
 
@@ -929,7 +1011,7 @@ ttest_proc("hours_spent") %>% ttest_table()
 <!-- ----------------------------------------------------------------------- -->
 
 <div class="nonprereg">
-**Non-preregistered robustness tests.** Two research teams — one per condition — reported exceptionally long working times of 765 (no-data group) and 975 hours (data group). Both exceed 600 hours and lie far above the rest of the distribution (the next-highest value is 150 hours), so the equal-variance $t$-test of SH 5 is strongly influenced by them. We therefore add two non-preregistered robustness tests: **(i)** a Mann–Whitney $U$ test, which retains all observations but, being rank-based, is insensitive to the magnitude of the two outliers; and **(ii)** the preregistered independent-samples $t$-test re-estimated after excluding the two outliers.
+**Non-preregistered robustness tests.** Two research teams — one per condition — reported exceptionally long working times of 765 (control group) and 975 hours (data group). Both exceed 600 hours and lie far above the rest of the distribution (the next-highest value is 150 hours), so the equal-variance $t$-test of SH 5 is strongly influenced by them. We therefore add two non-preregistered robustness tests: **(i)** a Mann–Whitney $U$ test, which retains all observations but, being rank-based, is insensitive to the magnitude of the two outliers; and **(ii)** the preregistered independent-samples $t$-test re-estimated after excluding the two outliers.
 </div>
 
 ```{r "secondary 5 robustness: tests"}
@@ -938,10 +1020,10 @@ ttest_proc("hours_spent") %>% ttest_table()
 # all observations; the preregistered t-test re-run without the two >600h RTs.
 # Both the prose and the table below read off these fits.
 hrs      <- df.proc %>% filter(!is.na(hours_spent))
-# "data" first, so every difference reads as data - no data
+# "data" first, so every difference reads as data - control
 hrs.excl <- hrs %>%
   filter(hours_spent <= 600) %>%
-  mutate(group = factor(group, levels = c("data", "no data")))
+  mutate(group = factor(group, levels = c("data", "control")))
 
 mwu <- wilcox.test(hours_spent ~ group, data = hrs,      exact = FALSE)
 tex <- t.test(     hours_spent ~ group, data = hrs.excl, var.equal = TRUE)
@@ -950,7 +1032,7 @@ loc <- function(d, g, f) f(d$hours_spent[d$group == g])
 
 ```
 
-**Results:** The Mann–Whitney $U$ test, retaining all observations, does not indicate a significant difference in hours worked between conditions ($p$ = `r fmt_p(mwu$p.value)`; medians of `r loc(hrs, "data", median)` vs. `r loc(hrs, "no data", median)` hours). After excluding the two outliers, the independent-samples $t$-test yields $m_{\text{data}}$ = `r round(loc(hrs.excl, "data", mean), 2)` versus $m_{\text{no data}}$ = `r round(loc(hrs.excl, "no data", mean), 2)` hours ($t$ = `r round(tex$statistic, 2)`, $p$ = `r fmt_p(tex$p.value)`) — far more pronounced than in the preregistered test ($p$ = `r fmt_p(ttest_proc("hours_spent")$p)`) and just above the 5% threshold for suggestive evidence. This suggests that the non-significant preregistered result is largely attributable to the two extreme observations. The table below reports both tests; the figure under §[joint visualization of Secondary 4-6](#joint-visualization-of-secondary-4-6) shows the corresponding distributions (with the two outliers omitted from the violins but retained in the group means).
+**Results:** The Mann–Whitney $U$ test, retaining all observations, does not indicate a significant difference in hours worked between conditions ($p$ = `r fmt_p(mwu$p.value)`; medians of `r loc(hrs, "data", median)` vs. `r loc(hrs, "control", median)` hours). After excluding the two outliers, the independent-samples $t$-test yields $m_{\text{data}}$ = `r round(loc(hrs.excl, "data", mean), 2)` versus $m_{\text{control}}$ = `r round(loc(hrs.excl, "control", mean), 2)` hours ($t$ = `r round(tex$statistic, 2)`, $p$ = `r fmt_p(tex$p.value)`) — far more pronounced than in the preregistered test ($p$ = `r fmt_p(ttest_proc("hours_spent")$p)`) and just above the 5% threshold for suggestive evidence. This suggests that the non-significant preregistered result is largely attributable to the two extreme observations. The table below reports both tests; the figure under §[joint visualization of Secondary 4-6](#joint-visualization-of-secondary-4-6) shows the corresponding distributions; the two long working times lie outside its axis but enter the box plots, means and intervals.
 
 ```{r "tbl: secondary 5 robustness"}
 
@@ -959,9 +1041,9 @@ tibble(
                 "\U{1D461}-test (excl. 2 outliers > 600h)"),     # italic t
   n         = c(nrow(hrs), nrow(hrs.excl)),
   m_data    = c(loc(hrs, "data", mean),      loc(hrs.excl, "data", mean)),
-  m_nodata  = c(loc(hrs, "no data", mean),   loc(hrs.excl, "no data", mean)),
+  m_control = c(loc(hrs, "control", mean),   loc(hrs.excl, "control", mean)),
   md_data   = c(loc(hrs, "data", median),    loc(hrs.excl, "data", median)),
-  md_nodata = c(loc(hrs, "no data", median), loc(hrs.excl, "no data", median)),
+  md_control = c(loc(hrs, "control", median), loc(hrs.excl, "control", median)),
   stat      = c(sprintf("\U{1D44A} = %.1f", mwu$statistic),          # italic W
                 sprintf("\U{1D461}(%.0f) = %.2f",                    # italic t
                         tex$parameter, tex$statistic)),
@@ -971,13 +1053,13 @@ tibble(
   cols_label(
     n         = math("n"),
     m_data    = math("m", "(data)"),
-    m_nodata  = math("m", "(no data)"),
+    m_control  = math("m", "(control)"),
     md_data   = math("Mdn", "(data)"),
-    md_nodata = math("Mdn", "(no data)"),
+    md_control = math("Mdn", "(control)"),
     stat      = "Test statistic",
     p         = math("p")
   ) %>%
-  fmt_number(columns = c(m_data, m_nodata, md_data, md_nodata), decimals = 2) %>%
+  fmt_number(columns = c(m_data, m_control, md_data, md_control), decimals = 2) %>%
   fmt_number(columns = p, decimals = 3) %>%
   cols_align(align = "left", columns = stat) %>%
   tab_source_note(html(
@@ -997,7 +1079,7 @@ clean_slate()
 **Summary of the preregistered analyses (see [§3.2.3](https://osf.io/cny7d/overview){.uri} for details):** The effort of RTs in Stages 1 and 2 is lower in the data group than in the control group. We test this hypothesis with an independent-samples $t$-test (equal variances) on the variable "Effort in Stages 1 and 2" (0–10), with one observation per RT. We hypothesize a smaller mean in the data group.
 </div>
 
-**Results:** The independent-samples $t$-test indicates that, on average, RTs in the data group reported an effort of $m_{\text{data}}$ = `r round(mean(df.proc$effort[df.proc$group == "data"], na.rm = TRUE), 2)`, compared to $m_{\text{no data}}$ = `r round(mean(df.proc$effort[df.proc$group == "no data"], na.rm = TRUE), 2)` in the no-data group ($t$ = `r round(ttest_proc("effort")$t_stat, 2)`, $p$ = `r fmt_p(ttest_proc("effort")$p)`). The figure under §[joint visualization of Secondary 4-6](#joint-visualization-of-secondary-4-6) below visualizes the per-RT distributions by group, and the table reports the test result in tabular form.
+**Results:** The independent-samples $t$-test indicates that, on average, RTs in the data group reported an effort of $m_{\text{data}}$ = `r round(mean(df.proc$effort[df.proc$group == "data"], na.rm = TRUE), 2)`, compared to $m_{\text{control}}$ = `r round(mean(df.proc$effort[df.proc$group == "control"], na.rm = TRUE), 2)` in the control group ($t$ = `r round(ttest_proc("effort")$t_stat, 2)`, $p$ = `r fmt_p(ttest_proc("effort")$p)`). The figure under §[joint visualization of Secondary 4-6](#joint-visualization-of-secondary-4-6) below visualizes the per-RT distributions by group, and the table reports the test result in tabular form.
 
 ```{r "tbl: secondary 6"}
 
@@ -1009,7 +1091,7 @@ ttest_proc("effort") %>% ttest_table()
 ### Joint visualization of Secondary 4-6
 <!-- ----------------------------------------------------------------------- -->
 
-The figure below summarizes the per-RT distributions of the three process indicators by treatment condition. Each panel shows a violin (group density) overlaid with individual jittered observations; horizontal lines mark the group means. Lower values for all three indicators are consistent with the preregistered direction of effect. In the *hours worked* panel, the two severe outliers exceeding 600 hours (one per condition) are omitted from the violins and points so that the densities remain legible, but they are **retained in the group means**; small guillemets above each violin flag the presence of these off-scale observations.
+The figure below summarizes the per-RT distributions of the three process indicators by treatment condition. Each panel shows a box plot for each condition — the median and the quartiles, with whiskers extending to the most extreme observation within 1.5 interquartile ranges of the quartiles and any observation beyond them drawn individually — and, beside it, the group mean with its 95% confidence interval. Lower values for all three indicators are consistent with the preregistered direction of effect. Every statistic uses all research teams, including the two reporting more than 600 hours (one per condition); in the *hours worked* panel those two lie outside the axis, as the panel annotation records.
 
 ```{r "fig: secondary 4-6", fig.height = 4, fig.width = 10}
 
@@ -1021,48 +1103,53 @@ proc.long <- df.proc %>%
                names_to = "var", values_to = "val") %>%
   mutate(var = factor(var,
     levels = c("rprd_itrt", "hours_spent", "effort"),
-    labels = c("Reproducibility iterations", lbl.hrs, "Effort"))) %>%
+    labels = c("Reproducibility iterations", lbl.hrs, "Effort")),
+    xg = as.numeric(group)) %>%
   filter(!is.na(val))
 
-# group means use all observations (incl. the two >600h outliers)
+# group means with their 95% t-intervals; like the box plots, these use every
+# team, including the two above 600 hours that fall outside the hours axis
 means <- proc.long %>%
   group_by(var, group) %>%
-  summarise(m = mean(val, na.rm = TRUE), .groups = "drop")
-
-# violins/points drop the two >600h RTs so the densities stay legible (the
-# means above keep them); a rotated guillemet flags the off-scale points
-proc.plot <- proc.long %>% filter(!(var == lbl.hrs & val > 600))
-
-guillemets <- proc.plot %>%
-  filter(var == lbl.hrs) %>%
-  group_by(var, group) %>%
-  summarise(val = 168, .groups = "drop")   # just below the 180 axis cap
+  summarise(m = mean(val), s = sd(val), n = n(), xg = first(xg),
+            .groups = "drop") %>%
+  mutate(ci.lb = m - qt(0.975, n - 1) * s / sqrt(n),
+         ci.ub = m + qt(0.975, n - 1) * s / sqrt(n))
 
 # one single-faceted panel per indicator, so each keeps the bordered strip
 # header (theme_md) yet gets an independent y-axis; the shared expansion keeps
-# the within-panel padding consistent across the three panels.
-panel <- function(v, brks, lims, flags = NULL) {
-  g <- ggplot(proc.plot %>% filter(var == v),
-              aes(x = group, y = val, color = group, fill = group)) +
-    geom_violin(width = 0.9, alpha = fig$alpha.fill, color = NA) +
-    geom_jitter(width = 0.10, alpha = fig$alpha.dot, size = fig$pt.dot) +
-    geom_segment(
-      data = means %>% filter(var == v),
-      aes(x = as.numeric(factor(group)) - 0.32,
-          xend = as.numeric(factor(group)) + 0.32, y = m, yend = m, color = group),
-      linewidth = 0.9, inherit.aes = FALSE
-    )
-  if (!is.null(flags)) {
-    g <- g + geom_text(
-      data = flags, aes(x = group, y = val),
-      label = intToUtf8(187), angle = 90,  # guillemet (»), rotated -> points up
-      color = "grey55", size = 4.2, fontface = "bold", inherit.aes = FALSE
-    )
+# the within-panel padding consistent across the three panels. The box plot
+# sits left of the group's tick and the mean with its interval right of it.
+# Iterations and effort are integer-valued, so their axes are ticked at every
+# integer; observations beyond the whiskers are hollow, which distinguishes
+# them from the solid mean markers.
+panel <- function(v, brks, lims, note = NULL) {
+  g <- ggplot() +
+    geom_boxplot(data = proc.long %>% filter(var == v),
+                 aes(x = xg - 0.15, y = val, group = group,
+                     fill = group, color = group),
+                 width = 0.26, alpha = 0.25, linewidth = 0.5,
+                 outlier.shape = 21, outlier.size = 1.2,
+                 outlier.fill = "white", outlier.stroke = 0.5,
+                 outlier.alpha = 1) +
+    geom_linerange(data = means %>% filter(var == v),
+                   aes(x = xg + 0.15, ymin = ci.lb, ymax = ci.ub, color = group),
+                   linewidth = fig$lw.range) +
+    geom_point(data = means %>% filter(var == v),
+               aes(x = xg + 0.15, y = m, color = group), size = 2.6)
+
+  if (!is.null(note)) {
+    g <- g + annotate("text", x = 1.5, y = lims[2], label = note,
+                      vjust = 1.1, size = 2.5, color = "grey40",
+                      fontface = "italic", lineheight = 0.95)
   }
+
   g +
     facet_wrap(~ var) +
     scale_color_manual(values = col.map, guide = "none") +
     scale_fill_manual(values  = col.map, guide = "none") +
+    scale_x_continuous(breaks = c(1, 2), labels = unname(arm.labels),
+                       limits = c(0.45, 2.55)) +
     scale_y_continuous(breaks = brks, limits = lims,
                        expand = expansion(mult = c(0.05, 0.05)),
                        oob = scales::oob_keep) +
@@ -1072,13 +1159,20 @@ panel <- function(v, brks, lims, flags = NULL) {
           plot.margin = margin(l = 8, r = 8, t = 5, b = 5))
 }
 
-p <- panel("Reproducibility iterations", c(1, 3, 5, 7),      c(1, 7)) +
-     panel(lbl.hrs,                      c(0, 60, 120, 180),  c(0, 180), guillemets) +
-     panel("Effort",                     c(1, 4, 7, 10),      c(1, 10)) +
+# the two teams held off the hours axis, named in the panel
+off <- sort(df.proc$hours_spent[!is.na(df.proc$hours_spent) &
+                                df.proc$hours_spent > 600])
+note.hrs <- sprintf(
+  "%d teams above 600 h (%s) are off scale;\nboth are included in the boxes, means and intervals",
+  length(off), paste(off, collapse = " and "))
+
+p <- panel("Reproducibility iterations", 1:7,               c(1, 7)) +
+     panel(lbl.hrs,                      c(0, 60, 120, 180), c(0, 180), note.hrs) +
+     panel("Effort",                     1:10,              c(1, 10)) +
      plot_layout(nrow = 1)
 
 print(p)
-save_fig(p, "figure_4", width = 10, height = 4)
+save_fig(p, "figure_3", width = 10, height = 4)
 
 clean_slate()
 
@@ -1092,45 +1186,70 @@ clean_slate()
 **Summary of the preregistered analyses (see [§3.2.4](https://osf.io/cny7d/overview){.uri} for details):** The RT idiosyncrasy index $I_i$ is higher in the data group than in the control group. We test this hypothesis with an independent-samples $t$-test (equal variances) on the variable "RT idiosyncrasy index", with one observation per RT. We hypothesize a larger mean in the data group.
 </div>
 
-**Results:** The independent-samples $t$-test indicates that the mean RT idiosyncrasy index is $m_{\text{data}}$ = `r round(mean(df.proc$indx_rt[df.proc$group == "data"], na.rm = TRUE), 3)` in the data group and $m_{\text{no data}}$ = `r round(mean(df.proc$indx_rt[df.proc$group == "no data"], na.rm = TRUE), 3)` in the no-data group ($t$ = `r round(ttest_proc("indx_rt")$t_stat, 2)`, $p$ = `r fmt_p(ttest_proc("indx_rt")$p)`). The figure below visualizes the per-RT distribution of the RT-level index by treatment condition (top), with the group means annotated, and the per-(RT × hypothesis) distribution of the per-hypothesis idiosyncrasy index $I_{i,h}$ by treatment condition for each of the four hypotheses (bottom).
+**Results:** The independent-samples $t$-test indicates that the mean RT idiosyncrasy index is $m_{\text{data}}$ = `r round(mean(df.proc$indx_rt[df.proc$group == "data"], na.rm = TRUE), 3)` in the data group and $m_{\text{control}}$ = `r round(mean(df.proc$indx_rt[df.proc$group == "control"], na.rm = TRUE), 3)` in the control group ($t$ = `r round(ttest_proc("indx_rt")$t_stat, 2)`, $p$ = `r fmt_p(ttest_proc("indx_rt")$p)`). The figure below visualizes the per-RT distribution of the RT-level index by treatment condition (top), with the group means annotated, and the per-(RT × hypothesis) distribution of the per-hypothesis idiosyncrasy index $I_{i,h}$ by treatment condition for each of the four hypotheses (bottom). The solid vertical line marks 0.5, the value the index takes in expectation for an analysis chosen without reference to the observed 5%-sample; it is an approximate benchmark rather than one attained by construction, and no test against it is reported, as the pre-analysis plan does not specify one. The dashed lines mark the group means, labelled with their values.
 
 ```{r "fig: secondary 7", fig.height = 6, fig.width = 10}
 
 # top panel: density of the RT-level idiosyncrasy index (df.proc$indx_rt)
+# the two means can lie very close together, so each label is written on the
+# side of its own line that faces away from the other, and the two are set at
+# slightly different heights
+label.sides <- function(d) {
+  d %>% mutate(hj = ifelse(m == max(m), -0.18, 1.18),
+               vj = ifelse(m == max(m), 1.5, 2.8))
+}
+
 means.rt <- df.proc %>%
   filter(!is.na(indx_rt)) %>%
   group_by(group) %>%
-  summarise(m = mean(indx_rt), .groups = "drop")
+  summarise(m = mean(indx_rt), .groups = "drop") %>%
+  label.sides()
 
 top <-
   ggplot(df.proc %>% filter(!is.na(indx_rt)),
          aes(x = indx_rt, color = group, fill = group)) +
-  geom_density(alpha = 0.25, linewidth = 0.6) +
+  # 0.5 = the index's expected value absent any idiosyncrasy (PAP §2.1)
+  geom_vline(xintercept = 0.5, color = col.rule, linewidth = 0.4) +
+  # the index is confined to the unit interval, so the density is estimated
+  # with reflection at 0 and 1 rather than letting the Gaussian kernel put
+  # mass outside the support and clipping it at the panel edge
+  geom_density(alpha = 0.25, linewidth = 0.6, bounds = c(0, 1)) +
   geom_vline(data = means.rt, aes(xintercept = m, color = group),
              linewidth = 0.7, linetype = "dashed") +
-  scale_color_manual(values = col.map, name = "Group") +
-  scale_fill_manual(values  = col.map, name = "Group") +
+  geom_text(data = means.rt,
+            aes(x = m, color = group, label = sprintf("%.3f", m),
+                vjust = vj, hjust = hj),
+            y = Inf, size = 2.9, show.legend = FALSE) +
+  scale_color_manual(values = col.map, labels = arm.labels, name = NULL) +
+  scale_fill_manual(values  = col.map, labels = arm.labels, name = NULL) +
   scale_x_continuous(limits = c(0, 1)) +
   labs(x = "RT idiosyncrasy index", y = "Density") +
   theme_md()
 
 # bottom row: per-hypothesis density of the per-(RT × hyp) index (df.rslts$indx)
-hyp.lab <- function(h) factor(h, levels = c("h1", "h2", "h3", "h4"),
-                              labels = c("RT Hypothesis 1", "RT Hypothesis 2",
-                                         "RT Hypothesis 3", "RT Hypothesis 4"))
+hyp.lab <- function(h) factor(h, levels = paste0("h", 1:4),
+                              labels = hyp_label(paste0("h", 1:4)))
 
 means.hyp <- df.rslts %>%
   filter(!is.na(indx)) %>%
   group_by(hyp, group) %>%
   summarise(m = mean(indx), .groups = "drop") %>%
+  group_by(hyp) %>%
+  label.sides() %>%
+  ungroup() %>%
   mutate(hyp = hyp.lab(hyp))
 
 bot <-
   ggplot(df.rslts %>% filter(!is.na(indx)) %>% mutate(hyp = hyp.lab(hyp)),
          aes(x = indx, color = group, fill = group)) +
-  geom_density(alpha = 0.25, linewidth = 0.5) +
+  geom_vline(xintercept = 0.5, color = col.rule, linewidth = 0.4) +
+  geom_density(alpha = 0.25, linewidth = 0.5, bounds = c(0, 1)) +
   geom_vline(data = means.hyp, aes(xintercept = m, color = group),
              linewidth = 0.6, linetype = "dashed") +
+  geom_text(data = means.hyp,
+            aes(x = m, color = group, label = sprintf("%.3f", m),
+                vjust = vj, hjust = hj),
+            y = Inf, size = 2.5, show.legend = FALSE) +
   facet_wrap(~ hyp, nrow = 1) +
   scale_color_manual(values = col.map, guide = "none") +
   scale_fill_manual(values  = col.map, guide = "none") +
@@ -1145,7 +1264,7 @@ combined <- (top / bot) +
   theme(legend.position = "bottom")
 
 print(combined)
-save_fig(combined, "figure_5", width = 10, height = 6)
+save_fig(combined, "figure_4", width = 10, height = 6)
 
 clean_slate()
 
@@ -1158,18 +1277,41 @@ ttest_proc("indx_rt") %>% ttest_table()
 ```
 
 
+<div class="nonprereg">
+**Non-preregistered robustness test — cells reaching the registered number of placebo draws.** The pre-analysis plan specifies 1,000 placebo subsamples per (RT $\times$ hypothesis) cell, but some teams' code did not execute on every subsample, so `r sum(df.rslts$n_plac < 1000, na.rm = TRUE)` of the `r sum(!is.na(df.rslts$indx))` cells with an index rest on fewer draws (see `02_summary_stats.Rmd` for the distribution by hypothesis and condition). The test below repeats the registered specification on the research teams whose four cells all reach 1,000 draws. The index keeps its registered definition — the mean of all four per-hypothesis indices — so only the sample changes; the restriction itself is not preregistered.
+</div>
+
+```{r "tbl: secondary 7 (1,000 draws)"}
+
+# RTs whose four (RT × hypothesis) cells all reach the registered 1,000
+# placebo draws; teams with fewer than four cells have no RT index anyway
+tid.full <- df.rslts %>%
+  filter(!is.na(indx)) %>%
+  group_by(tid) %>%
+  summarise(complete = n() == 4 && all(n_plac == 1000), .groups = "drop") %>%
+  filter(complete) %>%
+  pull(tid)
+
+ttest_proc("indx_rt", data = df.proc %>% filter(tid %in% tid.full)) %>%
+  ttest_table()
+
+clean_slate()
+
+```
+
+
 ## Secondary hypotheses 8 & 9
 <!-- ----------------------------------------------------------------------- -->
 
 <div class="prereg">
 **Summary of the preregistered analyses (see [§3.2.4](https://osf.io/cny7d/overview){.uri} for details):**
 
-**Secondary hypothesis 8.** In the *data* group, the per-hypothesis idiosyncrasy index $I_{i,h}$ is positively associated with prior beliefs about Hypothesis $h$. We test this by regressing $I_{i,h}$ on "Initial beliefs, hypothesis $h$" (0–100%), restricted to data-group RTs, with standard errors clustered at the RT level. Each (RT, hypothesis) cell is one observation. We hypothesize a positive coefficient.
+**Secondary hypothesis 8.** In the *data* group, the per-hypothesis idiosyncrasy index $I_{i,h}$ is positively associated with prior beliefs about RT Hypothesis $h$. We test this by regressing $I_{i,h}$ on "Initial beliefs, RT Hypothesis $h$" (0–100%), restricted to data-group RTs, with standard errors clustered at the RT level. Each (RT, hypothesis) cell is one observation. We hypothesize a positive coefficient.
 
-**Secondary hypothesis 9.** The idiosyncrasy index $I_{i,h}$ is more positively associated with prior beliefs about Hypothesis $h$ in the *data* group than in the *no-data* group. We test this by regressing $I_{i,h}$ on "Initial beliefs, hypothesis $h$", "Group", and their interaction, using both groups, with standard errors clustered at the RT level. Each (RT, hypothesis) cell is one observation. We hypothesize a positive coefficient on the interaction term.
+**Secondary hypothesis 9.** The idiosyncrasy index $I_{i,h}$ is more positively associated with prior beliefs about RT Hypothesis $h$ in the *data* group than in the *control* group. We test this by regressing $I_{i,h}$ on "Initial beliefs, RT Hypothesis $h$", "Group", and their interaction, using both groups, with standard errors clustered at the RT level. Each (RT, hypothesis) cell is one observation. We hypothesize a positive coefficient on the interaction term.
 </div>
 
-**Results:** The table below combines both regressions, displaying SH 8 in column **(a)** (data group only) and SH 9 in column **(b)** (full sample, with interaction). Beliefs are expressed as a 0–1 fraction, so each belief coefficient gives the change in the idiosyncrasy index associated with moving across the full range of prior belief (from 0% to 100%). A positive coefficient on the interaction term corresponds to a steeper belief–idiosyncrasy gradient in the data group than in the no-data group.
+**Results:** The table below combines both regressions, displaying SH 8 in column **(a)** (data group only) and SH 9 in column **(b)** (full sample, with interaction). Beliefs are expressed as a 0–1 fraction, so each belief coefficient gives the change in the idiosyncrasy index associated with moving across the full range of prior belief (from 0% to 100%). A positive coefficient on the interaction term corresponds to a steeper belief–idiosyncrasy gradient in the data group than in the control group.
 
 ```{r "tbl: secondary 8 & 9"}
 
@@ -1187,6 +1329,40 @@ model9 <- feols(indx ~ prior * group, cluster = ~ tid, data = df.idx)
 cstm.ms(
   list("(a) Sec 8: data group only"        = model8,
        "(b) Sec 9: full, with interaction" = model9),
+  coef_map = c(
+    "prior"           = "Initial belief (0–1)",
+    "groupdata"       = "Group: Data",
+    "prior:groupdata" = "Initial belief (0–1) × Group: Data",
+    "(Intercept)"     = "Constant"
+  ),
+  cluster = "clustered at the RT level"
+)
+
+clean_slate()
+
+```
+
+
+<div class="nonprereg">
+**Non-preregistered robustness test — cells reaching the registered number of placebo draws.** As for Secondary hypothesis 7 above, the table below repeats both registered specifications on the (RT $\times$ hypothesis) cells whose idiosyncrasy index rests on the full 1,000 placebo subsamples specified in the pre-analysis plan. Only the sample changes; the restriction itself is not preregistered.
+</div>
+
+```{r "tbl: secondary 8 & 9 (1,000 draws)"}
+
+# the same two regressions, restricted to cells with the full 1,000 draws
+df.idx.full <- df.rslts %>%
+  select(tid, hyp, group, indx, n_plac) %>%
+  left_join(df.blfs %>% filter(stage == "s1") %>% select(tid, hyp, prior = belief),
+            by = c("tid", "hyp")) %>%
+  filter(!is.na(indx), !is.na(prior), n_plac == 1000)
+
+cstm.ms(
+  list("(a) Sec 8: data group only"        = feols(indx ~ prior, cluster = ~ tid,
+                                                   data = df.idx.full %>%
+                                                     filter(group == "data")),
+       "(b) Sec 9: full, with interaction" = feols(indx ~ prior * group,
+                                                   cluster = ~ tid,
+                                                   data = df.idx.full)),
   coef_map = c(
     "prior"           = "Initial belief (0–1)",
     "groupdata"       = "Group: Data",

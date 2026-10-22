@@ -21,18 +21,20 @@ The **Setup** chunk clears the workspace, loads the required packages, sets the 
 # clear workspace
 rm(list = ls())
 
-# install (if necessary) and load required packages
+# load the required packages, pinned to the CRAN snapshot of `groundhog.day`
+# so that every run uses the same package versions (requires R >= 4.6);
+# knitr and rmarkdown come with the rendering front-end and stay unpinned
+if (!require("groundhog", quietly = TRUE)) {
+  install.packages("groundhog", repos = "https://cloud.r-project.org")
+  library(groundhog)
+}
+groundhog.day <- "2026-09-01"
 packages <- c(
-  "here", "haven", "knitr",
+  "here", "haven",
   "labelled", "readxl", "stringr",
   "tidyverse"
 )
-for (pkg in packages) {
-  if (!require(pkg, character.only = TRUE)) {
-    install.packages(pkg, dependencies = TRUE)
-    library(pkg, character.only = TRUE)
-  }
-}
+groundhog.library(packages, groundhog.day)
 
 # anchor here() to the project root, so paths resolve regardless of the
 # working directory
@@ -61,7 +63,7 @@ data.idiosyncrasy <-
   ) %>%
   mutate(across(everything(), strip_attrs))
 
-rm(pkg, packages, strip_attrs)
+rm(groundhog.day, packages, strip_attrs)
 
 ```
 
@@ -71,7 +73,7 @@ rm(pkg, packages, strip_attrs)
 # Functions
 <!-- ======================================================================= -->
 
-Project-wide helpers. `select.mutate()` wraps `dplyr::mutate()` and keeps only the columns the mutation introduced or changed. `as.dummy()` turns the "Yes"/"No" strings returned by Qualtrics into a two-level (`no`/`yes`) factor; `as.treatment()` maps the 0/1 treatment code to a `no data`/`data` factor; `yn()` builds a `no`/`yes` factor from a logical condition.
+Project-wide helpers. `select.mutate()` wraps `dplyr::mutate()` and keeps only the columns the mutation introduced or changed. `as.dummy()` turns the "Yes"/"No" strings returned by Qualtrics into a two-level (`no`/`yes`) factor; `as.treatment()` maps the 0/1 treatment code to a `control`/`data` factor; `yn()` builds a `no`/`yes` factor from a logical condition.
 
 ```{r "functions"}
 
@@ -95,9 +97,9 @@ as.dummy <- function(x) {
   )
 }
 
-# 0/1 treatment code -> factor(no data, data)
+# 0/1 treatment code -> factor(control, data)
 as.treatment <- function(x) {
-  factor(x, levels = c(0, 1), labels = c("no data", "data"))
+  factor(x, levels = c(0, 1), labels = c("control", "data"))
 }
 
 # logical condition -> factor(no, yes)
@@ -292,7 +294,7 @@ df.blfs <-
   set_variable_labels(.labels = list(
     tid    = "Research Team ID",
     stage  = "Project Stage",
-    hyp    = "Hypothesis ID",
+    hyp    = "RT Hypothesis ID",
     belief = "Belief: Support (0-1)"
   ))
 
@@ -351,7 +353,7 @@ df.evls <-
 
   set_variable_labels(.labels = list(
     tid   = "Research Team ID",
-    hyp   = "Hypothesis ID",
+    hyp   = "RT Hypothesis ID",
     rid   = "ID of Rating Team",
     group = "Treatment Condition",
     rsnbl = "Rating: Reasonableness (0-10)",
@@ -384,10 +386,10 @@ df.cons <-
     tid     = rt_id,
     group   = factor(case_when(
                 startsWith(treatment_str, "data")    ~ "data",
-                startsWith(treatment_str, "no-data") ~ "no data",
+                startsWith(treatment_str, "no-data") ~ "control",
                 TRUE                                 ~ NA_character_
               ),
-              levels = c("no data", "data")),
+              levels = c("control", "data")),
 
     # part of the random 10% audit (PAP §1.5)
     audit10 = yn(`10%_sample` == 1),
@@ -439,6 +441,7 @@ The team-level results from running each RT's analysis code on the 95% sample, p
 - `dir`, `sig`, `ssc` — direction, significance at $\alpha$ = 5%, and the joint "$p$ < 0.05 in the hypothesized direction" criterion (PAP §2.1);
 - `abs_dev` — absolute deviation of `z` from the group × hypothesis mean (PAP §2.1);
 - `outl_rsnbl` — low-reasonableness flag (average demeaned reasonableness rating below $-2 \times SD$; PAP §3.1.1);
+- `outl_rsnbl_rt` — corrected low-reasonableness flag, with the SD taken over the RT-level average demeaned ratings rather than the individual demeaned ratings (**not preregistered**; documented in `03_preregistered_analyses.Rmd`);
 - `outl_fences` — Tukey's-fences flag on `z`, per group × hypothesis (PAP §3.1.1);
 - `indx` — per-(RT × hypothesis) idiosyncrasy index $I_{i,h} = 1 - F_{i,h}(D_5)$, with `n_plac` recording the number of placebo draws behind each cell (PAP §2.1).
 
@@ -538,9 +541,14 @@ df.rslts <-
   ungroup()
 
 
-# (i) low-reasonableness flag (PAP §3.1.1): average demeaned reasonableness
-# rating below -2 × SD, where ratings are demeaned per rater × hypothesis and
-# the SD is taken over the demeaned distribution per hypothesis
+# (i) low-reasonableness flags (PAP §3.1.1): average demeaned reasonableness
+# rating below -2 × SD, where ratings are demeaned per rater × hypothesis.
+# The registered rule (outl_rsnbl) takes the SD over the demeaned individual
+# ratings per hypothesis; because RT-level averages are far less dispersed
+# than individual ratings, that threshold binds for no team. The corrected
+# rule (outl_rsnbl_rt) takes the SD over the RT-level average demeaned
+# ratings instead -- a non-preregistered deviation, documented in the
+# preamble of 03_preregistered_analyses.Rmd
 evls.dm <-
   df.evls %>%
   group_by(rid, hyp) %>%
@@ -554,7 +562,7 @@ df.rsnbl <-
   group_by(tid, hyp) %>%
   summarise(rsnbl_avg = mean(rsnbl_dm, na.rm = TRUE), .groups = "drop") %>%
 
-  # per-hypothesis SD of the demeaned distribution
+  # per-hypothesis SD of the demeaned distribution (registered rule)
   left_join(
     evls.dm %>%
       group_by(hyp) %>%
@@ -562,8 +570,16 @@ df.rsnbl <-
     by = "hyp"
   ) %>%
 
-  mutate(outl_rsnbl = yn(rsnbl_avg < -2 * rsnbl_sd)) %>%
-  select(tid, hyp, outl_rsnbl)
+  # per-hypothesis SD of the RT-level averages (corrected rule)
+  group_by(hyp) %>%
+  mutate(rsnbl_sd_rt = sd(rsnbl_avg, na.rm = TRUE)) %>%
+  ungroup() %>%
+
+  mutate(
+    outl_rsnbl    = yn(rsnbl_avg < -2 * rsnbl_sd),
+    outl_rsnbl_rt = yn(rsnbl_avg < -2 * rsnbl_sd_rt)
+  ) %>%
+  select(tid, hyp, outl_rsnbl, outl_rsnbl_rt)
 
 
 # (ii) Tukey's-fences flag on z, per group × hypothesis (PAP §3.1.1)
@@ -622,28 +638,29 @@ df.rslts <-
   left_join(df.indx,   by = c("tid", "hyp")) %>%
 
   set_variable_labels(.labels = list(
-    tid         = "Research Team ID",
-    group       = "Treatment Condition",
-    hyp         = "Hypothesis ID",
-    n_obs       = "No. Observations",
-    n_ind       = "No. Individuals",
-    b           = "Coefficient Estimate",
-    se          = "Standard Error",
-    fam         = "Test Family",
-    df_m        = "Model DFs",
-    df_res      = "Residual DFs",
-    stat        = "Test Statistic",
-    log_p       = "log(p-Value)",
-    intprt      = "Interpretation",
-    z           = "z-Value",
-    dir         = "Directionality",
-    sig         = "Significance",
-    ssc         = "Stat. Sig. Criterion",
-    abs_dev     = "Absolute Deviation",
-    outl_rsnbl  = "Outlier: Low Reasonableness",
-    outl_fences = "Outlier: Tukey's Fences",
-    indx        = "Idiosyncrasy Index",
-    n_plac      = "Idiosyncrasy: No. Placebo Draws"
+    tid           = "Research Team ID",
+    group         = "Treatment Condition",
+    hyp           = "RT Hypothesis ID",
+    n_obs         = "No. Observations",
+    n_ind         = "No. Individuals",
+    b             = "Coefficient Estimate",
+    se            = "Standard Error",
+    fam           = "Test Family",
+    df_m          = "Model DFs",
+    df_res        = "Residual DFs",
+    stat          = "Test Statistic",
+    log_p         = "log(p-Value)",
+    intprt        = "Interpretation",
+    z             = "z-Value",
+    dir           = "Directionality",
+    sig           = "Significance",
+    ssc           = "Stat. Sig. Criterion",
+    abs_dev       = "Absolute Deviation",
+    outl_rsnbl    = "Outlier: Low Reasonableness",
+    outl_rsnbl_rt = "Outlier: Low Reasonableness (RT-Level SD)",
+    outl_fences   = "Outlier: Tukey's Fences",
+    indx          = "Idiosyncrasy Index",
+    n_plac        = "Idiosyncrasy: No. Placebo Draws"
   ))
 
 rm(evls.dm, df.rsnbl, df.fences, df.indx)

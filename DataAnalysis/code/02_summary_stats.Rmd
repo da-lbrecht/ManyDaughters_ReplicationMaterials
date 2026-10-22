@@ -25,18 +25,20 @@ This `.Rmd` file produces descriptive summary statistics for all variables that 
 # clear workspace
 rm(list = ls())
 
-# install (if necessary) and load required packages
+# load the required packages, pinned to the CRAN snapshot of `groundhog.day`
+# so that every run uses the same package versions (requires R >= 4.6);
+# knitr and rmarkdown come with the rendering front-end and stay unpinned
+if (!require("groundhog", quietly = TRUE)) {
+  install.packages("groundhog", repos = "https://cloud.r-project.org")
+  library(groundhog)
+}
+groundhog.day <- "2026-09-01"
 packages <- c(
-  "here", "knitr",
-  "gt",
+  "here",
+  "gt", "viridis",
   "tidyverse"
 )
-for (pkg in packages) {
-  if (!require(pkg, character.only = TRUE)) {
-    install.packages(pkg, dependencies = TRUE)
-    library(pkg, character.only = TRUE)
-  }
-}
+groundhog.library(packages, groundhog.day)
 
 # anchor here() to the project root, so paths resolve regardless of the
 # working directory
@@ -44,6 +46,8 @@ here::i_am("code/02_summary_stats.Rmd")
 
 # load the environment built by 01_data_processing.Rmd (df.* frames)
 load(here("data", "proc", "_env.RData"))
+
+set.seed(32844837)    # reproducible jitter in the beliefs figure
 
 knitr::opts_chunk$set(
   echo       = FALSE,
@@ -55,7 +59,7 @@ knitr::opts_chunk$set(
   out.width  = "100%"
 )
 
-rm(pkg, packages)
+rm(groundhog.day, packages)
 
 ```
 
@@ -128,13 +132,64 @@ stats_gt <- function(g, dec_ms = 2, dec_mm = 2, count = FALSE) {
   }
 }
 
-# hypothesis labels shared across the by-hypothesis tables
-hyp.labels <- c("h1" = "Hypothesis 1", "h2" = "Hypothesis 2",
-                "h3" = "Hypothesis 3", "h4" = "Hypothesis 4")
+# hypothesis labels shared across the by-hypothesis tables and figures
+hyp.labels <- c("h1" = "RT Hypothesis 1", "h2" = "RT Hypothesis 2",
+                "h3" = "RT Hypothesis 3", "h4" = "RT Hypothesis 4")
+
+# shared figure aesthetics (sizes/alphas)
+fig <- list(dpi = 600, pt.dot = 1.4, alpha.fill = 0.30, alpha.dot = 0.45)
+col.rule <- "#333333"   # panel border
+
+# viridis purple/teal for the control / data comparison, matching the
+# figures in 03_preregistered_analyses.Rmd
+col.map <- setNames(viridis(2, begin = 0.125, end = 0.625), c("control", "data"))
+
+# the names the paper gives the two arms, used in every table and figure
+arm.labels <- c("control" = "Control group", "data" = "Data group")
+
+# shared minimal ggplot theme, identical to 03_preregistered_analyses.Rmd
+theme_md <- function() {
+  theme_minimal() +
+  theme(
+    legend.position    = "bottom",
+    legend.background  = element_rect(fill = "#f6f6f6", color = "#e6e6e6",
+                                      linewidth = 0.2),
+    legend.text  = element_text(size = 9, color = "#666666"),
+    legend.title = element_text(size = 9, color = "#666666", face = "bold"),
+
+    axis.text.x  = element_text(size = 9),
+    axis.text.y  = element_text(size = 9),
+    axis.title.x = element_text(size = 10, margin = margin(t = 6)),
+    axis.title.y = element_text(size = 10, margin = margin(r = 6)),
+
+    panel.grid.major = element_line(color = "#e6e6e6", linewidth = 0.3),
+    panel.grid.minor = element_blank(),
+    panel.border     = element_rect(linewidth = 0.4, color = col.rule, fill = NA),
+
+    strip.text       = element_text(size = 10, face = "bold", color = col.rule),
+    strip.background = element_rect(fill = "#f0f0f0", color = col.rule,
+                                    linewidth = 0.4),
+
+    plot.title          = element_text(size = 11, face = "bold",
+                                       margin = margin(b = 6)),
+    plot.title.position = "plot",
+    plot.tag            = element_text(size = 11, face = "bold"),
+    plot.margin         = margin(l = 5, r = 5, t = 5, b = 5)
+  )
+}
+
+# save a figure to out/figures, as PNG (dpi = fig$dpi) and as vector PDF
+# (cairo_pdf: the base pdf device cannot render all glyphs)
+save_fig <- function(plot, name, width, height) {
+  ggsave(here("out", "figures", paste0(name, ".png")),
+         plot, width = width, height = height, dpi = fig$dpi)
+  ggsave(here("out", "figures", paste0(name, ".pdf")),
+         plot, width = width, height = height, device = cairo_pdf)
+}
 
 # drop a chunk's scratch objects, keeping the data frames (df.*), every helper
-# function, and the shared label vector
-.keep <- "hyp.labels"
+# function, and the shared palette / size / label objects listed in .keep
+.keep <- c("hyp.labels", "arm.labels", "fig", "col.rule", "col.map")
 clean_slate <- function() {
   env  <- parent.frame()
   obj  <- ls(env)
@@ -311,7 +366,7 @@ clean_slate()
 # Prior and posterior beliefs
 <!-- ======================================================================= -->
 
-This section summarizes research teams' beliefs about the likelihood (expressed as a 0-1 fraction) that Hypotheses 1 through 4 would be supported at the 5% significance level. Priors were elicited before Stage 1 (Survey #1) and posteriors after Stage 2 (Survey #2). The table reports descriptive statistics for the priors, the posteriors, and the within-team belief change (posterior minus prior), separately for each hypothesis.
+This section summarizes research teams' beliefs about the likelihood (expressed as a 0-1 fraction) that RT Hypotheses 1 through 4 would be supported at the 5% significance level. Priors were elicited before Stage 1 (Survey #1) and posteriors after Stage 2 (Survey #2). The table reports descriptive statistics for the priors, the posteriors, and the within-team belief change (posterior minus prior), separately for each hypothesis.
 
 ```{r "beliefs"}
 
@@ -346,6 +401,174 @@ df.blfs %>%
   group_by(hyp) %>%
   gt(rowname_col = "var") %>%
   stats_gt(dec_ms = 2, dec_mm = 2)
+
+clean_slate()
+
+```
+
+The figure below shows the distributions underlying the table, by hypothesis (columns) and treatment condition (rows). Each dot is one research team's reported belief; the thin gray lines connect a team's prior (Survey #1) to its posterior (Survey #2). The violins outline the distribution of beliefs per condition and elicitation, and the horizontal bars mark the corresponding means. One single-member team did not reach the belief task in Survey #1 and therefore appears with its posterior beliefs only.
+
+```{r "beliefs: figure", fig.height = 5.5, fig.width = 10}
+
+# per-team beliefs with the treatment condition attached; the horizontal
+# offset is drawn once per (team × hypothesis), so a team's prior and
+# posterior dots -- and the line connecting them -- share the same offset
+blfs.fig <-
+  df.blfs %>%
+  filter(!is.na(belief)) %>%
+  left_join(df.proc %>% select(tid, group), by = "tid") %>%
+  mutate(x0 = as.numeric(stage))
+
+blfs.off <-
+  blfs.fig %>%
+  distinct(tid, hyp) %>%
+  mutate(off = runif(n(), -0.15, 0.15))
+
+blfs.fig <-
+  blfs.fig %>%
+  left_join(blfs.off, by = c("tid", "hyp")) %>%
+  mutate(x = x0 + off)
+
+# condition × elicitation means, drawn as horizontal bars
+blfs.means <-
+  blfs.fig %>%
+  group_by(hyp, group, stage) %>%
+  summarise(m = mean(belief), .groups = "drop") %>%
+  mutate(x0 = as.numeric(stage))
+
+plot <-
+  ggplot(blfs.fig, aes(x = x, y = belief, color = group)) +
+  geom_violin(aes(x = x0, group = stage, fill = group),
+              width = 0.75, alpha = fig$alpha.fill, color = NA) +
+  geom_line(aes(group = tid), color = "#bbbbbb",
+            linewidth = 0.25, alpha = 0.6) +
+  geom_point(size = fig$pt.dot, alpha = fig$alpha.dot) +
+  geom_segment(
+    data = blfs.means,
+    aes(x = x0 - 0.3, xend = x0 + 0.3, y = m, yend = m, color = group),
+    linewidth = 0.9, inherit.aes = FALSE
+  ) +
+  facet_grid(group ~ hyp,
+             labeller = labeller(hyp = hyp.labels, group = arm.labels)) +
+
+  scale_color_manual(values = col.map, guide = "none") +
+  scale_fill_manual(values  = col.map, guide = "none") +
+  scale_x_continuous(breaks = c(1, 2), labels = c("Prior", "Posterior"),
+                     limits = c(0.5, 2.5)) +
+  scale_y_continuous(breaks = seq(0, 1, 0.25), limits = c(0, 1)) +
+
+  labs(x = NULL, y = "Belief: hypothesis supported (0-1)") +
+  theme_md()
+
+print(plot)
+save_fig(plot, "figure_A1", width = 10, height = 5.5)
+
+clean_slate()
+
+```
+
+
+
+<!-- ======================================================================= -->
+# Balance across treatment conditions
+<!-- ======================================================================= -->
+
+Research teams were randomized into the two conditions when they entered the project — before any team received data, and before the Survey #1 belief elicitation. The table below compares the two conditions on the team-level characteristics that enter the preregistered analyses as controls (PAP §2.2) and on the prior beliefs elicited in Survey #1, across the research teams that completed the project.
+
+The $p$-values are **descriptive**: they summarize how far apart the two conditions happen to be on each characteristic in the realized sample, and no inference is drawn from them. They are unadjusted, and eleven comparisons are reported, so isolated values below conventional thresholds are expected even under perfectly balanced randomization.
+
+```{r "balance"}
+
+# binary characteristics are summarized by the share of teams in the second
+# ("yes"/"senior") factor level; continuous characteristics and beliefs by
+# the group mean. p-values are descriptive: chi-squared for the binary rows,
+# two-sample t-tests (equal variances) for the continuous ones
+bal.bin <- c(
+  "team_of_two" = "Team of two",
+  "seniority"   = "Assoc./full professor",
+  "economics"   = "Economist",
+  "top_pub"     = "AJG 4*/FT50 publication",
+  "exp_soep"    = "Experience: SOEP data"
+)
+bal.num <- c(
+  "exp_anal" = "Experience: analysis (0-10)",
+  "exp_pap"  = "Experience: PAPs (0-10)"
+)
+
+# one table row from a binary characteristic: counts and shares of the
+# positive level, with the chi-squared p-value for the 2 x 2 table
+row_bin <- function(var, label) {
+  tbl <- table(df.proc[[var]], df.proc$group)
+  pos <- levels(df.proc[[var]])[2]
+  shr <- tbl[pos, ] / colSums(tbl)
+  tibble(
+    block  = "Team characteristics",
+    var    = label,
+    n      = sum(tbl),
+    control = sprintf("%d (%.1f%%)", tbl[pos, "control"], 100 * shr[["control"]]),
+    data    = sprintf("%d (%.1f%%)", tbl[pos, "data"],    100 * shr[["data"]]),
+    diff    = sprintf("%+.1f", 100 * (shr[["data"]] - shr[["control"]])),
+    p       = suppressWarnings(chisq.test(tbl)$p.value)
+  )
+}
+
+# one table row from a continuous variable: group means with standard
+# deviations in parentheses, and the t-test. The values are taken before the
+# tibble() call, whose `var` and `data` columns would otherwise mask the
+# arguments of the same name
+row_num <- function(data, var, label, block, digits = 2) {
+  x   <- data[[var]]
+  ct  <- x[data$group == "control"]
+  dt  <- x[data$group == "data"]
+  tst <- t.test(reformulate("group", var), data = data, var.equal = TRUE)
+  fmt <- paste0("%.", digits, "f (%.", digits, "f)")
+  tibble(
+    block  = block,
+    var    = label,
+    n      = sum(!is.na(x)),
+    control = sprintf(fmt, mean(ct, na.rm = TRUE), sd(ct, na.rm = TRUE)),
+    data    = sprintf(fmt, mean(dt, na.rm = TRUE), sd(dt, na.rm = TRUE)),
+    diff    = sprintf(paste0("%+.", digits, "f"),
+                      mean(dt, na.rm = TRUE) - mean(ct, na.rm = TRUE)),
+    p       = tst$p.value
+  )
+}
+
+# Survey #1 priors, one row per hypothesis
+blfs.s1 <-
+  df.blfs %>%
+  filter(stage == "s1", !is.na(belief)) %>%
+  left_join(df.proc %>% select(tid, group), by = "tid")
+
+bind_rows(
+  map2(names(bal.bin), bal.bin, row_bin),
+  map2(names(bal.num), bal.num,
+       function(v, l) row_num(df.proc, v, l, "Team characteristics")),
+  map2(names(hyp.labels), hyp.labels,
+       function(h, l) row_num(blfs.s1 %>% filter(hyp == h), "belief", l,
+                              "Prior beliefs (Survey #1)", digits = 3))
+) %>%
+
+  group_by(block) %>%
+  gt(rowname_col = "var") %>%
+
+  cols_label(
+    n      = math("n"),
+    control = "Control group",
+    data   = "Data",
+    diff   = "Diff",
+    p      = math("p", "(descriptive)")
+  ) %>%
+  fmt_number(columns = p, decimals = 3) %>%
+  cols_align(align = "center", columns = c(n, control, data, diff)) %>%
+  cols_align(align = "left",   columns = stub()) %>%
+  cols_width(stub() ~ pct(34), n ~ pct(8), c(control, data) ~ pct(17),
+             diff ~ pct(10), p ~ pct(14)) %>%
+  gt_pct100() %>%
+
+  tab_source_note(html(
+    "<b>Notes:</b> Research teams that completed the project. Binary characteristics report the number and share of teams in the stated category, with the difference in percentage points and a chi-squared test with continuity correction; the remaining rows report the group mean with the standard deviation in parentheses, with the difference in means in the units of the variable and a two-sample <i>t</i>-test (equal variances). Beliefs are the probabilities elicited in Survey #1, expressed as 0-1 fractions; one team did not reach the belief task in that survey, so the belief rows rest on one team fewer. All <i>p</i>-values are descriptive and unadjusted across the eleven comparisons shown."
+  ))
 
 clean_slate()
 
@@ -458,33 +681,35 @@ clean_slate()
 
 ```
 
-The second table reports absolute and relative frequencies of five binary indicators by hypothesis: **(i)** the directionality of the estimate (positive = supports the hypothesis), **(ii)** statistical significance at the 5% level, **(iii)** the joint "$p$ < 0.05 in the hypothesized direction" criterion (PAP §2.1), and **(iv-v)** the two preregistered outlier flags used in the robustness analyses (low average reasonableness rating; Tukey's fences on $z$).
+The second table reports absolute and relative frequencies of six binary indicators by hypothesis: **(i)** the directionality of the estimate (positive = supports the hypothesis), **(ii)** statistical significance at the 5% level, **(iii)** the joint "$p$ < 0.05 in the hypothesized direction" criterion (PAP §2.1), **(iv-v)** the two preregistered outlier flags used in the robustness analyses (low average reasonableness rating; Tukey's fences on $z$), and **(vi)** the corrected low-reasonableness flag, which scales the $-2 \times SD$ threshold by the standard deviation of the RT-level average demeaned ratings (**not preregistered**; see the preamble of `03_preregistered_analyses.Rmd`). The registered low-reasonableness rule compares an RT-level average against a threshold derived from the far more dispersed individual ratings; as the table shows, it excludes no team for any hypothesis.
 
 ```{r "results: frequencies"}
 
-# absolute and relative frequencies of the five binary indicators
+# absolute and relative frequencies of the six binary indicators
 var.labels <- c(
-  "dir"         = "Directionality (support)",
-  "sig"         = "Statistically significant (\U{1D45D} < 0.05)",   # italic p
-  "ssc"         = "\U{1D45D} < 0.05 in hypothesized direction",      # italic p
-  "outl_rsnbl"  = "Outlier: Reasonableness",
-  "outl_fences" = "Outlier: Tukey's Fences"
+  "dir"           = "Directionality (support)",
+  "sig"           = "Statistically significant (\U{1D45D} < 0.05)",   # italic p
+  "ssc"           = "\U{1D45D} < 0.05 in hypothesized direction",      # italic p
+  "outl_rsnbl"    = "Outlier: Reasonableness",
+  "outl_fences"   = "Outlier: Tukey's Fences",
+  "outl_rsnbl_rt" = "Outlier: Reasonableness (RT-level SD)"
 )
 
 df.rslts %>%
-  pivot_longer(c(dir, sig, ssc, outl_rsnbl, outl_fences),
+  pivot_longer(c(dir, sig, ssc, outl_rsnbl, outl_fences, outl_rsnbl_rt),
                names_to = "var", values_to = "val") %>%
 
   # recode each factor to a 0/1 dummy, keeping NA so missing values
   # are not silently counted as zeros
   mutate(val = case_when(
-    is.na(val)                               ~ NA_real_,
-    var == "dir"         & val == "positive" ~ 1,
-    var == "sig"         & val == "p < 0.05" ~ 1,
-    var == "ssc"         & val == "yes"      ~ 1,
-    var == "outl_rsnbl"  & val == "yes"      ~ 1,
-    var == "outl_fences" & val == "yes"      ~ 1,
-    TRUE                                     ~ 0
+    is.na(val)                                 ~ NA_real_,
+    var == "dir"           & val == "positive" ~ 1,
+    var == "sig"           & val == "p < 0.05" ~ 1,
+    var == "ssc"           & val == "yes"      ~ 1,
+    var == "outl_rsnbl"    & val == "yes"      ~ 1,
+    var == "outl_fences"   & val == "yes"      ~ 1,
+    var == "outl_rsnbl_rt" & val == "yes"      ~ 1,
+    TRUE                                       ~ 0
   )) %>%
 
   group_by(hyp, var) %>%
@@ -503,10 +728,10 @@ df.rslts %>%
   gt(rowname_col = "var") %>%
 
   # spanners group {abs_freq, rel_freq} pairs by hypothesis
-  tab_spanner("Hypothesis 1", c(h1_abs_freq, h1_rel_freq)) %>%
-  tab_spanner("Hypothesis 2", c(h2_abs_freq, h2_rel_freq)) %>%
-  tab_spanner("Hypothesis 3", c(h3_abs_freq, h3_rel_freq)) %>%
-  tab_spanner("Hypothesis 4", c(h4_abs_freq, h4_rel_freq)) %>%
+  tab_spanner(hyp.labels[["h1"]], c(h1_abs_freq, h1_rel_freq)) %>%
+  tab_spanner(hyp.labels[["h2"]], c(h2_abs_freq, h2_rel_freq)) %>%
+  tab_spanner(hyp.labels[["h3"]], c(h3_abs_freq, h3_rel_freq)) %>%
+  tab_spanner(hyp.labels[["h4"]], c(h4_abs_freq, h4_rel_freq)) %>%
 
   cols_label(
     h1_abs_freq = "Abs.", h1_rel_freq = "Rel. %",
@@ -534,7 +759,7 @@ clean_slate()
 # Idiosyncrasy index
 <!-- ======================================================================= -->
 
-Following the pre-analysis plan (§2.1), the *idiosyncrasy index* for research team $i$ and Hypothesis $h$ is defined as $I_{i,h} = 1 - F_{i,h}(D_5)$, where $F_{i,h}$ denotes the empirical cumulative distribution of $p$-values obtained by applying RT $i$'s analysis code to placebo 5%-subsamples of the SOEP data and $D_5$ denotes the original 5%-sample. Higher values indicate that the team's $p$-value on the original 5%-sample is unusually small relative to the placebo distribution, suggestive of an idiosyncratic ("lucky") result on the original 5%-sample. The *RT idiosyncrasy index* aggregates the per-hypothesis indices to the team level as $I_i = \frac{1}{4} \sum_{h=1}^{4} I_{i,h}$.
+Following the pre-analysis plan (§2.1), the *idiosyncrasy index* for research team $i$ and RT Hypothesis $h$ is defined as $I_{i,h} = 1 - F_{i,h}(D_5)$, where $F_{i,h}$ denotes the empirical cumulative distribution of $p$-values obtained by applying RT $i$'s analysis code to placebo 5%-subsamples of the SOEP data and $D_5$ denotes the original 5%-sample. Higher values indicate that the team's $p$-value on the original 5%-sample is unusually small relative to the placebo distribution, suggestive of an idiosyncratic ("lucky") result on the original 5%-sample. The *RT idiosyncrasy index* aggregates the per-hypothesis indices to the team level as $I_i = \frac{1}{4} \sum_{h=1}^{4} I_{i,h}$.
 
 ```{r "idiosyncrasy: placebo draws"}
 
@@ -546,14 +771,78 @@ plac <- df.rslts %>% filter(!is.na(indx)) %>% pull(n_plac)
 
 The pre-analysis plan specifies 1,000 placebo subsamples per (RT $\times$ hypothesis) cell. That target is met for `r sum(plac == 1000)` of the `r length(plac)` cells with a non-missing index; the remaining `r sum(plac < 1000)` cells rest on fewer draws (median `r median(plac[plac < 1000])`, minimum `r min(plac)`), because some teams' analysis code did not execute on every subsample. Cells resting on fewer draws estimate $F_{i,h}$ more coarsely, which makes the index granular rather than biased.
 
-The table below summarizes both indices, separately for the data and no-data groups and pooled across both groups. As in the previous section, the statistics are based on the $n$ = `r length(unique(df.rslts$tid))` teams with valid results. The $n$ column reports the number of (RT × hypothesis) cells with a non-missing index value (rows for h1-h4) and the number of RTs with a non-missing aggregated index (row "RT idiosyncrasy index").
+The table below reports how the usable iterations are distributed, by hypothesis and treatment condition: the number of cells with a non-missing index, how many of them reach the registered target of 1,000 placebo draws, and the smallest realized number of draws. Completion is comparable across the two conditions in every hypothesis. Restricting the tests that use the index (Secondary hypotheses 7 to 9) to the cells that reach 1,000 draws leaves the conclusions unchanged; those restricted estimates are reported in `03_preregistered_analyses.Rmd`.
+
+```{r "idiosyncrasy: iterations"}
+
+# usable placebo iterations per (RT × hypothesis) cell, by hypothesis and
+# treatment condition, with an "overall" row appended
+iter <- df.rslts %>%
+  filter(!is.na(indx)) %>%
+  mutate(hyp = as.character(hyp),
+         grp = ifelse(group == "data", "dt", "ct"))
+
+bind_rows(
+  iter,
+  iter %>% mutate(hyp = "all")
+) %>%
+  group_by(hyp, grp) %>%
+  summarise(cells = n(),
+            full  = sum(n_plac == 1000),
+            share = mean(n_plac == 1000),
+            min   = min(n_plac),
+            .groups = "drop") %>%
+
+  pivot_wider(id_cols     = hyp,
+              names_from  = grp,
+              values_from = c(cells, full, share, min),
+              names_glue  = "{grp}_{.value}") %>%
+
+  mutate(hyp = recode(factor(hyp, levels = c(names(hyp.labels), "all")),
+                      !!!c(hyp.labels, "all" = "All hypotheses"))) %>%
+  arrange(hyp) %>%
+  select(hyp, starts_with("ct_"), starts_with("dt_")) %>%
+
+  gt(rowname_col = "hyp") %>%
+  tab_spanner(label = arm.labels[["control"]], columns = starts_with("ct_")) %>%
+  tab_spanner(label = "Data",    columns = starts_with("dt_")) %>%
+
+  cols_label(
+    ct_cells = "Cells", ct_full = "At 1,000", ct_share = "%", ct_min = "Min",
+    dt_cells = "Cells", dt_full = "At 1,000", dt_share = "%", dt_min = "Min"
+  ) %>%
+  fmt_number(columns = c(ct_cells, ct_full, ct_min,
+                         dt_cells, dt_full, dt_min), decimals = 0) %>%
+  fmt_percent(columns = c(ct_share, dt_share), decimals = 0) %>%
+
+  # rule above the pooled row
+  tab_style(
+    style     = cell_borders(sides = "top", color = "#d3d3d3", weight = gt::px(2)),
+    locations = cells_body(rows = 5)
+  ) %>%
+  cols_align(align = "center", columns = everything()) %>%
+  cols_align(align = "left",   columns = stub()) %>%
+  cols_width(stub() ~ pct(20),
+             c(ct_cells, ct_full, ct_share, ct_min,
+               dt_cells, dt_full, dt_share, dt_min) ~ pct(10)) %>%
+  gt_pct100() %>%
+
+  tab_source_note(html(
+    "<b>Note:</b> Cells are (RT × hypothesis) combinations with a non-missing idiosyncrasy index. <i>At 1,000</i> counts the cells that reach the number of placebo subsamples specified in the pre-analysis plan; <i>Min</i> is the smallest realized number of draws in the condition."
+  ))
+
+clean_slate()
+
+```
+
+The table below summarizes both indices, separately for the control and data groups and pooled across both groups. As in the previous section, the statistics are based on the $n$ = `r length(unique(df.rslts$tid))` teams with valid results. The $n$ column reports the number of (RT × hypothesis) cells with a non-missing index value (rows for h1-h4) and the number of RTs with a non-missing aggregated index (row "RT idiosyncrasy index").
 
 ```{r "idiosyncrasy"}
 
 # per-(RT × hypothesis) index (df.rslts) and RT-level index (df.proc),
 # stacked into one long frame
 hyp.labels.rt <- c(hyp.labels, "rt" = "RT idiosyncrasy index")
-grp.labels    <- c("overall" = "Overall", "no data" = "No data", "data" = "Data")
+grp.labels    <- c("overall" = "Overall", arm.labels)
 
 df_long <- bind_rows(
   df.rslts %>%
@@ -598,7 +887,7 @@ The random 10% audit covered `r sum(df.cons$audit10 == "yes")` RT-PAP/code pairs
 
 Across the `r sum(df.cons$consistent == "inconsistent")` inconsistent pairs, the auditors recorded `r sum(df.cons$n_incons[df.cons$consistent == "inconsistent"])` individual deviations of the code from the PAP — a mean of `r round(mean(df.cons$n_incons[df.cons$consistent == "inconsistent"]), 1)` per inconsistent pair (median `r median(df.cons$n_incons[df.cons$consistent == "inconsistent"])`, maximum `r max(df.cons$n_incons[df.cons$consistent == "inconsistent"])`). A further `r sum(df.cons$consistent == "consistent" & df.cons$n_incons > 0)` pairs contained isolated deviations the auditors judged immaterial and classified as consistent; these are excluded from the category and severity counts below.
 
-The tables below report, in turn: **(i)** the number and share of inconsistent pairs, pooled and by treatment condition; **(ii)** the breakdown of the recorded deviations by category, among the inconsistent pairs (the number of pairs affected, their share of all inconsistent pairs, and the total number of occurrences); and **(iii)** the number of deviations per inconsistent pair, by treatment condition. Where the code's sample filters or control sets departed from the PAP, the deviations more often involved stricter filters and fewer controls than specified, rather than the reverse.
+The tables below report, in turn: **(i)** the number and share of inconsistent pairs, pooled and by treatment condition; **(ii)** the breakdown of the recorded deviations by category, among the inconsistent pairs (the number of pairs affected, their share of all inconsistent pairs, and the total number of occurrences), pooled and separately by treatment condition; and **(iii)** the number of deviations per inconsistent pair, by treatment condition. Where the code's sample filters or control sets departed from the PAP, the deviations more often involved stricter filters and fewer controls than specified, rather than the reverse. The two conditions contribute different numbers of inconsistent pairs, so the per-condition counts in the second table are not directly comparable; the denominators are given in the column headers.
 
 ```{r "consistency: by group"}
 
@@ -608,8 +897,8 @@ bind_rows(
   df.cons %>% mutate(grp = as.character(group))
 ) %>%
   mutate(grp = factor(grp,
-                      levels = c("Overall", "no data", "data"),
-                      labels = c("Overall", "No data", "Data"))) %>%
+                      levels = c("Overall", "control", "data"),
+                      labels = c("Overall", unname(arm.labels)))) %>%
 
   group_by(grp) %>%
   summarise(
@@ -654,33 +943,56 @@ inc.labels <- c(
   "inc_spec"        = "Different specification"
 )
 
-n_inc <- sum(df.cons$consistent == "inconsistent")
+inc   <- df.cons %>% filter(consistent == "inconsistent")
+n_inc <- nrow(inc)
+n_ct  <- sum(inc$group == "control")
+n_dt  <- sum(inc$group == "data")
 
-df.cons %>%
-  filter(consistent == "inconsistent") %>%
-  select(starts_with("inc_")) %>%
-  pivot_longer(everything(), names_to = "type", values_to = "cnt") %>%
+inc %>%
+  select(group, starts_with("inc_")) %>%
+  pivot_longer(-group, names_to = "type", values_to = "cnt") %>%
 
   group_by(type) %>%
-  summarise(rts = sum(cnt > 0, na.rm = TRUE),
-            occ = sum(cnt,     na.rm = TRUE),
-            .groups = "drop") %>%
+  summarise(
+    all_rts = sum(cnt > 0, na.rm = TRUE),
+    all_occ = sum(cnt,     na.rm = TRUE),
+    ct_rts  = sum(cnt[group == "control"] > 0, na.rm = TRUE),
+    ct_occ  = sum(cnt[group == "control"],     na.rm = TRUE),
+    dt_rts  = sum(cnt[group == "data"] > 0,    na.rm = TRUE),
+    dt_occ  = sum(cnt[group == "data"],        na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
 
-  mutate(share = rts / n_inc,
-         type  = factor(type, levels = names(inc.labels), labels = inc.labels)) %>%
-  arrange(desc(occ)) %>%
-  select(type, rts, share, occ) %>%
+  mutate(all_share = all_rts / n_inc,
+         type      = factor(type, levels = names(inc.labels), labels = inc.labels)) %>%
+  arrange(desc(all_occ)) %>%
+  select(type, all_rts, all_share, all_occ, ct_rts, ct_occ, dt_rts, dt_occ) %>%
 
   gt(rowname_col = "type") %>%
-  cols_label(rts   = "Pairs affected",
-             share = "% of inconsistent",
-             occ   = "Total occurrences") %>%
-  fmt_number(columns = c(rts, occ), decimals = 0) %>%
-  fmt_percent(columns = share, decimals = 1) %>%
-  cols_width(stub() ~ pct(46), rts ~ pct(18),
-             share ~ pct(18), occ ~ pct(18)) %>%
+  tab_spanner(label = paste0("Overall (", n_inc, " pairs)"),
+              columns = starts_with("all_")) %>%
+  tab_spanner(label = paste0(arm.labels[["control"]], " (", n_ct, ")"),
+              columns = starts_with("ct_")) %>%
+  tab_spanner(label = paste0("Data (", n_dt, ")"),
+              columns = starts_with("dt_")) %>%
+
+  cols_label(all_rts = "Pairs", all_share = "%", all_occ = "Occ.",
+             ct_rts  = "Pairs", ct_occ    = "Occ.",
+             dt_rts  = "Pairs", dt_occ    = "Occ.") %>%
+  fmt_number(columns = c(all_rts, all_occ, ct_rts, ct_occ, dt_rts, dt_occ),
+             decimals = 0) %>%
+  fmt_percent(columns = all_share, decimals = 1) %>%
+  cols_align(align = "center",
+             columns = c(all_rts, all_share, all_occ,
+                         ct_rts, ct_occ, dt_rts, dt_occ)) %>%
   cols_align(align = "left", columns = stub()) %>%
-  gt_pct100()
+  cols_width(stub() ~ pct(30), all_share ~ pct(12),
+             c(all_rts, all_occ, ct_rts, ct_occ, dt_rts, dt_occ) ~ pct(9.6)) %>%
+  gt_pct100() %>%
+
+  tab_source_note(html(
+    "<b>Note:</b> <i>Pairs</i> counts the inconsistent RT-PAP/code pairs affected by at least one deviation of the given type; <i>Occ.</i> counts the individual occurrences, of which one pair can contribute several. <i>%</i> is the share of all inconsistent pairs affected. The number of inconsistent pairs differs between conditions, so the per-condition counts are not directly comparable; no tests are performed on this table."
+  ))
 
 clean_slate()
 
@@ -694,8 +1006,8 @@ bind_rows(
   df.cons %>% filter(consistent == "inconsistent") %>% mutate(grp = as.character(group))
 ) %>%
   mutate(grp = factor(grp,
-                      levels = c("Overall", "no data", "data"),
-                      labels = c("Overall", "No data", "Data"))) %>%
+                      levels = c("Overall", "control", "data"),
+                      labels = c("Overall", unname(arm.labels)))) %>%
 
   group_by(grp) %>%
   summarise(

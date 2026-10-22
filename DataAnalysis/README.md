@@ -1,6 +1,6 @@
 # ManyDaughters replication materials: data analysis
 
-Last updated: 27 August 2026
+Last updated: 22 October 2026
 
 ## Overview
 
@@ -88,16 +88,16 @@ The RT analysis codes and RT-PAPs are published separately, as described in PAP 
 
 ### Requirements
 
-R and Pandoc (Pandoc ships with both RStudio and Quarto). Each report installs any missing packages on first run. Developed and last verified under:
+R ≥ 4.6, Pandoc (ships with both RStudio and Quarto), and, on the first run, an internet connection. Packages are loaded through [groundhog](https://groundhogr.com/), pinned to the CRAN snapshot of **2026-09-01**, so every run resolves to the same package versions; the first run downloads that snapshot into groundhog's local library (a few minutes), and later runs load it instantly. knitr and rmarkdown are supplied by the rendering front-end and are not pinned. Last verified under:
 
 ```
-R 4.5.1 · rmarkdown 2.31 · knitr 1.51 · tidyverse 2.0.0 · dplyr 1.2.1
-here 1.0.2 · haven 2.5.5 · labelled 2.16.0 · readxl 1.4.5 · stringr 1.6.0
-gt 1.0.0 · fixest 0.14.0 · modelsummary 2.6.0
-ggplot2 4.0.2 · viridis 0.6.5 · scales 1.4.0 · patchwork 1.3.2
+R 4.6.1 · rmarkdown 2.31 · knitr 1.51 · groundhog 3.4.0
+here 1.0.2 · haven 2.5.5 · labelled 2.16.1 · readxl 1.5.0 · stringr 1.6.0
+tidyverse 2.0.0 · dplyr 1.2.1 · gt 1.3.0 · fixest 0.14.2 · modelsummary 2.6.0
+ggplot2 4.0.3 · viridis 0.6.5 · scales 1.4.0 · patchwork 1.3.2
 ```
 
-`dplyr` ≥ 1.1 is required (the `relationship =` argument to `left_join()`) and `here` ≥ 1.0 (for `here::i_am()`). The code uses no native pipes or lambda shorthand, so it is not tied to a recent R release; the package versions above are the binding constraint.
+The groundhog date determines the package versions, so the list above is what any run resolves to. If you swap groundhog out for your own library, note that `dplyr` ≥ 1.1 (the `relationship =` argument to `left_join()`) and `here` ≥ 1.0 (for `here::i_am()`) are hard requirements.
 
 ### Running it
 
@@ -109,29 +109,31 @@ Rscript run_all.R
 
 Each file can also be knitted individually in RStudio (again in order). The results are identical; the only difference is that the Knit button places the rendered report next to its source file in `code/` rather than in `out/`. All other outputs — the processed data, the figures, the payment list — end up in the right place either way, because every path inside the reports is anchored to the project root with `here::i_am()`.
 
-If you script the rendering yourself, give every call its own environment (`envir = new.env()`, as `run_all.R` does). Each report begins with `rm(list = ls())`, which would otherwise wipe the calling script's variables mid-loop.
+`run_all.R` renders each report in its own fresh R process. If you script the rendering yourself, do the same — or at least give every `rmarkdown::render()` call its own environment (`envir = new.env()`): each report begins with `rm(list = ls())`, which would otherwise wipe the calling script's variables mid-loop.
 
-The whole pipeline takes about a minute on a current laptop. Step 03 dominates because it writes the manuscript figures at 600 dpi.
+Once the package snapshot is in place, the whole pipeline takes about two minutes on a current laptop. Step 03 dominates because it writes the manuscript figures at 600 dpi.
 
 ### What gets written
 
 | Step | Writes |
 |---|---|
 | `01` | `data/proc/_env.RData` (the image 02–04 load), one `.rds` + `.csv` per frame, `data/proc/_codebook.md`, `out/01_data_processing.html` |
-| `02` | `out/02_summary_stats.html` |
-| `03` | `out/03_preregistered_analyses.html`, `out/figures/figure_{2,3,4,5}.{png,pdf}` |
+| `02` | `out/02_summary_stats.html`, `out/figures/figure_A1.{png,pdf}` |
+| `03` | `out/03_preregistered_analyses.html`, `out/figures/figure_{2,3,4}.{png,pdf}` |
 | `04` | `out/04_belief_payments.html`, `out/belief_payments.csv` |
 
-`out/figures/figure_timeline.{tex,pdf,png}` is a standalone TikZ figure, not produced by the
-pipeline; rebuild it with `pdflatex figure_timeline.tex`.
+`out/figures/figure_1.{tex,pdf,png}` — the study timeline — is a standalone TikZ figure, not
+produced by the pipeline; rebuild it with `pdflatex figure_1.tex`. The participant counts it
+shows are hard-coded in the `.tex` (see the comment at the top of that file) and match the
+counts reported in `02_summary_stats.Rmd`.
 
-Everything is deterministic: `set.seed(32844837)` fixes the figure jitter in 03 and the entire belief-payment randomization in 04, so re-running reproduces the same winners, hypotheses, price-list rows, lottery draws, and payment list.
+Everything is deterministic: `set.seed(32844837)` fixes the point offsets in 02's beliefs figure and the entire belief-payment randomization in 04, so re-running reproduces the same figures, winners, hypotheses, price-list rows, lottery draws, and payment list. No figure in 03 draws random numbers; the seed is set there so that the identifiers `gt` assigns to its tables are stable across runs.
 
 ---
 
 ## The analysis frames
 
-`01_data_processing.Rmd` reduces the inputs to seven tidy frames, each documented variable-by-variable in the generated `data/proc/_codebook.md`.
+`01_data_processing.Rmd` reduces the inputs to seven tidy frames, each documented variable-by-variable in the generated `data/proc/_codebook.md`. Every team-level frame carries `group`, the treatment condition, with the levels `control` (the teams that saw no data before writing their pre-analysis plan) and `data`; the reports and figures print these as *Control group* and *Data group*. The four hypotheses are referred to throughout as *RT Hypothesis 1* to *RT Hypothesis 4*, as in the pre-analysis plan.
 
 | Frame | Unit | Contents |
 |---|---|---|
@@ -163,13 +165,15 @@ Deviations, each documented in full where it occurs:
 
 | # | Deviation | Where |
 |---|---|---|
-| 1 | **Bootstrapped standard errors replaced by conservative ones.** The registered two-stage bootstrap (1,000 iterations, resampling 41,170 households) proved infeasible: bootstrap samples cannot simultaneously preserve the SOEP identifier structure the RT codes require and de-duplicate the with-replacement repeats, and running all RT codes across all iterations would have exceeded a year of computation. Because all teams re-analyze the same 95% sample, their $z$-values are correlated rather than independent, so the mean $z$ is treated as a single standard-normal statistic ($se = 1$). This is exact under perfect dependence and conservative otherwise. | 03, Primary 1a–d and Secondary 1a–d |
+| 1 | **Bootstrapped standard errors replaced by approximate ones.** The registered two-stage bootstrap (1,000 iterations, resampling 41,170 households) proved infeasible: bootstrap samples cannot simultaneously preserve the SOEP identifier structure the RT codes require and de-duplicate the with-replacement repeats, and running all RT codes across all iterations would have exceeded a year of computation. Because all teams re-analyze the same 95% sample, their $z$-values are correlated rather than independent, so the mean $z$ is treated as a single standard-normal statistic ($se = 1$). This is exact under perfect dependence with correctly calibrated team-level tests, and approximate otherwise. | 03, Primary 1a–d and Secondary 1a–d |
 | 2 | **Seven teams with improper estimates excluded** from all results-based analyses. | 03 preamble; 02 |
 | 3 | **Consistency recorded as one verdict per team**, not the per-hypothesis indicator of PAP §2.1. | 02 |
 | 4 | **Correlation effect size uses the inverse-Fisher form** $\tanh(\bar z \sqrt{1/(\bar n - 3)})$; the expression as printed in PAP §1.8 saturates to $\pm 1$ at these sample sizes. | 03, effect-size table |
 | 5 | **Confidence intervals on the group means** in the per-team $z$ figure; §3.1.1 registered the means without intervals. | 03, primary descriptive analyses |
 | 6 | **Two additional robustness tests of Secondary 5** (Mann–Whitney $U$; $t$-test excluding the two teams reporting over 600 hours). | 03, Secondary 5 |
 | 7 | **Outlier-excluded MDEs** reported as context; PAP §3.4 excludes robustness-test MDEs. | 03, MDE table note |
+| 8 | **A corrected low-reasonableness exclusion** reported alongside the registered rule. As registered, the $-2 \times SD$ threshold takes the SD over individual demeaned ratings but is applied to RT-level averages, which are roughly $\sqrt{10}$ less dispersed — it excludes no team. The corrected rule takes the SD over the RT-level average ratings; the outlier-excluded descriptives and the robustness versions of Primary 1a–d and Primary 2 are re-estimated under it. | 03, preamble and the affected sections; 02, exclusion counts |
+| 9 | **Secondary 7–9 repeated on the cells reaching 1,000 placebo draws.** The registered specifications are unchanged; only the sample is restricted to the (team × hypothesis) cells whose idiosyncrasy index rests on the full number of placebo subsamples the PAP specifies. Conclusions are unchanged. | 03, Secondary 7 and Secondary 8 & 9; 02, iteration counts |
 
 Two further points of interpretation, resolved in favor of the plain reading of the PAP and noted in the reports:
 
@@ -181,5 +185,6 @@ Two further points of interpretation, resolved in favor of the plain reading of 
 ## Contact
 
 Questions about the project: <info@manydaughters.com>. Questions about this code: Felix Holzmeister (<felix.holzmeister@uibk.ac.at>).
+
 
 

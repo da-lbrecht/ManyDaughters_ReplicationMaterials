@@ -2,7 +2,7 @@
 
 This repository contains the replication materials for:
 
-> Albrecht et al. (2026), “The Effect of Data Access on Pre-Analysis Plans: Evidence from a Many-Analyst Study on the Daughters Hypothesis.” Working paper.
+> Albrecht et al. (2026), “The Effect of Data Access on Pre-Analysis Plans: Evidence from a Many-Analyst Study on the Daughters Hypothesis.” Working paper; journal and DOI not yet available.
 
 This top-level README provides a brief guide to the repository. Detailed documentation—including data provenance, software requirements, and reproduction instructions—is provided in the `DataPreprocessing` and `DataAnalysis` directories.
 
